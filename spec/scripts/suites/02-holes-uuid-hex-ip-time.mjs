@@ -736,6 +736,14 @@ export function buildSuite02() {
       spec: timeStrSpec,
       input: textInput("ts=2026-11-26T14:00:00"),
       expected: noMatch(),
+    }),
+    vec({
+      id: "vec_hole_time_iso_compact_offset_021",
+      description: "time hole matches ISO 8601 timestamp with compact -0500 timezone offset",
+      tags: ["hole:time", "time:iso8601", "time:compact_offset"],
+      spec: timeStrSpec,
+      input: textInput("ts=2026-11-26T09:00:00-0500"),
+      expected: match({ ts: okStr("2026-11-26T09:00:00-0500") }),
     })
   );
 

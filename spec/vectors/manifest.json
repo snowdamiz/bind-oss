@@ -8,8 +8,8 @@
     },
     "reference_ts_ms": 1795701600000
   },
-  "total_vectors": 456,
-  "sql_supported_count": 429,
+  "total_vectors": 482,
+  "sql_supported_count": 455,
   "sql_refused_count": 27,
   "suites": [
     {
@@ -25,10 +25,10 @@
       "suite": "02-holes-uuid-hex-ip-time",
       "file": "suites/02-holes-uuid-hex-ip-time.json",
       "description": "Golden conformance vectors covering uuid, hex, ip (IPv4 and IPv6), and time (ISO 8601, Apache, syslog) hole classes including overlapping-literal boundaries.",
-      "count": 72,
-      "sql_supported_count": 72,
+      "count": 73,
+      "sql_supported_count": 73,
       "sql_refused_count": 0,
-      "sha256": "7b1cd8eec1d2964fafcaf0c36d866612b9cec169ea5d4478e83bb44b16951d88"
+      "sha256": "d5d7f8b58485be9e378fc1f81db4fd6a090baf3c769cb8dcebe7a3655a75ae26"
     },
     {
       "suite": "03-holes-quoted-json-until-rest",
@@ -43,19 +43,19 @@
       "suite": "04-transforms-core",
       "file": "suites/04-transforms-core.json",
       "description": "Golden conformance vectors covering cast, scale (IEEE-754 single-op bit patterns), unit (all time and byte units), parse_time (all 10 formats including exact decimal unix_s), lower (locale-independent UTF-8), and enum_map transforms.",
-      "count": 90,
-      "sql_supported_count": 90,
+      "count": 95,
+      "sql_supported_count": 95,
       "sql_refused_count": 0,
-      "sha256": "74a2147f9df65ced13a6324ccd67602550ae87757cdb5fcd8875febc1251d62f"
+      "sha256": "09293f7179e0b8d8402a1f0a5bb3525bca02c18a7039b1944f571cc9efbeff02"
     },
     {
       "suite": "05-transforms-privacy-and-redaction",
       "file": "suites/05-transforms-privacy-and-redaction.json",
       "description": "Golden conformance vectors covering hash, mask (token and ip_prefix), drop, known redaction tokens across all 11 hole classes and field types, neutral unknown angle-bracket strings, and explicit PII transform placement.",
-      "count": 57,
-      "sql_supported_count": 55,
+      "count": 77,
+      "sql_supported_count": 75,
       "sql_refused_count": 2,
-      "sha256": "04f1ed01f0336d83b0a4a79ce5104a288aef192c82ed35600ec6cd24469d08f8"
+      "sha256": "d337d94eed0f4fa4c78bc02930570cda6644270134692e93cb5ef557fe52d0e8"
     },
     {
       "suite": "06-matchers-object-and-args",

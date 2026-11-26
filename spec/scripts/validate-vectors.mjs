@@ -244,10 +244,13 @@ function classifyRedactionToken(str) {
   if (!m) return null;
   const [, kind, tag] = m;
   if (!KNOWN_REDACTION_KINDS.has(kind)) return null;
-  if (tag !== undefined && (HEX16_RE.test(tag) || INNER_HEX64_RE.test(tag))) {
-    return { token: str, kind, isPseudonym: true };
+  if (tag !== undefined && HEX16_RE.test(tag)) {
+    return { token: str, kind, category: "pseudonym", isPseudonym: true };
   }
-  return { token: str, kind, isPseudonym: false };
+  if (tag !== undefined && INNER_HEX64_RE.test(tag)) {
+    return { token: str, kind, category: "inner_edge", isPseudonym: false };
+  }
+  return { token: str, kind, category: "mask", isPseudonym: false };
 }
 
 function matchKnownRedactionTokenPrefix(line, pos) {
@@ -644,11 +647,12 @@ function matchTextSegments(segments, line) {
         throw new Error(`Unsupported hole class: ${cls}`);
     }
 
+    const tokenInfo = cls === "quoted" ? classifyRedactionToken(lexed.raw) : null;
     holes.set(seg.hole, {
       raw: lexed.raw,
       parsedJson: lexed.parsedJson,
       holeClass: cls,
-      tokenInfo: null,
+      tokenInfo,
     });
     pos = lexed.nextPos;
   }
@@ -765,24 +769,30 @@ function parseSyslogTime(raw, referenceTsMs) {
 }
 
 function parseUnixDecimalToMs(val, shift) {
+  if (typeof val === "number" && !Number.isFinite(val)) return null;
   const str = typeof val === "number" || typeof val === "bigint" ? String(val) : val;
   if (typeof str !== "string") return null;
-  const m = /^([+-]?)(\d+)(?:\.(\d+))?(?:[eE]([+-]?\d+))?$/.exec(str);
+  const m = /^([+-]?)(\d+)(?:\.(\d+))?(?:[eE]([+-]?)(\d+))?$/.exec(str);
   if (!m) return null;
   const sign = m[1] === "-" ? -1n : 1n;
   const intPart = m[2];
   const fracPart = m[3] ?? "";
-  const expRaw = m[4];
-  let exp = 0;
-  if (expRaw !== undefined) {
-    if (expRaw.length > 8) {
-      return expRaw.startsWith("-") ? 0 : null;
-    }
-    exp = Number(expRaw);
-    if (!Number.isSafeInteger(exp)) return null;
-  }
+  const expSignStr = m[4];
+  const expDigitsRaw = m[5];
   const digits = (intPart + fracPart).replace(/^0+/, "");
   if (digits.length === 0) return 0;
+  let exp = 0;
+  if (expDigitsRaw !== undefined) {
+    const expSign = expSignStr === "-" ? -1n : 1n;
+    const expDigits = expDigitsRaw.replace(/^0+/, "");
+    if (expDigits.length > 0) {
+      if (expDigits.length > 9) {
+        return expSign < 0n ? 0 : null;
+      }
+      exp = Number(expSign * BigInt(expDigits));
+      if (!Number.isSafeInteger(exp)) return null;
+    }
+  }
   const totalShift = exp + shift - fracPart.length;
   const intLen = digits.length + totalShift;
   if (intLen <= 0) return 0;
@@ -883,11 +893,16 @@ function evaluateField(field, extracted, context) {
   }
 
   // Pre-scrubbed redaction tokens short-circuit the transform pipeline:
-  // a pseudonym token on a string field is preserved as-is, while mask tokens
-  // and pseudonyms on non-string fields remain redacted markers.
+  // unexpected inner edge tokens always fail closed to the fixed <redacted>
+  // marker in hosted conformance (never exposing plaintext or the inner digest),
+  // final pseudonym tokens on string fields are preserved as-is, and mask
+  // tokens or pseudonyms on non-string fields remain redacted markers.
   if (extracted.tokenInfo) {
-    const { token, isPseudonym } = extracted.tokenInfo;
-    if (isPseudonym && field.type === "string") {
+    const { token, category } = extracted.tokenInfo;
+    if (category === "inner_edge") {
+      return { status: "redacted", token: "<redacted>" };
+    }
+    if (category === "pseudonym" && field.type === "string") {
       return { status: "ok", type: "string", value: token };
     }
     return { status: "redacted", token };
@@ -895,19 +910,11 @@ function evaluateField(field, extracted, context) {
 
   let cur = extracted.value;
   let curKind = extracted.kind; // "string" | "int" | "float" | "bool" | "timestamp" | "json"
+  let generatedTag = null;
 
-  // Initial coercion from hole lexeme when hole has inherent numeric/json class
-  if (extracted.holeClass === "int" && field.type !== "string" && !(field.transforms?.[0]?.op === "cast")) {
-    const parsed = parseInt64String(cur);
-    if (!parsed.ok) return { status: "parse_error", code: parsed.code };
-    cur = parsed.value;
-    curKind = "int";
-  } else if (extracted.holeClass === "float" && field.type !== "string" && !(field.transforms?.[0]?.op === "cast")) {
-    const n = Number(cur);
-    if (!Number.isFinite(n)) return { status: "parse_error", code: "float_overflow" };
-    cur = n;
-    curKind = "float";
-  } else if (extracted.holeClass === "json" && field.type === "json") {
+  // Keep numeric hole lexemes as exact strings through transforms so direct
+  // parse_time(unix_s) preserves decimal precision and hash operates on text.
+  if (extracted.holeClass === "json" && field.type === "json") {
     cur = extracted.parsedJson;
     curKind = "json";
   }
@@ -932,23 +939,36 @@ function evaluateField(field, extracted, context) {
           }
           cur = masked;
           curKind = "string";
+          generatedTag = null;
         }
         break;
       }
 
       case "hash": {
-        if (typeof cur !== "string") {
-          cur = String(cur);
-        }
-        const alreadyToken = classifyRedactionToken(cur);
-        if (alreadyToken && alreadyToken.isPseudonym) {
+        if (generatedTag !== null) {
+          cur = generatedTag;
           curKind = "string";
           break;
+        }
+        if (typeof cur !== "string") {
+          return { status: "parse_error", code: "type_mismatch" };
+        }
+        const alreadyToken = classifyRedactionToken(cur);
+        if (alreadyToken) {
+          if (alreadyToken.category === "inner_edge") {
+            return { status: "redacted", token: "<redacted>" };
+          }
+          if (alreadyToken.category === "pseudonym") {
+            generatedTag = cur;
+            curKind = "string";
+            break;
+          }
         }
         const tagKind = tr.kind ?? (field.pii && field.pii !== "none" ? field.pii : "hash");
         const tag = computeHmacTag(cur, context.hmac_keys);
         cur = `<${tagKind}:${tag}>`;
         curKind = "string";
+        generatedTag = cur;
         break;
       }
 
@@ -958,6 +978,9 @@ function evaluateField(field, extracted, context) {
         }
         cur = cur.toLowerCase();
         curKind = "string";
+        if (generatedTag !== null && cur !== generatedTag) {
+          generatedTag = null;
+        }
         break;
       }
 
@@ -966,9 +989,11 @@ function evaluateField(field, extracted, context) {
         if (Object.prototype.hasOwnProperty.call(tr.map, key)) {
           cur = tr.map[key];
           curKind = "string";
+          generatedTag = null;
         } else if (tr.default !== undefined) {
           cur = tr.default;
           curKind = "string";
+          generatedTag = null;
         } else {
           return { status: "parse_error", code: "unmapped_enum" };
         }
@@ -980,6 +1005,9 @@ function evaluateField(field, extracted, context) {
           case "string":
             cur = typeof cur === "bigint" ? cur.toString(10) : String(cur);
             curKind = "string";
+            if (generatedTag !== null && cur !== generatedTag) {
+              generatedTag = null;
+            }
             break;
           case "int": {
             if (typeof cur === "boolean") {
@@ -1075,6 +1103,9 @@ function evaluateField(field, extracted, context) {
         if (num === null) {
           return { status: "parse_error", code: "type_mismatch" };
         }
+        if (!Number.isFinite(num)) {
+          return { status: "parse_error", code: "float_overflow" };
+        }
         // Single IEEE 754 binary64 operation
         const out = tr.mul !== undefined ? num * tr.mul : num / tr.div;
         if (!Number.isFinite(out)) {
@@ -1082,6 +1113,7 @@ function evaluateField(field, extracted, context) {
         }
         cur = out;
         curKind = "float";
+        generatedTag = null;
         break;
       }
 
@@ -1089,6 +1121,9 @@ function evaluateField(field, extracted, context) {
         const num = toNumericDouble(cur);
         if (num === null) {
           return { status: "parse_error", code: "type_mismatch" };
+        }
+        if (!Number.isFinite(num)) {
+          return { status: "parse_error", code: "float_overflow" };
         }
         const table = tr.from in TIME_UNIT_NS ? TIME_UNIT_NS : BYTE_UNIT_B;
         const fromFactor = table[tr.from];
@@ -1104,6 +1139,7 @@ function evaluateField(field, extracted, context) {
         }
         cur = out;
         curKind = "float";
+        generatedTag = null;
         break;
       }
 
@@ -1114,12 +1150,23 @@ function evaluateField(field, extracted, context) {
         }
         cur = tsMs;
         curKind = "timestamp";
+        generatedTag = null;
         break;
       }
 
       default:
         throw new Error(`Unknown transform op: ${tr.op}`);
     }
+  }
+
+  // Newly generated pseudonym tags follow final token field semantics:
+  // stored as a string on string fields and emitted as redacted markers on
+  // non-string fields.
+  if (generatedTag !== null) {
+    if (field.type === "string") {
+      return { status: "ok", type: "string", value: generatedTag };
+    }
+    return { status: "redacted", token: generatedTag };
   }
 
   // Final field type conversion and canonical result encoding

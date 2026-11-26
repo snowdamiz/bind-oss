@@ -5821,6 +5821,391 @@
       }
     },
     {
+      "id": "vec_tr_parse_time_iso8601_compact_offset_022",
+      "description": "parse_time format:iso8601 adjusts compact -0500 offset to UTC epoch ms",
+      "tags": [
+        "transform:parse_time",
+        "parse_time:iso8601",
+        "type:timestamp",
+        "time:compact_offset",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_04PT0022",
+        "event": "test.transform.parse_time",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "ts="
+            },
+            {
+              "hole": "ts",
+              "class": "rest"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_04PT0022",
+            "name": "ts",
+            "from": {
+              "hole": "ts"
+            },
+            "type": "timestamp",
+            "semantic": "unknown",
+            "transforms": [
+              {
+                "op": "parse_time",
+                "format": "iso8601"
+              }
+            ]
+          }
+        ],
+        "tests": [
+          {
+            "line": "ts=2026-11-26T09:00:00-0500",
+            "expect": {
+              "ts": 1795701600000
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "ts=2026-11-26T09:00:00-0500"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "ts": {
+            "status": "ok",
+            "type": "timestamp",
+            "value": 1795701600000
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_tr_parse_time_unix_s_float_hole_exact_decimal_023",
+      "description": "float hole feeding direct parse_time(unix_s) preserves original decimal lexeme 1795701600.12399999 without binary64 rounding",
+      "tags": [
+        "hole:float",
+        "transform:parse_time",
+        "parse_time:unix_s",
+        "type:timestamp",
+        "ambiguity:unix_s_exact_decimal",
+        "ambiguity:subms_truncation",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_04PT0023",
+        "event": "test.transform.parse_time",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "ts="
+            },
+            {
+              "hole": "ts",
+              "class": "float"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_04PT0023",
+            "name": "ts",
+            "from": {
+              "hole": "ts"
+            },
+            "type": "timestamp",
+            "semantic": "unknown",
+            "transforms": [
+              {
+                "op": "parse_time",
+                "format": "unix_s"
+              }
+            ]
+          }
+        ],
+        "tests": [
+          {
+            "line": "ts=1795701600.12399999",
+            "expect": {
+              "ts": 1795701600123
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "ts=1795701600.12399999"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "ts": {
+            "status": "ok",
+            "type": "timestamp",
+            "value": 1795701600123
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_tr_parse_time_unix_s_float_hole_zero_padded_pos_exp_024",
+      "description": "float hole feeding direct parse_time(unix_s) handles bounded zero-padded positive exponent 1e+000000002",
+      "tags": [
+        "hole:float",
+        "transform:parse_time",
+        "parse_time:unix_s",
+        "type:timestamp",
+        "ambiguity:unix_s_exact_decimal",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_04PT0024",
+        "event": "test.transform.parse_time",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "ts="
+            },
+            {
+              "hole": "ts",
+              "class": "float"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_04PT0024",
+            "name": "ts",
+            "from": {
+              "hole": "ts"
+            },
+            "type": "timestamp",
+            "semantic": "unknown",
+            "transforms": [
+              {
+                "op": "parse_time",
+                "format": "unix_s"
+              }
+            ]
+          }
+        ],
+        "tests": [
+          {
+            "line": "ts=1e+000000002",
+            "expect": {
+              "ts": 100000
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "ts=1e+000000002"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "ts": {
+            "status": "ok",
+            "type": "timestamp",
+            "value": 100000
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_tr_parse_time_unix_s_float_hole_zero_padded_neg_exp_025",
+      "description": "float hole feeding direct parse_time(unix_s) handles bounded zero-padded negative exponent 1e-000000002",
+      "tags": [
+        "hole:float",
+        "transform:parse_time",
+        "parse_time:unix_s",
+        "type:timestamp",
+        "ambiguity:unix_s_exact_decimal",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_04PT0025",
+        "event": "test.transform.parse_time",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "ts="
+            },
+            {
+              "hole": "ts",
+              "class": "float"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_04PT0025",
+            "name": "ts",
+            "from": {
+              "hole": "ts"
+            },
+            "type": "timestamp",
+            "semantic": "unknown",
+            "transforms": [
+              {
+                "op": "parse_time",
+                "format": "unix_s"
+              }
+            ]
+          }
+        ],
+        "tests": [
+          {
+            "line": "ts=1e-000000002",
+            "expect": {
+              "ts": 10
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "ts=1e-000000002"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "ts": {
+            "status": "ok",
+            "type": "timestamp",
+            "value": 10
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_tr_parse_time_unix_s_float_hole_zero_padded_zero_exp_026",
+      "description": "float hole feeding direct parse_time(unix_s) handles bounded zero-padded zero exponent 1.25e000000000",
+      "tags": [
+        "hole:float",
+        "transform:parse_time",
+        "parse_time:unix_s",
+        "type:timestamp",
+        "ambiguity:unix_s_exact_decimal",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_04PT0026",
+        "event": "test.transform.parse_time",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "ts="
+            },
+            {
+              "hole": "ts",
+              "class": "float"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_04PT0026",
+            "name": "ts",
+            "from": {
+              "hole": "ts"
+            },
+            "type": "timestamp",
+            "semantic": "unknown",
+            "transforms": [
+              {
+                "op": "parse_time",
+                "format": "unix_s"
+              }
+            ]
+          }
+        ],
+        "tests": [
+          {
+            "line": "ts=1.25e000000000",
+            "expect": {
+              "ts": 1250
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "ts=1.25e000000000"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "ts": {
+            "status": "ok",
+            "type": "timestamp",
+            "value": 1250
+          }
+        }
+      }
+    },
+    {
       "id": "vec_tr_lower_ascii_mixed_001",
       "description": "lower converts ASCII uppercase letters to lowercase",
       "tags": [

@@ -9,6 +9,7 @@ import {
   noMatch,
   objectInput,
   objectSpec,
+  okInt,
   okStr,
   parseErr,
   redacted,
@@ -759,6 +760,440 @@ export function buildSuite05() {
       spec: piiNoTransformSpec,
       input: textInput("email=alice@example.com"),
       expected: match({ email: okStr("alice@example.com") }),
+    })
+  );
+
+  // ---- QUOTED CAPTURES AFTER UNESCAPING ALIGNED WITH RECOGNIZED INCOMING TOKENS ----
+  const quotedUserStrSpec = textSpec({
+    template: "tpl_05QTOK01",
+    event: "test.redaction.quoted_string",
+    segments: [{ lit: "user=" }, { hole: "u", class: "quoted" }],
+    fields: [
+      field({
+        id: "fld_05QTOK01",
+        name: "user",
+        from: { hole: "u" },
+        type: "string",
+      }),
+    ],
+    sampleLine: 'user="alice"',
+    sampleExpect: { user: "alice" },
+  });
+
+  const quotedUserIntSpec = textSpec({
+    template: "tpl_05QTOK02",
+    event: "test.redaction.quoted_int",
+    segments: [{ lit: "user=" }, { hole: "u", class: "quoted" }],
+    fields: [
+      field({
+        id: "fld_05QTOK02",
+        name: "user",
+        from: { hole: "u" },
+        type: "int",
+      }),
+    ],
+    sampleLine: 'user="<card>"',
+    sampleExpect: { user: null },
+  });
+
+  const quotedUserDropSpec = textSpec({
+    template: "tpl_05QTOK03",
+    event: "test.redaction.quoted_drop",
+    segments: [{ lit: "user=" }, { hole: "u", class: "quoted" }],
+    fields: [
+      field({
+        id: "fld_05QTOK03",
+        name: "user",
+        from: { hole: "u" },
+        type: "string",
+        pii: "secret",
+        transforms: [{ op: "drop" }],
+      }),
+    ],
+    sampleLine: 'user="alice"',
+    sampleExpect: { user: null },
+  });
+
+  const quotedUserMaskSpec = textSpec({
+    template: "tpl_05QTOK04",
+    event: "test.redaction.quoted_mask",
+    segments: [{ lit: "user=" }, { hole: "u", class: "quoted" }],
+    fields: [
+      field({
+        id: "fld_05QTOK04",
+        name: "user",
+        from: { hole: "u" },
+        type: "string",
+        pii: "email",
+        transforms: [{ op: "mask", mode: "token", kind: "email" }],
+      }),
+    ],
+    sampleLine: 'user="alice@example.com"',
+    sampleExpect: { user: null },
+  });
+
+  vectors.push(
+    vec({
+      id: "vec_redact_quoted_mask_string_001",
+      description: "quoted capture user=\"<card>\" on string field is recognized after unquoting and redacted as <card>",
+      tags: ["hole:quoted", "type:string", "redaction:mask", "redacted", "ambiguity:quoted_token_classification"],
+      spec: quotedUserStrSpec,
+      input: textInput('user="<card>"'),
+      expected: match({ user: redacted("<card>") }),
+    }),
+    vec({
+      id: "vec_redact_quoted_mask_int_002",
+      description: "quoted capture user=\"<card>\" on int field is recognized after unquoting and redacted as <card>",
+      tags: ["hole:quoted", "type:int", "redaction:mask", "redacted", "ambiguity:quoted_token_classification"],
+      spec: quotedUserIntSpec,
+      input: textInput('user="<card>"'),
+      expected: match({ user: redacted("<card>") }),
+    }),
+    vec({
+      id: "vec_redact_quoted_pseudonym_short_circuits_drop_003",
+      description: "quoted final pseudonym user=\"<email:9f2c41d07a3b55e1>\" on string field short-circuits drop transform",
+      tags: [
+        "hole:quoted",
+        "type:string",
+        "transform:drop",
+        "redaction:pseudonym",
+        "ambiguity:prescrubbed_token_transforms",
+        "ambiguity:quoted_token_classification",
+      ],
+      spec: quotedUserDropSpec,
+      input: textInput(`user="${PSEUDO}"`),
+      expected: match({ user: okStr(PSEUDO) }),
+    }),
+    vec({
+      id: "vec_redact_quoted_pseudonym_short_circuits_mask_004",
+      description: "quoted final pseudonym user=\"<email:9f2c41d07a3b55e1>\" on string field short-circuits mask transform",
+      tags: [
+        "hole:quoted",
+        "type:string",
+        "transform:mask",
+        "redaction:pseudonym",
+        "ambiguity:prescrubbed_token_transforms",
+        "ambiguity:quoted_token_classification",
+      ],
+      spec: quotedUserMaskSpec,
+      input: textInput(`user="${PSEUDO}"`),
+      expected: match({ user: okStr(PSEUDO) }),
+    }),
+    vec({
+      id: "vec_redact_quoted_pseudonym_nonstring_int_005",
+      description: "quoted final pseudonym user=\"<email:9f2c41d07a3b55e1>\" on int field is redacted as <email:9f2c41d07a3b55e1>",
+      tags: ["hole:quoted", "type:int", "redaction:pseudonym_as_mask", "redacted", "ambiguity:quoted_token_classification"],
+      spec: quotedUserIntSpec,
+      input: textInput(`user="${PSEUDO}"`),
+      expected: match({ user: redacted(PSEUDO) }),
+    }),
+    vec({
+      id: "vec_redact_quoted_escaped_token_unescaped_006",
+      description: "quoted capture unescaping to recognized mask token <secret:a\"b> is classified after unescaping",
+      tags: ["hole:quoted", "type:string", "redaction:mask", "redacted", "ambiguity:quoted_token_classification"],
+      spec: quotedUserStrSpec,
+      input: textInput('user="<secret:a\\"b>"'),
+      expected: match({ user: redacted('<secret:a"b>') }),
+    }),
+    vec({
+      id: "vec_redact_quoted_neutral_unknown_nil_007",
+      description: "quoted capture user=\"<nil>\" with unknown angle-bracket name stays an ordinary string after unescaping",
+      tags: ["hole:quoted", "type:string", "redaction:neutral", "ambiguity:quoted_token_classification"],
+      spec: quotedUserStrSpec,
+      input: textInput('user="<nil>"'),
+      expected: match({ user: okStr("<nil>") }),
+    })
+  );
+
+  // ---- HOSTED UNEXPECTED INNER EDGE TOKENS (<kind:~64hex> -> fixed <redacted>) ----
+  const INNER_EDGE =
+    "<email:~0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef>";
+
+  const innerEdgeObjSpec = objectSpec({
+    template: "tpl_05INED01",
+    event: "test.redaction.inner_edge_obj",
+    shape: ["email"],
+    fields: [
+      field({
+        id: "fld_05INED01",
+        name: "email",
+        from: { path: "email" },
+        type: "string",
+        semantic: "email",
+        pii: "email",
+        transforms: [{ op: "hash", kind: "email" }],
+      }),
+    ],
+    sampleObject: { email: "alice@example.com" },
+    sampleExpect: { email: `<email:${hmacTag("alice@example.com")}>` },
+  });
+
+  vectors.push(
+    vec({
+      id: "vec_redact_inner_edge_string_raw_001",
+      description: "hosted conformance fails closed on unexpected inner edge token in string field using fixed <redacted> marker without exposing inner digest",
+      tags: ["hole:word", "type:string", "redaction:inner_edge", "redacted", "ambiguity:hosted_inner_edge_token"],
+      spec: piiNoTransformSpec,
+      input: textInput(`email=${INNER_EDGE}`),
+      expected: match({ email: redacted("<redacted>") }),
+    }),
+    vec({
+      id: "vec_redact_inner_edge_string_with_hash_002",
+      description: "hosted conformance fails closed on unexpected inner edge token even when hash transform is declared",
+      tags: ["hole:word", "type:string", "transform:hash", "redaction:inner_edge", "redacted", "ambiguity:hosted_inner_edge_token"],
+      spec: emailHashSpec,
+      input: textInput(`email=${INNER_EDGE}`),
+      expected: match({ email: redacted("<redacted>") }),
+    }),
+    vec({
+      id: "vec_redact_inner_edge_nonstring_int_003",
+      description: "hosted conformance redacts unexpected inner edge token on non-string field with fixed <redacted> marker without exposing inner digest",
+      tags: ["hole:int", "type:float", "transform:scale", "redaction:inner_edge", "redacted", "ambiguity:hosted_inner_edge_token"],
+      spec: intScaleSpec,
+      input: textInput(`amt=${INNER_EDGE}`),
+      expected: match({ usd: redacted("<redacted>") }),
+    }),
+    vec({
+      id: "vec_redact_inner_edge_quoted_004",
+      description: "quoted capture containing unexpected inner edge token fails closed as fixed <redacted> marker",
+      tags: [
+        "hole:quoted",
+        "type:string",
+        "redaction:inner_edge",
+        "redacted",
+        "ambiguity:hosted_inner_edge_token",
+        "ambiguity:quoted_token_classification",
+      ],
+      spec: quotedUserStrSpec,
+      input: textInput(`user="${INNER_EDGE}"`),
+      expected: match({ user: redacted("<redacted>") }),
+    }),
+    vec({
+      id: "vec_redact_inner_edge_object_path_005",
+      description: "object path containing unexpected inner edge token fails closed as fixed <redacted> marker in hosted conformance",
+      tags: ["type:string", "transform:hash", "redaction:inner_edge", "redacted", "ambiguity:hosted_inner_edge_token"],
+      spec: innerEdgeObjSpec,
+      input: objectInput({ email: INNER_EDGE }),
+      expected: match({ email: redacted("<redacted>") }),
+    })
+  );
+
+  // ---- NEWLY GENERATED TAG IDENTITY THROUGH TRANSFORMS ----
+  const customRepeatedHashSpec = textSpec({
+    template: "tpl_05HASH009",
+    event: "test.transform.hash_custom_repeat",
+    segments: [{ lit: "email=" }, { hole: "e", class: "word" }],
+    fields: [
+      field({
+        id: "fld_05HASH0009",
+        name: "email",
+        from: { hole: "e" },
+        type: "string",
+        pii: "email",
+        transforms: [
+          { op: "hash", kind: "customer_email" },
+          { op: "hash", kind: "email" },
+        ],
+      }),
+    ],
+    sampleLine: "email=alice@example.com",
+    sampleExpect: { email: `<customer_email:${hmacTag("alice@example.com")}>` },
+  });
+
+  const customHashThroughCastLowerRepeatSpec = textSpec({
+    template: "tpl_05HASH010",
+    event: "test.transform.hash_custom_chain",
+    segments: [{ lit: "email=" }, { hole: "e", class: "word" }],
+    fields: [
+      field({
+        id: "fld_05HASH0010",
+        name: "email",
+        from: { hole: "e" },
+        type: "string",
+        pii: "email",
+        transforms: [
+          { op: "hash", kind: "customer_email" },
+          { op: "cast", to: "string" },
+          { op: "lower" },
+          { op: "hash", kind: "email" },
+        ],
+      }),
+    ],
+    sampleLine: "email=alice@example.com",
+    sampleExpect: { email: `<customer_email:${hmacTag("alice@example.com")}>` },
+  });
+
+  const customHashNonStringIntSpec = textSpec({
+    template: "tpl_05HASH011",
+    event: "test.transform.hash_nonstring_int",
+    segments: [{ lit: "uid=" }, { hole: "u", class: "int" }],
+    fields: [
+      field({
+        id: "fld_05HASH0011",
+        name: "uid",
+        from: { hole: "u" },
+        type: "int",
+        transforms: [{ op: "hash", kind: "customer_id" }],
+      }),
+    ],
+    sampleLine: "uid=42",
+    sampleExpect: { uid: null },
+  });
+
+  const customHashNonStringEnumLowerSpec = textSpec({
+    template: "tpl_05HASH012",
+    event: "test.transform.hash_nonstring_enum",
+    segments: [{ lit: "role=" }, { hole: "r", class: "word" }],
+    fields: [
+      field({
+        id: "fld_05HASH0012",
+        name: "role",
+        from: { hole: "r" },
+        type: "enum",
+        transforms: [{ op: "hash", kind: "customer_role" }, { op: "lower" }],
+      }),
+    ],
+    sampleLine: "role=admin",
+    sampleExpect: { role: null },
+  });
+
+  const customHashThenDropSpec = textSpec({
+    template: "tpl_05HASH013",
+    event: "test.transform.hash_then_drop",
+    segments: [{ lit: "email=" }, { hole: "e", class: "word" }],
+    fields: [
+      field({
+        id: "fld_05HASH0013",
+        name: "email",
+        from: { hole: "e" },
+        type: "string",
+        pii: "email",
+        transforms: [{ op: "hash", kind: "customer_email" }, { op: "drop" }],
+      }),
+    ],
+    sampleLine: "email=alice@example.com",
+    sampleExpect: { email: null },
+  });
+
+  const customHashThenMaskSpec = textSpec({
+    template: "tpl_05HASH014",
+    event: "test.transform.hash_then_mask",
+    segments: [{ lit: "email=" }, { hole: "e", class: "word" }],
+    fields: [
+      field({
+        id: "fld_05HASH0014",
+        name: "email",
+        from: { hole: "e" },
+        type: "string",
+        pii: "email",
+        transforms: [
+          { op: "hash", kind: "customer_email" },
+          { op: "mask", mode: "token", kind: "secret" },
+        ],
+      }),
+    ],
+    sampleLine: "email=alice@example.com",
+    sampleExpect: { email: null },
+  });
+
+  vectors.push(
+    vec({
+      id: "vec_tr_hash_custom_label_repeated_hash_009",
+      description: "repeated hash preserves newly generated tag with custom label without double hashing",
+      tags: ["transform:hash", "transform:chain", "ambiguity:generated_tag_identity"],
+      spec: customRepeatedHashSpec,
+      input: textInput("email=alice@example.com"),
+      expected: match({ email: okStr(`<customer_email:${hmacTag("alice@example.com")}>`) }),
+    }),
+    vec({
+      id: "vec_tr_hash_custom_label_cast_lower_repeated_hash_010",
+      description: "newly generated tag identity carries through cast(string) and lower into a later repeated hash",
+      tags: ["transform:hash", "transform:cast", "transform:lower", "transform:chain", "ambiguity:generated_tag_identity"],
+      spec: customHashThroughCastLowerRepeatSpec,
+      input: textInput("email=alice@example.com"),
+      expected: match({ email: okStr(`<customer_email:${hmacTag("alice@example.com")}>`) }),
+    }),
+    vec({
+      id: "vec_tr_hash_custom_label_nonstring_int_redacted_011",
+      description: "newly generated tag with custom label on non-string int field finalizes as redacted marker",
+      tags: ["hole:int", "type:int", "transform:hash", "redacted", "ambiguity:generated_tag_identity"],
+      spec: customHashNonStringIntSpec,
+      input: textInput("uid=42"),
+      expected: match({ uid: redacted(`<customer_id:${hmacTag("42")}>`) }),
+    }),
+    vec({
+      id: "vec_tr_hash_custom_label_nonstring_enum_after_lower_redacted_012",
+      description: "newly generated tag identity carried through lower on non-string enum field finalizes as redacted marker",
+      tags: ["hole:word", "type:enum", "transform:hash", "transform:lower", "transform:chain", "redacted", "ambiguity:generated_tag_identity"],
+      spec: customHashNonStringEnumLowerSpec,
+      input: textInput("role=admin"),
+      expected: match({ role: redacted(`<customer_role:${hmacTag("admin")}>`) }),
+    }),
+    vec({
+      id: "vec_tr_hash_followed_by_explicit_drop_013",
+      description: "explicit drop after hash still drops the newly generated tag",
+      tags: ["transform:hash", "transform:drop", "transform:chain", "dropped", "ambiguity:generated_tag_identity"],
+      spec: customHashThenDropSpec,
+      input: textInput("email=alice@example.com"),
+      expected: match({ email: dropped() }),
+    }),
+    vec({
+      id: "vec_tr_hash_followed_by_explicit_mask_014",
+      description: "explicit mask after hash still replaces the newly generated tag with the requested mask marker",
+      tags: ["transform:hash", "transform:mask", "transform:chain", "redacted", "ambiguity:generated_tag_identity"],
+      spec: customHashThenMaskSpec,
+      input: textInput("email=alice@example.com"),
+      expected: match({ email: redacted("<secret>") }),
+    })
+  );
+
+  // ---- KNOWN REDACTION TOKEN BEFORE OVERLAPPING ':' LITERAL ----
+  const tokenBeforeColonSpec = textSpec({
+    template: "tpl_05COL001",
+    event: "test.redaction.token_before_colon",
+    segments: [
+      { lit: "v=" },
+      { hole: "v", class: "word" },
+      { lit: ":" },
+      { hole: "code", class: "int" },
+    ],
+    fields: [
+      field({ id: "fld_05COL001", name: "v", from: { hole: "v" }, type: "string" }),
+      field({ id: "fld_05COL002", name: "code", from: { hole: "code" }, type: "int" }),
+    ],
+    sampleLine: "v=alice:200",
+    sampleExpect: { v: "alice", code: 200 },
+  });
+
+  vectors.push(
+    vec({
+      id: "vec_redact_token_before_colon_literal_pseudonym_001",
+      description: "known pseudonym token containing ':' matches intact before following ':' literal",
+      tags: [
+        "hole:word",
+        "hole:int",
+        "redaction:pseudonym",
+        "boundary:following_literal",
+        "ambiguity:scanner_hole_boundary",
+      ],
+      spec: tokenBeforeColonSpec,
+      input: textInput(`v=${PSEUDO}:200`),
+      expected: match({ v: okStr(PSEUDO), code: okInt("200") }),
+    }),
+    vec({
+      id: "vec_redact_token_before_colon_literal_mask_002",
+      description: "known mask token <secret:jwt> containing ':' matches intact before following ':' literal",
+      tags: [
+        "hole:word",
+        "hole:int",
+        "redaction:mask",
+        "redacted",
+        "boundary:following_literal",
+        "ambiguity:scanner_hole_boundary",
+      ],
+      spec: tokenBeforeColonSpec,
+      input: textInput("v=<secret:jwt>:200"),
+      expected: match({ v: redacted("<secret:jwt>"), code: okInt("200") }),
     })
   );
 
