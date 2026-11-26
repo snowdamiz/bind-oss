@@ -1397,6 +1397,89 @@ export function buildSuite05() {
     })
   );
 
+  // ---- CUSTOM SCHEMA-VALID hash.kind INNER EDGE TOKENS (e.g. kind: "user") ----
+  const CUSTOM_USER_INNER_EDGE =
+    "<user:~0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef>";
+  const CUSTOM_USER_INNER_EDGE_DECODED_ESC =
+    "\\u003cuser:\\u007e0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\\u003e";
+
+  const customUserHashSpec = textSpec({
+    template: "tpl_05INED15",
+    event: "test.redaction.inner_edge_custom_user",
+    segments: [{ lit: "user=" }, { hole: "u", class: "word" }],
+    fields: [
+      field({
+        id: "fld_05INED15",
+        name: "user",
+        from: { hole: "u" },
+        type: "string",
+        transforms: [{ op: "hash", kind: "user" }],
+      }),
+    ],
+    sampleLine: "user=alice",
+    sampleExpect: { user: `<user:${hmacTag("alice")}>` },
+  });
+
+  const customUserDropSpec = textSpec({
+    template: "tpl_05INED19",
+    event: "test.redaction.custom_user_non_inner_drop",
+    segments: [{ lit: "user=" }, { hole: "u", class: "word" }],
+    fields: [
+      field({
+        id: "fld_05INED19",
+        name: "user",
+        from: { hole: "u" },
+        type: "string",
+        transforms: [{ op: "drop" }],
+      }),
+    ],
+    sampleLine: "user=alice",
+    sampleExpect: { user: null },
+  });
+
+  vectors.push(
+    vec({
+      id: "vec_redact_inner_edge_custom_kind_user_single_string_015",
+      description: "hosted conformance fails closed to <redacted> on custom schema-valid hash.kind 'user' inner edge token in string field",
+      tags: ["hole:word", "type:string", "transform:hash", "redaction:inner_edge", "redacted", "ambiguity:hosted_inner_edge_token"],
+      spec: customUserHashSpec,
+      input: textInput(`user=${CUSTOM_USER_INNER_EDGE}`),
+      expected: match({ user: redacted("<redacted>") }),
+    }),
+    vec({
+      id: "vec_redact_inner_edge_custom_kind_user_single_int_016",
+      description: "hosted conformance matches and fails closed to <redacted> on custom schema-valid hash.kind 'user' inner edge token in int hole",
+      tags: ["hole:int", "type:float", "transform:scale", "redaction:inner_edge", "redacted", "ambiguity:hosted_inner_edge_token"],
+      spec: intScaleSpec,
+      input: textInput(`amt=${CUSTOM_USER_INNER_EDGE}`),
+      expected: match({ usd: redacted("<redacted>") }),
+    }),
+    vec({
+      id: "vec_redact_inner_edge_custom_kind_user_until_gt_overlap_017",
+      description: "custom schema-valid hash.kind 'user' inner edge token straddling until '>' fails closed as <redacted> without spilling digest",
+      tags: ["hole:until", "type:string", "redaction:inner_edge", "redacted", "ambiguity:hosted_inner_edge_token"],
+      spec: untilGtSpec,
+      input: textInput(`user=${CUSTOM_USER_INNER_EDGE}`),
+      expected: match({ u: redacted("<redacted>") }),
+    }),
+    vec({
+      id: "vec_redact_inner_edge_custom_kind_user_quoted_decoded_018",
+      description: "quoted capture decoding \\u003c/\\u007e/\\u003e into custom inner edge token <user:~64hex> fails closed as <redacted>",
+      tags: ["hole:quoted", "type:string", "redaction:inner_edge", "redacted", "ambiguity:hosted_inner_edge_token", "ambiguity:quoted_token_classification"],
+      spec: quotedUserStrSpec,
+      input: textInput(`user="${CUSTOM_USER_INNER_EDGE_DECODED_ESC}"`),
+      expected: match({ user: redacted("<redacted>") }),
+    }),
+    vec({
+      id: "vec_redact_custom_kind_user_non_inner_stays_ordinary_019",
+      description: "non-inner custom angle form <user:9f2c41d07a3b55e1> stays ordinary text under closed-catalog final/mask rules and is still dropped",
+      tags: ["hole:word", "type:string", "transform:drop", "redaction:neutral", "dropped", "ambiguity:hosted_inner_edge_token"],
+      spec: customUserDropSpec,
+      input: textInput("user=<user:9f2c41d07a3b55e1>"),
+      expected: match({ user: dropped() }),
+    })
+  );
+
   return {
     suite: "05-transforms-privacy-and-redaction",
     description: "Golden conformance vectors covering hash, mask (token and ip_prefix), drop, known redaction tokens across all 11 hole classes and field types, neutral unknown angle-bracket strings, and explicit PII transform placement.",

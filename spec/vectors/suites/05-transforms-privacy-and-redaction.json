@@ -6544,6 +6544,379 @@
           }
         }
       }
+    },
+    {
+      "id": "vec_redact_inner_edge_custom_kind_user_single_string_015",
+      "description": "hosted conformance fails closed to <redacted> on custom schema-valid hash.kind 'user' inner edge token in string field",
+      "tags": [
+        "hole:word",
+        "type:string",
+        "transform:hash",
+        "redaction:inner_edge",
+        "redacted",
+        "ambiguity:hosted_inner_edge_token",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_05INED15",
+        "event": "test.redaction.inner_edge_custom_user",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "user="
+            },
+            {
+              "hole": "u",
+              "class": "word"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_05INED15",
+            "name": "user",
+            "from": {
+              "hole": "u"
+            },
+            "type": "string",
+            "semantic": "unknown",
+            "transforms": [
+              {
+                "op": "hash",
+                "kind": "user"
+              }
+            ]
+          }
+        ],
+        "tests": [
+          {
+            "line": "user=alice",
+            "expect": {
+              "user": "<user:d46dbe4c5987c848>"
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "user=<user:~0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef>"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "user": {
+            "status": "redacted",
+            "token": "<redacted>"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_redact_inner_edge_custom_kind_user_single_int_016",
+      "description": "hosted conformance matches and fails closed to <redacted> on custom schema-valid hash.kind 'user' inner edge token in int hole",
+      "tags": [
+        "hole:int",
+        "type:float",
+        "transform:scale",
+        "redaction:inner_edge",
+        "redacted",
+        "ambiguity:hosted_inner_edge_token",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_05REDSC1",
+        "event": "test.redaction.scale",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "amt="
+            },
+            {
+              "hole": "a",
+              "class": "int"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_05REDSC1",
+            "name": "usd",
+            "from": {
+              "hole": "a"
+            },
+            "type": "float",
+            "semantic": "unknown",
+            "transforms": [
+              {
+                "op": "scale",
+                "div": 100
+              }
+            ]
+          }
+        ],
+        "tests": [
+          {
+            "line": "amt=1999",
+            "expect": {
+              "usd": 19.99
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "amt=<user:~0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef>"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "usd": {
+            "status": "redacted",
+            "token": "<redacted>"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_redact_inner_edge_custom_kind_user_until_gt_overlap_017",
+      "description": "custom schema-valid hash.kind 'user' inner edge token straddling until '>' fails closed as <redacted> without spilling digest",
+      "tags": [
+        "hole:until",
+        "type:string",
+        "redaction:inner_edge",
+        "redacted",
+        "ambiguity:hosted_inner_edge_token",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_05INED06",
+        "event": "test.redaction.inner_edge_until_gt",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "user="
+            },
+            {
+              "hole": "u",
+              "class": "until"
+            },
+            {
+              "lit": ">"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_05INED06",
+            "name": "u",
+            "from": {
+              "hole": "u"
+            },
+            "type": "string",
+            "semantic": "unknown"
+          }
+        ],
+        "tests": [
+          {
+            "line": "user=alice>",
+            "expect": {
+              "u": "alice"
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "user=<user:~0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef>"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "u": {
+            "status": "redacted",
+            "token": "<redacted>"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_redact_inner_edge_custom_kind_user_quoted_decoded_018",
+      "description": "quoted capture decoding \\u003c/\\u007e/\\u003e into custom inner edge token <user:~64hex> fails closed as <redacted>",
+      "tags": [
+        "hole:quoted",
+        "type:string",
+        "redaction:inner_edge",
+        "redacted",
+        "ambiguity:hosted_inner_edge_token",
+        "ambiguity:quoted_token_classification",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_05QTOK01",
+        "event": "test.redaction.quoted_string",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "user="
+            },
+            {
+              "hole": "u",
+              "class": "quoted"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_05QTOK01",
+            "name": "user",
+            "from": {
+              "hole": "u"
+            },
+            "type": "string",
+            "semantic": "unknown"
+          }
+        ],
+        "tests": [
+          {
+            "line": "user=\"alice\"",
+            "expect": {
+              "user": "alice"
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "user=\"\\u003cuser:\\u007e0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\\u003e\""
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "user": {
+            "status": "redacted",
+            "token": "<redacted>"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_redact_custom_kind_user_non_inner_stays_ordinary_019",
+      "description": "non-inner custom angle form <user:9f2c41d07a3b55e1> stays ordinary text under closed-catalog final/mask rules and is still dropped",
+      "tags": [
+        "hole:word",
+        "type:string",
+        "transform:drop",
+        "redaction:neutral",
+        "dropped",
+        "ambiguity:hosted_inner_edge_token",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_05INED19",
+        "event": "test.redaction.custom_user_non_inner_drop",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "user="
+            },
+            {
+              "hole": "u",
+              "class": "word"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_05INED19",
+            "name": "user",
+            "from": {
+              "hole": "u"
+            },
+            "type": "string",
+            "semantic": "unknown",
+            "transforms": [
+              {
+                "op": "drop"
+              }
+            ]
+          }
+        ],
+        "tests": [
+          {
+            "line": "user=alice",
+            "expect": {
+              "user": null
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "user=<user:9f2c41d07a3b55e1>"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "user": {
+            "status": "dropped"
+          }
+        }
+      }
     }
   ]
 }

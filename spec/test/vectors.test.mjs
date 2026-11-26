@@ -735,6 +735,84 @@ describe("Negative validation checks: malformed vectors and semantic regressions
       )
     );
   });
+  it("redacts custom schema-valid hash.kind inner edge tokens (single, overlap, and decoded escapes) while keeping closed-catalog final/mask rules", () => {
+    const customSingleStr = suite05.vectors.find(
+      (v) => v.id === "vec_redact_inner_edge_custom_kind_user_single_string_015"
+    );
+    const customSingleInt = suite05.vectors.find(
+      (v) => v.id === "vec_redact_inner_edge_custom_kind_user_single_int_016"
+    );
+    const customOverlap = suite05.vectors.find(
+      (v) => v.id === "vec_redact_inner_edge_custom_kind_user_until_gt_overlap_017"
+    );
+    const customDecoded = suite05.vectors.find(
+      (v) => v.id === "vec_redact_inner_edge_custom_kind_user_quoted_decoded_018"
+    );
+    const customOrdinary = suite05.vectors.find(
+      (v) => v.id === "vec_redact_custom_kind_user_non_inner_stays_ordinary_019"
+    );
+    assert.ok(customSingleStr && customSingleInt && customOverlap && customDecoded && customOrdinary);
+
+    // Reject exposing custom inner digest on single capture
+    const badSingle = singleVectorSuite(suite05, customSingleStr);
+    badSingle.vectors[0].expected.fields.user = {
+      status: "ok",
+      type: "string",
+      value: "<user:~0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef>",
+    };
+    assert.ok(
+      validateVectorSuiteDocument(badSingle, validator).some((e) =>
+        e.includes("reference evaluator mismatch")
+      )
+    );
+
+    // Reject spilling custom inner digest when until stops at '>'
+    const badOverlap = singleVectorSuite(suite05, customOverlap);
+    badOverlap.vectors[0].expected.fields.u = {
+      status: "ok",
+      type: "string",
+      value: "<user:~0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+    };
+    assert.ok(
+      validateVectorSuiteDocument(badOverlap, validator).some((e) =>
+        e.includes("reference evaluator mismatch")
+      )
+    );
+
+    // Targeted decoder check: \u003c / \u007e / \u003e must decode and redact, while non-inner
+    // custom <user:9f2c41d07a3b55e1> and <nil> stay ordinary text under closed-catalog rules.
+    const badDecoded = singleVectorSuite(suite05, customDecoded);
+    badDecoded.vectors[0].expected.fields.user = {
+      status: "ok",
+      type: "string",
+      value: "<user:~0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef>",
+    };
+    assert.ok(
+      validateVectorSuiteDocument(badDecoded, validator).some((e) =>
+        e.includes("reference evaluator mismatch")
+      )
+    );
+
+    const decodedOrdinarySuite = singleVectorSuite(suite05, customDecoded);
+    decodedOrdinarySuite.vectors[0].input = { kind: "text", line: 'user="\\u003cnil\\u003e"' };
+    decodedOrdinarySuite.vectors[0].expected = {
+      matched: true,
+      fields: { user: { status: "ok", type: "string", value: "<nil>" } },
+    };
+    assert.deepEqual(validateVectorSuiteDocument(decodedOrdinarySuite, validator), []);
+
+    const badOrdinaryCustom = singleVectorSuite(suite05, customOrdinary);
+    badOrdinaryCustom.vectors[0].expected.fields.user = {
+      status: "ok",
+      type: "string",
+      value: "<user:9f2c41d07a3b55e1>",
+    };
+    assert.ok(
+      validateVectorSuiteDocument(badOrdinaryCustom, validator).some((e) =>
+        e.includes("reference evaluator mismatch")
+      )
+    );
+  });
 });
 
 describe("Manifest integrity checks: per-suite SQL counts, default_context, and extra suite files", () => {

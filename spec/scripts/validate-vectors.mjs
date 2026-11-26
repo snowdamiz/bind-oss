@@ -243,12 +243,16 @@ function classifyRedactionToken(str) {
   const m = REDACTION_TOKEN_RE.exec(str);
   if (!m) return null;
   const [, kind, tag] = m;
+  // Unexpected inner edge tokens cover every schema-valid hash.kind label
+  // (^[a-z][a-z0-9_]*$), including custom labels such as "user".
+  if (tag !== undefined && INNER_HEX64_RE.test(tag)) {
+    return { token: str, kind, category: "inner_edge", isPseudonym: false };
+  }
+  // Incoming final pseudonyms and normal mask markers remain restricted to the
+  // closed redaction kind catalog so unknown angle forms such as <nil> stay ordinary text.
   if (!KNOWN_REDACTION_KINDS.has(kind)) return null;
   if (tag !== undefined && HEX16_RE.test(tag)) {
     return { token: str, kind, category: "pseudonym", isPseudonym: true };
-  }
-  if (tag !== undefined && INNER_HEX64_RE.test(tag)) {
-    return { token: str, kind, category: "inner_edge", isPseudonym: false };
   }
   return { token: str, kind, category: "mask", isPseudonym: false };
 }
@@ -262,45 +266,42 @@ function matchKnownRedactionTokenPrefix(line, pos) {
   return { raw: m[0], tokenInfo, nextPos: pos + m[0].length };
 }
 
-const KNOWN_INNER_EDGE_TOKEN_RE = new RegExp(
-  `<(?:${[...KNOWN_REDACTION_KINDS].sort().join("|")}):~[0-9a-f]{64}>`,
-  "g"
-);
+const INNER_EDGE_TOKEN_RE = /<[a-z][a-z0-9_]*:~[0-9a-f]{64}>/g;
 
-function findKnownInnerEdgeTokenSpans(text) {
+function findInnerEdgeTokenSpans(text) {
   if (typeof text !== "string" || !text.includes(":~")) {
     return [];
   }
   const spans = [];
-  KNOWN_INNER_EDGE_TOKEN_RE.lastIndex = 0;
+  INNER_EDGE_TOKEN_RE.lastIndex = 0;
   let m;
-  while ((m = KNOWN_INNER_EDGE_TOKEN_RE.exec(text)) !== null) {
+  while ((m = INNER_EDGE_TOKEN_RE.exec(text)) !== null) {
     spans.push([m.index, m.index + m[0].length]);
   }
   return spans;
 }
 
-function containsKnownInnerEdgeToken(text) {
+function containsInnerEdgeToken(text) {
   if (typeof text !== "string" || !text.includes(":~")) {
     return false;
   }
-  KNOWN_INNER_EDGE_TOKEN_RE.lastIndex = 0;
-  return KNOWN_INNER_EDGE_TOKEN_RE.test(text);
+  INNER_EDGE_TOKEN_RE.lastIndex = 0;
+  return INNER_EDGE_TOKEN_RE.test(text);
 }
 
-function jsonContainsKnownInnerEdgeToken(val) {
+function jsonContainsInnerEdgeToken(val) {
   if (typeof val === "string") {
-    return containsKnownInnerEdgeToken(val);
+    return containsInnerEdgeToken(val);
   }
   if (Array.isArray(val)) {
     for (const item of val) {
-      if (jsonContainsKnownInnerEdgeToken(item)) return true;
+      if (jsonContainsInnerEdgeToken(item)) return true;
     }
     return false;
   }
   if (val !== null && typeof val === "object") {
     for (const k of Object.keys(val)) {
-      if (containsKnownInnerEdgeToken(k) || jsonContainsKnownInnerEdgeToken(val[k])) {
+      if (containsInnerEdgeToken(k) || jsonContainsInnerEdgeToken(val[k])) {
         return true;
       }
     }
@@ -578,16 +579,16 @@ function lexJsonAt(line, pos) {
 function matchTextSegments(segments, line) {
   let pos = 0;
   const holes = new Map();
-  const innerEdgeSpans = findKnownInnerEdgeTokenSpans(line);
+  const innerEdgeSpans = findInnerEdgeTokenSpans(line);
 
   const classifyHoleToken = (raw, capStart, capEnd, cls, baseTokenInfo, parsedJson) => {
     if (spanOverlapsAny(capStart, capEnd, innerEdgeSpans)) {
       return { token: "<redacted>", category: "inner_edge", isPseudonym: false };
     }
-    if (cls === "quoted" && containsKnownInnerEdgeToken(raw)) {
+    if (cls === "quoted" && containsInnerEdgeToken(raw)) {
       return { token: "<redacted>", category: "inner_edge", isPseudonym: false };
     }
-    if (cls === "json" && parsedJson !== undefined && jsonContainsKnownInnerEdgeToken(parsedJson)) {
+    if (cls === "json" && parsedJson !== undefined && jsonContainsInnerEdgeToken(parsedJson)) {
       return { token: "<redacted>", category: "inner_edge", isPseudonym: false };
     }
     return baseTokenInfo;
@@ -1080,7 +1081,7 @@ function evaluateField(field, extracted, context) {
             break;
           }
         }
-        if (containsKnownInnerEdgeToken(cur)) {
+        if (containsInnerEdgeToken(cur)) {
           return { status: "redacted", token: "<redacted>" };
         }
         const tagKind = tr.kind ?? (field.pii && field.pii !== "none" ? field.pii : "hash");
@@ -1366,7 +1367,7 @@ function extractRawFromValue(val) {
     return { missing: true };
   }
   if (typeof val === "string") {
-    if (containsKnownInnerEdgeToken(val)) {
+    if (containsInnerEdgeToken(val)) {
       return {
         missing: false,
         value: val,
@@ -1390,7 +1391,7 @@ function extractRawFromValue(val) {
       fromHole: false,
     };
   }
-  if (jsonContainsKnownInnerEdgeToken(val)) {
+  if (jsonContainsInnerEdgeToken(val)) {
     return {
       missing: false,
       value: val,

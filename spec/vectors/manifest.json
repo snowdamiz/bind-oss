@@ -8,8 +8,8 @@
     },
     "reference_ts_ms": 1795701600000
   },
-  "total_vectors": 496,
-  "sql_supported_count": 469,
+  "total_vectors": 501,
+  "sql_supported_count": 474,
   "sql_refused_count": 27,
   "suites": [
     {
@@ -52,10 +52,10 @@
       "suite": "05-transforms-privacy-and-redaction",
       "file": "suites/05-transforms-privacy-and-redaction.json",
       "description": "Golden conformance vectors covering hash, mask (token and ip_prefix), drop, known redaction tokens across all 11 hole classes and field types, neutral unknown angle-bracket strings, and explicit PII transform placement.",
-      "count": 88,
-      "sql_supported_count": 86,
+      "count": 93,
+      "sql_supported_count": 91,
       "sql_refused_count": 2,
-      "sha256": "f34d6ae34ce8e7c616d923070a87567f378166bbbdb5a0d7409d3cf9a1c08acd"
+      "sha256": "cc6fd00cdb49b6283cceba5950218e0689bc5890d33ddc7d8b9301d55baacc29"
     },
     {
       "suite": "06-matchers-object-and-args",
