@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "suite": "04-transforms-core",
-  "description": "Golden conformance vectors covering cast, scale (IEEE-754 single-op bit patterns), unit (all time and byte units), parse_time (all 10 formats), lower, and enum_map transforms.",
+  "description": "Golden conformance vectors covering cast, scale (IEEE-754 single-op bit patterns), unit (all time and byte units), parse_time (all 10 formats including exact decimal unix_s), lower (locale-independent UTF-8), and enum_map transforms.",
   "context": {
     "hmac_keys": {
       "edge": "bind-conformance-edge-key-v1",
@@ -1363,7 +1363,7 @@
     },
     {
       "id": "vec_tr_scale_div_1999_by_100_ieee754_001",
-      "description": "canonical §5/§17 IEEE-754 pin: 1999 / 100 = 19.99 (4033fd70a3d70a3d, NOT 1999 * 0.01)",
+      "description": "canonical IEEE-754 pin: 1999 / 100 = 19.99 (4033fd70a3d70a3d, NOT 1999 * 0.01)",
       "tags": [
         "transform:scale",
         "ieee754",
@@ -5593,6 +5593,234 @@
       }
     },
     {
+      "id": "vec_tr_parse_time_unix_s_exact_decimal_019",
+      "description": "parse_time format:unix_s parses '1.001' via exact decimal arithmetic to 1001 ms (not binary64 1000)",
+      "tags": [
+        "transform:parse_time",
+        "parse_time:unix_s",
+        "type:timestamp",
+        "ambiguity:unix_s_exact_decimal",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_04PT0019",
+        "event": "test.transform.parse_time",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "ts="
+            },
+            {
+              "hole": "ts",
+              "class": "rest"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_04PT0019",
+            "name": "ts",
+            "from": {
+              "hole": "ts"
+            },
+            "type": "timestamp",
+            "semantic": "unknown",
+            "transforms": [
+              {
+                "op": "parse_time",
+                "format": "unix_s"
+              }
+            ]
+          }
+        ],
+        "tests": [
+          {
+            "line": "ts=1.001",
+            "expect": {
+              "ts": 1001
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "ts=1.001"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "ts": {
+            "status": "ok",
+            "type": "timestamp",
+            "value": 1001
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_tr_parse_time_unix_s_negative_subms_020",
+      "description": "parse_time format:unix_s truncates negative sub-millisecond fraction '-1.0019' toward zero to -1001 ms",
+      "tags": [
+        "transform:parse_time",
+        "parse_time:unix_s",
+        "boundary:negative",
+        "ambiguity:unix_s_exact_decimal",
+        "ambiguity:subms_truncation",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_04PT0020",
+        "event": "test.transform.parse_time",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "ts="
+            },
+            {
+              "hole": "ts",
+              "class": "rest"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_04PT0020",
+            "name": "ts",
+            "from": {
+              "hole": "ts"
+            },
+            "type": "timestamp",
+            "semantic": "unknown",
+            "transforms": [
+              {
+                "op": "parse_time",
+                "format": "unix_s"
+              }
+            ]
+          }
+        ],
+        "tests": [
+          {
+            "line": "ts=-1.0019",
+            "expect": {
+              "ts": -1001
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "ts=-1.0019"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "ts": {
+            "status": "ok",
+            "type": "timestamp",
+            "value": -1001
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_tr_parse_time_fail_offsetless_iso_021",
+      "description": "parse_time format:iso8601 rejects offset-less timestamp without Z or numeric offset",
+      "tags": [
+        "transform:parse_time",
+        "parse_time:iso8601",
+        "parse_error",
+        "ambiguity:offsetless_time",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_04PT0021",
+        "event": "test.transform.parse_time",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "ts="
+            },
+            {
+              "hole": "ts",
+              "class": "rest"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_04PT0021",
+            "name": "ts",
+            "from": {
+              "hole": "ts"
+            },
+            "type": "timestamp",
+            "semantic": "unknown",
+            "transforms": [
+              {
+                "op": "parse_time",
+                "format": "iso8601"
+              }
+            ]
+          }
+        ],
+        "tests": [
+          {
+            "line": "ts=2026-11-26T14:00:00Z",
+            "expect": {
+              "ts": 1795701600000
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "ts=2026-11-26T14:00:00"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "ts": {
+            "status": "parse_error",
+            "code": "invalid_time"
+          }
+        }
+      }
+    },
+    {
       "id": "vec_tr_lower_ascii_mixed_001",
       "description": "lower converts ASCII uppercase letters to lowercase",
       "tags": [
@@ -6528,6 +6756,80 @@
           "name": {
             "status": "parse_error",
             "code": "type_mismatch"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_tr_lower_locale_independent_root_013",
+      "description": "lower performs locale-independent root Unicode folding (İ -> i+U+0307, ASCII I -> i)",
+      "tags": [
+        "transform:lower",
+        "unicode",
+        "ambiguity:lower_unicode",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_04LOWR001",
+        "event": "test.transform.lower",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "v="
+            },
+            {
+              "hole": "v",
+              "class": "rest"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_04LOW0001",
+            "name": "v",
+            "from": {
+              "hole": "v"
+            },
+            "type": "string",
+            "semantic": "unknown",
+            "transforms": [
+              {
+                "op": "lower"
+              }
+            ]
+          }
+        ],
+        "tests": [
+          {
+            "line": "v=Hello",
+            "expect": {
+              "v": "hello"
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "v=İSTANBUL I"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "v": {
+            "status": "ok",
+            "type": "string",
+            "value": "i̇stanbul i"
           }
         }
       }

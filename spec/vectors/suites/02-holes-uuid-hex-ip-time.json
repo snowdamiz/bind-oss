@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "suite": "02-holes-uuid-hex-ip-time",
-  "description": "Golden conformance vectors covering uuid, hex, ip (IPv4 and IPv6), and time (ISO 8601, Apache, syslog) hole classes.",
+  "description": "Golden conformance vectors covering uuid, hex, ip (IPv4 and IPv6), and time (ISO 8601, Apache, syslog) hole classes including overlapping-literal boundaries.",
   "context": {
     "hmac_keys": {
       "edge": "bind-conformance-edge-key-v1",
@@ -796,6 +796,78 @@
       }
     },
     {
+      "id": "vec_hole_uuid_before_hex_lit_f_013",
+      "description": "fixed-width uuid hole lexes all 36 chars without truncating at following literal 'f'",
+      "tags": [
+        "hole:uuid",
+        "boundary:following_literal",
+        "ambiguity:scanner_hole_boundary",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01HOLEUUID3",
+        "event": "test.hole.uuid_before_f",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "id="
+            },
+            {
+              "hole": "id",
+              "class": "uuid"
+            },
+            {
+              "lit": "f"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01UUID0003",
+            "name": "id",
+            "from": {
+              "hole": "id"
+            },
+            "type": "string",
+            "semantic": "id.request"
+          }
+        ],
+        "tests": [
+          {
+            "line": "id=550e8400-e29b-41d4-a716-446655440000f",
+            "expect": {
+              "id": "550e8400-e29b-41d4-a716-446655440000"
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "id=550e8400-e29b-41d4-a716-446655440000f"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "id": {
+            "status": "ok",
+            "type": "string",
+            "value": "550e8400-e29b-41d4-a716-446655440000"
+          }
+        }
+      }
+    },
+    {
       "id": "vec_hole_hex_lower_001",
       "description": "hex hole matches lowercase hexadecimal string",
       "tags": [
@@ -1582,6 +1654,210 @@
       "input": {
         "kind": "text",
         "line": "trace="
+      },
+      "expected": {
+        "matched": false
+      }
+    },
+    {
+      "id": "vec_hole_hex_before_hex_lit_f_013",
+      "description": "hex hole stops at leftmost following overlapping literal 'f'",
+      "tags": [
+        "hole:hex",
+        "boundary:following_literal",
+        "ambiguity:scanner_hole_boundary",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01HOLEHEX03",
+        "event": "test.hole.hex_before_f",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "h="
+            },
+            {
+              "hole": "h",
+              "class": "hex"
+            },
+            {
+              "lit": "f"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01HEX00003",
+            "name": "h",
+            "from": {
+              "hole": "h"
+            },
+            "type": "string",
+            "semantic": "text"
+          }
+        ],
+        "tests": [
+          {
+            "line": "h=deadbeef",
+            "expect": {
+              "h": "deadbee"
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "h=deadbeef"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "h": {
+            "status": "ok",
+            "type": "string",
+            "value": "deadbee"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_hole_hex_before_hex_lit_f_no_backtrack_014",
+      "description": "hex hole stops at leftmost 'f' and does not backtrack to a trailing 'f'",
+      "tags": [
+        "hole:hex",
+        "boundary:following_literal",
+        "no_match",
+        "ambiguity:scanner_hole_boundary",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01HOLEHEX03",
+        "event": "test.hole.hex_before_f",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "h="
+            },
+            {
+              "hole": "h",
+              "class": "hex"
+            },
+            {
+              "lit": "f"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01HEX00003",
+            "name": "h",
+            "from": {
+              "hole": "h"
+            },
+            "type": "string",
+            "semantic": "text"
+          }
+        ],
+        "tests": [
+          {
+            "line": "h=deadbeef",
+            "expect": {
+              "h": "deadbee"
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "h=afbf"
+      },
+      "expected": {
+        "matched": false
+      }
+    },
+    {
+      "id": "vec_hole_hex_before_hex_lit_f_reject_empty_015",
+      "description": "hex hole bounded by following literal 'f' rejects empty capture",
+      "tags": [
+        "hole:hex",
+        "boundary:following_literal",
+        "boundary:empty",
+        "no_match",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01HOLEHEX03",
+        "event": "test.hole.hex_before_f",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "h="
+            },
+            {
+              "hole": "h",
+              "class": "hex"
+            },
+            {
+              "lit": "f"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01HEX00003",
+            "name": "h",
+            "from": {
+              "hole": "h"
+            },
+            "type": "string",
+            "semantic": "text"
+          }
+        ],
+        "tests": [
+          {
+            "line": "h=deadbeef",
+            "expect": {
+              "h": "deadbee"
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "h=f"
       },
       "expected": {
         "matched": false
@@ -2897,6 +3173,286 @@
       }
     },
     {
+      "id": "vec_hole_ip_v6_before_port_lit_021",
+      "description": "ip hole stops IPv6 capture at leftmost following literal ':8080'",
+      "tags": [
+        "hole:ip",
+        "ip:v6",
+        "boundary:following_literal",
+        "ambiguity:scanner_hole_boundary",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01HOLEIP002",
+        "event": "test.hole.ip_port",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "addr="
+            },
+            {
+              "hole": "ip",
+              "class": "ip"
+            },
+            {
+              "lit": ":8080"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01IP000002",
+            "name": "ip",
+            "from": {
+              "hole": "ip"
+            },
+            "type": "string",
+            "semantic": "ip"
+          }
+        ],
+        "tests": [
+          {
+            "line": "addr=127.0.0.1:8080",
+            "expect": {
+              "ip": "127.0.0.1"
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "addr=2001:db8::1:8080"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "ip": {
+            "status": "ok",
+            "type": "string",
+            "value": "2001:db8::1"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_hole_ip_v6_before_port_lit_no_backtrack_022",
+      "description": "ip hole stops at leftmost ':8080' inside IPv6 address without backtracking",
+      "tags": [
+        "hole:ip",
+        "ip:v6",
+        "boundary:following_literal",
+        "no_match",
+        "ambiguity:scanner_hole_boundary",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01HOLEIP002",
+        "event": "test.hole.ip_port",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "addr="
+            },
+            {
+              "hole": "ip",
+              "class": "ip"
+            },
+            {
+              "lit": ":8080"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01IP000002",
+            "name": "ip",
+            "from": {
+              "hole": "ip"
+            },
+            "type": "string",
+            "semantic": "ip"
+          }
+        ],
+        "tests": [
+          {
+            "line": "addr=127.0.0.1:8080",
+            "expect": {
+              "ip": "127.0.0.1"
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "addr=2001:8080::1:8080"
+      },
+      "expected": {
+        "matched": false
+      }
+    },
+    {
+      "id": "vec_hole_ip_v4_before_dot_lit_023",
+      "description": "ip hole stops IPv4 capture at leftmost following literal '.1'",
+      "tags": [
+        "hole:ip",
+        "ip:v4",
+        "boundary:following_literal",
+        "ambiguity:scanner_hole_boundary",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01HOLEIP003",
+        "event": "test.hole.ip_dot_one",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "addr="
+            },
+            {
+              "hole": "ip",
+              "class": "ip"
+            },
+            {
+              "lit": ".1"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01IP000003",
+            "name": "ip",
+            "from": {
+              "hole": "ip"
+            },
+            "type": "string",
+            "semantic": "ip"
+          }
+        ],
+        "tests": [
+          {
+            "line": "addr=10.20.30.40.1",
+            "expect": {
+              "ip": "10.20.30.40"
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "addr=10.20.30.40.1"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "ip": {
+            "status": "ok",
+            "type": "string",
+            "value": "10.20.30.40"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_hole_ip_v4_before_dot_lit_no_backtrack_024",
+      "description": "ip hole stops at leftmost '.1' inside IPv4 address without backtracking",
+      "tags": [
+        "hole:ip",
+        "ip:v4",
+        "boundary:following_literal",
+        "no_match",
+        "ambiguity:scanner_hole_boundary",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01HOLEIP003",
+        "event": "test.hole.ip_dot_one",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "addr="
+            },
+            {
+              "hole": "ip",
+              "class": "ip"
+            },
+            {
+              "lit": ".1"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01IP000003",
+            "name": "ip",
+            "from": {
+              "hole": "ip"
+            },
+            "type": "string",
+            "semantic": "ip"
+          }
+        ],
+        "tests": [
+          {
+            "line": "addr=10.20.30.40.1",
+            "expect": {
+              "ip": "10.20.30.40"
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "addr=10.1.2.3.1"
+      },
+      "expected": {
+        "matched": false
+      }
+    },
+    {
       "id": "vec_hole_time_iso_utc_001",
       "description": "time hole matches ISO 8601 UTC timestamp",
       "tags": [
@@ -3961,6 +4517,288 @@
       "input": {
         "kind": "text",
         "line": "ts="
+      },
+      "expected": {
+        "matched": false
+      }
+    },
+    {
+      "id": "vec_hole_time_iso_before_z_lit_017",
+      "description": "self-delimited time hole consumes full ISO timestamp including Z before following literal 'Z'",
+      "tags": [
+        "hole:time",
+        "time:iso8601",
+        "boundary:following_literal",
+        "ambiguity:scanner_hole_boundary",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01HOLETIME3",
+        "event": "test.hole.time_before_z",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "ts="
+            },
+            {
+              "hole": "ts",
+              "class": "time"
+            },
+            {
+              "lit": "Z"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01TIME0003",
+            "name": "ts",
+            "from": {
+              "hole": "ts"
+            },
+            "type": "string",
+            "semantic": "text"
+          }
+        ],
+        "tests": [
+          {
+            "line": "ts=2026-11-26T14:00:00ZZ",
+            "expect": {
+              "ts": "2026-11-26T14:00:00Z"
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "ts=2026-11-26T14:00:00ZZ"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "ts": {
+            "status": "ok",
+            "type": "string",
+            "value": "2026-11-26T14:00:00Z"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_hole_time_iso_before_colon_lit_018",
+      "description": "self-delimited time hole consumes full ISO timestamp before following literal ':ok'",
+      "tags": [
+        "hole:time",
+        "time:iso8601",
+        "boundary:following_literal",
+        "ambiguity:scanner_hole_boundary",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01HOLETIME4",
+        "event": "test.hole.time_before_colon",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "ts="
+            },
+            {
+              "hole": "ts",
+              "class": "time"
+            },
+            {
+              "lit": ":ok"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01TIME0004",
+            "name": "ts",
+            "from": {
+              "hole": "ts"
+            },
+            "type": "string",
+            "semantic": "text"
+          }
+        ],
+        "tests": [
+          {
+            "line": "ts=2026-11-26T14:00:00Z:ok",
+            "expect": {
+              "ts": "2026-11-26T14:00:00Z"
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "ts=2026-11-26T14:00:00Z:ok"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "ts": {
+            "status": "ok",
+            "type": "string",
+            "value": "2026-11-26T14:00:00Z"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_hole_time_syslog_before_digits_lit_019",
+      "description": "self-delimited syslog time hole consumes full timestamp before following literal '00'",
+      "tags": [
+        "hole:time",
+        "time:syslog",
+        "boundary:following_literal",
+        "ambiguity:scanner_hole_boundary",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01HOLETIME5",
+        "event": "test.hole.time_before_00",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "ts="
+            },
+            {
+              "hole": "ts",
+              "class": "time"
+            },
+            {
+              "lit": "00"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01TIME0005",
+            "name": "ts",
+            "from": {
+              "hole": "ts"
+            },
+            "type": "string",
+            "semantic": "text"
+          }
+        ],
+        "tests": [
+          {
+            "line": "ts=Nov 26 14:00:0000",
+            "expect": {
+              "ts": "Nov 26 14:00:00"
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "ts=Nov 26 14:00:0000"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "ts": {
+            "status": "ok",
+            "type": "string",
+            "value": "Nov 26 14:00:00"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_hole_time_reject_offsetless_iso_020",
+      "description": "time hole rejects offset-less ISO 8601 timestamp lacking Z or numeric timezone offset",
+      "tags": [
+        "hole:time",
+        "time:iso8601",
+        "no_match",
+        "ambiguity:offsetless_time",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01HOLETIME1",
+        "event": "test.hole.time_str",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "ts="
+            },
+            {
+              "hole": "ts",
+              "class": "time"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01TIME0001",
+            "name": "ts",
+            "from": {
+              "hole": "ts"
+            },
+            "type": "string",
+            "semantic": "text"
+          }
+        ],
+        "tests": [
+          {
+            "line": "ts=2026-11-26T14:00:00Z",
+            "expect": {
+              "ts": "2026-11-26T14:00:00Z"
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "ts=2026-11-26T14:00:00"
       },
       "expected": {
         "matched": false

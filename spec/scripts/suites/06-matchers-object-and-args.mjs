@@ -357,7 +357,7 @@ export function buildSuite06() {
     }),
     vec({
       id: "vec_obj_from_path_json_field_sql_supported_017",
-      description: "object spec reading type:json via from.path (no json hole) IS SQL-supported (§5, T2.1.5)",
+      description: "object spec reading type:json via from.path (no json hole) IS SQL-supported",
       tags: ["object:pure", "type:json", "sql:supported_json_path"],
       spec: objJsonPathSpec,
       input: objectInput({ meta: { region: "us-east", retries: 2 }, items: ["sku_1", { qty: 3 }] }),
@@ -447,7 +447,7 @@ export function buildSuite06() {
     }),
     vec({
       id: "vec_obj_redaction_tokens_in_leaves_024",
-      description: "pre-scrubbed redaction tokens inside object string leaves follow §5 pseudonym/mask rules",
+      description: "pre-scrubbed redaction tokens inside object string leaves follow pseudonym and mask rules",
       tags: ["object:pure", "redaction:mask", "redaction:pseudonym"],
       spec: objAllTypesSpec,
       input: objectInput({
@@ -765,7 +765,7 @@ export function buildSuite06() {
     }),
     vec({
       id: "vec_args_redaction_mask_and_pseudonym_015",
-      description: "args matcher honors mask tokens and pseudonym tokens per §5 rules",
+      description: "args matcher honors mask tokens and pseudonym tokens across field types",
       tags: ["args:redaction", "redaction:mask", "redaction:pseudonym"],
       spec: orderArgsSpec,
       input: argsInput(["", " paid ", " in ", "ms"], ["<email:9f2c41d07a3b55e1>", "<card>", "<email:9f2c41d07a3b55e1>"]),

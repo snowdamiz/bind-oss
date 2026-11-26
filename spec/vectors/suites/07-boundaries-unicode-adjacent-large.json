@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "suite": "07-boundaries-unicode-adjacent-large",
-  "description": "Golden conformance vectors covering §5 canonical example, adjacent holes, UTF-8 non-ASCII cases (U+00A0, U+3000, combining marks, emoji), 64 KiB boundary records, and multi-field isolation.",
+  "description": "Golden conformance vectors covering canonical order.paid example, adjacent holes, UTF-8 non-ASCII cases (U+00A0, U+3000, combining marks, emoji), 64 KiB boundary records, and multi-field isolation.",
   "context": {
     "hmac_keys": {
       "edge": "bind-conformance-edge-key-v1",
@@ -12,7 +12,7 @@
   "vectors": [
     {
       "id": "vec_s5_canonical_order_paid_001",
-      "description": "exact §5 canonical order.paid text example with IEEE-754 pinned amount_usd",
+      "description": "canonical order.paid text example with IEEE-754 pinned amount_usd",
       "tags": [
         "section5:canonical",
         "hole:word",
@@ -852,7 +852,7 @@
       "sql": {
         "supported": false,
         "refusal_code": "unsupported_json_hole",
-        "reason": "Specs containing a json hole cannot be compiled to ClickHouse RE2 extractGroups because RE2 cannot match balanced brackets (§5, T2.1.5)."
+        "reason": "Specs containing a text json hole are refused by the ClickHouse SQL compiler because balanced JSON text scanning is not supported in SQL compilation."
       },
       "spec": {
         "spec_version": 1,
@@ -945,7 +945,7 @@
       "sql": {
         "supported": false,
         "refusal_code": "unsupported_json_hole",
-        "reason": "Specs containing a json hole cannot be compiled to ClickHouse RE2 extractGroups because RE2 cannot match balanced brackets (§5, T2.1.5)."
+        "reason": "Specs containing a text json hole are refused by the ClickHouse SQL compiler because balanced JSON text scanning is not supported in SQL compilation."
       },
       "spec": {
         "spec_version": 1,
@@ -1197,8 +1197,253 @@
       }
     },
     {
+      "id": "vec_adj_int_word_all_digits_no_backtrack_011",
+      "description": "adjacent int + word holes consume all digits in int without backtracking, failing on empty word",
+      "tags": [
+        "adjacent_holes",
+        "hole:int",
+        "hole:word",
+        "no_match",
+        "ambiguity:scanner_hole_boundary",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_07ADJ0011",
+        "event": "test.adjacent",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "t="
+            },
+            {
+              "hole": "num",
+              "class": "int"
+            },
+            {
+              "hole": "unit",
+              "class": "word"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_07ADJ0021",
+            "name": "num",
+            "from": {
+              "hole": "num"
+            },
+            "type": "int",
+            "semantic": "unknown"
+          },
+          {
+            "id": "fld_07ADJ0022",
+            "name": "unit",
+            "from": {
+              "hole": "unit"
+            },
+            "type": "string",
+            "semantic": "unknown"
+          }
+        ],
+        "tests": [
+          {
+            "line": "t=212ms",
+            "expect": {
+              "num": 212,
+              "unit": "ms"
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "t=212345"
+      },
+      "expected": {
+        "matched": false
+      }
+    },
+    {
+      "id": "vec_adj_float_word_exponent_consumes_all_012",
+      "description": "adjacent float + word holes consume valid scientific exponent 1.5e2 without backtracking",
+      "tags": [
+        "adjacent_holes",
+        "hole:float",
+        "hole:word",
+        "no_match",
+        "ambiguity:scanner_hole_boundary",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_07ADJ0012",
+        "event": "test.adjacent",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "sz="
+            },
+            {
+              "hole": "sz",
+              "class": "float"
+            },
+            {
+              "hole": "unit",
+              "class": "word"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_07ADJ0023",
+            "name": "sz",
+            "from": {
+              "hole": "sz"
+            },
+            "type": "float",
+            "semantic": "unknown"
+          },
+          {
+            "id": "fld_07ADJ0024",
+            "name": "unit",
+            "from": {
+              "hole": "unit"
+            },
+            "type": "string",
+            "semantic": "unknown"
+          }
+        ],
+        "tests": [
+          {
+            "line": "sz=1.5GB",
+            "expect": {
+              "sz": 1.5,
+              "unit": "GB"
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "sz=1.5e2"
+      },
+      "expected": {
+        "matched": false
+      }
+    },
+    {
+      "id": "vec_adj_float_word_non_exponent_suffix_013",
+      "description": "adjacent float + word holes stop float before non-exponent 'ex' suffix",
+      "tags": [
+        "adjacent_holes",
+        "hole:float",
+        "hole:word",
+        "ambiguity:scanner_hole_boundary",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_07ADJ0013",
+        "event": "test.adjacent",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "sz="
+            },
+            {
+              "hole": "sz",
+              "class": "float"
+            },
+            {
+              "hole": "unit",
+              "class": "word"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_07ADJ0025",
+            "name": "sz",
+            "from": {
+              "hole": "sz"
+            },
+            "type": "float",
+            "semantic": "unknown"
+          },
+          {
+            "id": "fld_07ADJ0026",
+            "name": "unit",
+            "from": {
+              "hole": "unit"
+            },
+            "type": "string",
+            "semantic": "unknown"
+          }
+        ],
+        "tests": [
+          {
+            "line": "sz=1.5ex",
+            "expect": {
+              "sz": 1.5,
+              "unit": "ex"
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "sz=1.5ex"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "sz": {
+            "status": "ok",
+            "type": "float",
+            "value": "3ff8000000000000"
+          },
+          "unit": {
+            "status": "ok",
+            "type": "string",
+            "value": "ex"
+          }
+        }
+      }
+    },
+    {
       "id": "vec_unicode_nbsp_inside_word_001",
-      "description": "U+00A0 (NO-BREAK SPACE) is NOT ASCII whitespace and stays inside a single word hole (§17)",
+      "description": "U+00A0 (NO-BREAK SPACE) is NOT ASCII whitespace and stays inside a single word hole",
       "tags": [
         "unicode",
         "unicode:nbsp",
@@ -1270,7 +1515,7 @@
     },
     {
       "id": "vec_unicode_ascii_space_lit_rejects_nbsp_002",
-      "description": "ASCII space in literal does NOT match U+00A0 in input (§17)",
+      "description": "ASCII space in literal does NOT match U+00A0 in input",
       "tags": [
         "unicode",
         "unicode:nbsp",
@@ -1332,7 +1577,7 @@
     },
     {
       "id": "vec_unicode_nbsp_lit_rejects_ascii_space_003",
-      "description": "U+00A0 in literal does NOT match ASCII space 0x20 in input (§17)",
+      "description": "U+00A0 in literal does NOT match ASCII space 0x20 in input",
       "tags": [
         "unicode",
         "unicode:nbsp",
@@ -1462,7 +1707,7 @@
     },
     {
       "id": "vec_unicode_ideographic_space_inside_word_005",
-      "description": "U+3000 (IDEOGRAPHIC SPACE) is NOT ASCII whitespace and stays inside a single word hole (§17)",
+      "description": "U+3000 (IDEOGRAPHIC SPACE) is NOT ASCII whitespace and stays inside a single word hole",
       "tags": [
         "unicode",
         "unicode:ideographic_space",
@@ -1534,7 +1779,7 @@
     },
     {
       "id": "vec_unicode_ascii_space_lit_rejects_ideographic_space_006",
-      "description": "ASCII space in literal does NOT match U+3000 in input (§17)",
+      "description": "ASCII space in literal does NOT match U+3000 in input",
       "tags": [
         "unicode",
         "unicode:ideographic_space",
@@ -1596,7 +1841,7 @@
     },
     {
       "id": "vec_unicode_combining_mark_nfd_preserved_007",
-      "description": "NFD combining mark (e + U+0301) in word hole is preserved byte-for-byte without NFC normalization (§17)",
+      "description": "NFD combining mark (e + U+0301) in word hole is preserved byte-for-byte without NFC normalization",
       "tags": [
         "unicode",
         "unicode:combining",
@@ -1668,7 +1913,7 @@
     },
     {
       "id": "vec_unicode_nfc_lit_rejects_nfd_input_008",
-      "description": "UTF-8 byte matching: NFC literal caf\\u00e9= does NOT match NFD input cafe\\u0301= (§17)",
+      "description": "UTF-8 byte matching: NFC literal caf\\u00e9= does NOT match NFD input cafe\\u0301=",
       "tags": [
         "unicode",
         "unicode:combining",
@@ -1730,7 +1975,7 @@
     },
     {
       "id": "vec_unicode_nfd_lit_rejects_nfc_input_009",
-      "description": "UTF-8 byte matching: NFD literal cafe\\u0301= does NOT match NFC input caf\\u00e9= (§17)",
+      "description": "UTF-8 byte matching: NFD literal cafe\\u0301= does NOT match NFC input caf\\u00e9=",
       "tags": [
         "unicode",
         "unicode:combining",
@@ -2004,7 +2249,7 @@
     },
     {
       "id": "vec_unicode_emoji_zwj_family_in_word_013",
-      "description": "multi-scalar ZWJ emoji grapheme cluster 👨‍👩‍👧‍👦 stays intact in word hole (§17)",
+      "description": "multi-scalar ZWJ emoji grapheme cluster 👨‍👩‍👧‍👦 stays intact in word hole",
       "tags": [
         "unicode",
         "unicode:emoji",
@@ -2076,7 +2321,7 @@
     },
     {
       "id": "vec_unicode_emoji_zwj_as_until_delimiter_014",
-      "description": "until hole stops at multi-scalar ZWJ emoji literal without splitting grapheme bytes (§17)",
+      "description": "until hole stops at multi-scalar ZWJ emoji literal without splitting grapheme bytes",
       "tags": [
         "unicode",
         "unicode:emoji",
@@ -2330,7 +2575,7 @@
     },
     {
       "id": "vec_unicode_swift_grapheme_boundary_check_017",
-      "description": "literal ending in base 'e' matches before combining acute U+0301 in UTF-8 byte mode (§17 Swift byte scanner pin)",
+      "description": "literal ending in base 'e' matches before combining acute U+0301 in UTF-8 byte mode (UTF-8 byte scanner pin)",
       "tags": [
         "unicode",
         "unicode:combining",
@@ -2487,7 +2732,7 @@
     },
     {
       "id": "vec_large_64kib_text_rest_001",
-      "description": "exact 65,536-byte (64 KiB) text record parsed via rest hole (§17)",
+      "description": "exact 65,536-byte (64 KiB) text record parsed via rest hole",
       "tags": [
         "boundary:64kib",
         "hole:rest",
@@ -2555,7 +2800,7 @@
     },
     {
       "id": "vec_large_64kib_text_until_int_002",
-      "description": "exact 65,536-byte (64 KiB) text record with until hole followed by literal and int hole (§17)",
+      "description": "exact 65,536-byte (64 KiB) text record with until hole followed by literal and int hole",
       "tags": [
         "boundary:64kib",
         "hole:until",
@@ -3337,7 +3582,7 @@
       "sql": {
         "supported": false,
         "refusal_code": "unsupported_json_hole",
-        "reason": "Specs containing a json hole cannot be compiled to ClickHouse RE2 extractGroups because RE2 cannot match balanced brackets (§5, T2.1.5)."
+        "reason": "Specs containing a text json hole are refused by the ClickHouse SQL compiler because balanced JSON text scanning is not supported in SQL compilation."
       },
       "spec": {
         "spec_version": 1,

@@ -12,7 +12,7 @@ JSON Schema (Draft 2020-12) definitions, verification fixtures, and deterministi
 
 ## Golden Conformance Vectors (`vectors/`)
 
-See [`vectors/README.md`](./vectors/README.md) for the full conformance vector format, §17 canonical result encodings (decimal int64 strings, 64-bit IEEE-754 float hex, integer epoch milliseconds, UTF-8 byte strings), SQL refusal tags (`sql:refuse` / `sql:refuse:json_hole`), and documented semantics.
+See [`vectors/README.md`](./vectors/README.md) for the full self-contained conformance vector format, canonical result encodings (decimal int64 strings, 64-bit IEEE-754 float hex, integer epoch milliseconds, UTF-8 byte strings), scanner hole boundary rules, redaction token catalog, SQL refusal tags (`sql:refuse` / `sql:refuse:json_hole`), and documented semantics.
 
 ## Verification
 
@@ -58,5 +58,5 @@ JSON Schema enforces **static, single-document structural validity**. Cross-refe
 
 - **Cross-references inside a `ParserSpec`**: every `from.hole` exists in `match.segments` or `match.message.segments`; hole names are unique; every `from.arg < match.strings.length - 1`; `match.message.path` and `from.path` align with `match.shape`; `fields[].id` and `fields[].name` are unique; `tests[].expect` keys match declared field names and types.
 - **Lexer & segment grammar**: `until` must be followed by a literal segment; `rest` must be the final segment; adjacent literals coalesced in canonical form; prefix-tree tie-break ordering.
-- **Transform pipeline semantics**: input/output type compatibility across chained transforms; single IEEE 754 double arithmetic for `scale`; Stage 3 default PII redaction transforms; replacement token handling across hole classes (`<email:tag>` vs mask tokens); SQL compiler refusal of `json` holes.
+- **Transform pipeline semantics**: input/output type compatibility across chained transforms; single IEEE 754 double arithmetic for `scale`; PII redaction transforms; replacement token handling across hole classes (`<email:tag>` vs mask tokens); SQL compiler refusal of `json` holes.
 - **Registry & lifecycle state**: `EventType` slot uniqueness across live fields and no slot reuse within retention; `actor`/`account` assignment policy; field ID immutability on rename vs new field ID on type/unit change; monotonic `version` per template; `origin: user` edit locks; `valid_from_commit` ancestry resolution; publish-gate execution of `tests[]` in Mesh and ClickHouse SQL.

@@ -1760,7 +1760,7 @@
       "sql": {
         "supported": false,
         "refusal_code": "unsupported_json_hole",
-        "reason": "Specs containing a json hole cannot be compiled to ClickHouse RE2 extractGroups because RE2 cannot match balanced brackets (§5, T2.1.5)."
+        "reason": "Specs containing a text json hole are refused by the ClickHouse SQL compiler because balanced JSON text scanning is not supported in SQL compilation."
       },
       "spec": {
         "spec_version": 1,
@@ -1870,7 +1870,7 @@
       "sql": {
         "supported": false,
         "refusal_code": "unsupported_json_hole",
-        "reason": "Specs containing a json hole cannot be compiled to ClickHouse RE2 extractGroups because RE2 cannot match balanced brackets (§5, T2.1.5)."
+        "reason": "Specs containing a text json hole are refused by the ClickHouse SQL compiler because balanced JSON text scanning is not supported in SQL compilation."
       },
       "spec": {
         "spec_version": 1,
@@ -1949,7 +1949,7 @@
     },
     {
       "id": "vec_obj_from_path_json_field_sql_supported_017",
-      "description": "object spec reading type:json via from.path (no json hole) IS SQL-supported (§5, T2.1.5)",
+      "description": "object spec reading type:json via from.path (no json hole) IS SQL-supported",
       "tags": [
         "object:pure",
         "type:json",
@@ -3006,7 +3006,7 @@
     },
     {
       "id": "vec_obj_redaction_tokens_in_leaves_024",
-      "description": "pre-scrubbed redaction tokens inside object string leaves follow §5 pseudonym/mask rules",
+      "description": "pre-scrubbed redaction tokens inside object string leaves follow pseudonym and mask rules",
       "tags": [
         "object:pure",
         "redaction:mask",
@@ -5229,7 +5229,7 @@
     },
     {
       "id": "vec_args_redaction_mask_and_pseudonym_015",
-      "description": "args matcher honors mask tokens and pseudonym tokens per §5 rules",
+      "description": "args matcher honors mask tokens and pseudonym tokens across field types",
       "tags": [
         "args:redaction",
         "redaction:mask",

@@ -12,7 +12,7 @@ export const SQL_REFUSAL_JSON_HOLE = {
   supported: false,
   refusal_code: "unsupported_json_hole",
   reason:
-    "Specs containing a json hole cannot be compiled to ClickHouse RE2 extractGroups because RE2 cannot match balanced brackets (§5, T2.1.5).",
+    "Specs containing a text json hole are refused by the ClickHouse SQL compiler because balanced JSON text scanning is not supported in SQL compilation.",
 };
 
 export function f64Hex(n) {

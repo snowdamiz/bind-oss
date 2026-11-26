@@ -16,9 +16,33 @@ export const VECTOR_SCHEMA_PATH = path.join(VECTORS_DIR, "vector.schema.json");
 export const INT64_MIN = -9223372036854775808n;
 export const INT64_MAX = 9223372036854775807n;
 
-const REDACTION_TOKEN_RE = /^<([a-z][a-z0-9_]*)(?::([^\s>]+))?>$/;
-const REDACTION_TOKEN_PREFIX_RE = /^<([a-z][a-z0-9_]*)(?::([^\s>]+))?>/;
+export const KNOWN_REDACTION_KINDS = new Set([
+  "secret",
+  "private_key",
+  "jwt",
+  "auth_header",
+  "vendor_token",
+  "kv_secret",
+  "url_credentials",
+  "high_entropy",
+  "card",
+  "us_ssn",
+  "email",
+  "phone",
+  "ip",
+  "long_digits",
+  "name",
+  "address",
+  "free_text",
+  "pseudonymous_id",
+  "hash",
+  "redacted",
+]);
+
+const REDACTION_TOKEN_RE = /^<([a-z][a-z0-9_]*)(?::([^\s<>]+))?>$/;
+const REDACTION_TOKEN_PREFIX_RE = /^<([a-z][a-z0-9_]*)(?::([^\s<>]+))?>/;
 const HEX16_RE = /^[0-9a-f]{16}$/;
+const INNER_HEX64_RE = /^~[0-9a-f]{64}$/;
 
 const MONTHS = {
   Jan: 0,
@@ -219,10 +243,20 @@ function classifyRedactionToken(str) {
   const m = REDACTION_TOKEN_RE.exec(str);
   if (!m) return null;
   const [, kind, tag] = m;
-  if (tag !== undefined && HEX16_RE.test(tag)) {
+  if (!KNOWN_REDACTION_KINDS.has(kind)) return null;
+  if (tag !== undefined && (HEX16_RE.test(tag) || INNER_HEX64_RE.test(tag))) {
     return { token: str, kind, isPseudonym: true };
   }
   return { token: str, kind, isPseudonym: false };
+}
+
+function matchKnownRedactionTokenPrefix(line, pos) {
+  if (line[pos] !== "<") return null;
+  const m = REDACTION_TOKEN_PREFIX_RE.exec(line.slice(pos));
+  if (!m) return null;
+  const tokenInfo = classifyRedactionToken(m[0]);
+  if (!tokenInfo) return null;
+  return { raw: m[0], tokenInfo, nextPos: pos + m[0].length };
 }
 
 function isAsciiWhitespace(code) {
@@ -325,9 +359,9 @@ function maskIpPrefix(raw) {
   return null;
 }
 
-function lexIpAt(line, pos) {
+function lexIpAt(line, pos, limit = line.length) {
   // Check IPv4 first (bounded before non-IPv4 chars)
-  const rest = line.slice(pos);
+  const rest = line.slice(pos, limit);
   const ipv4Match = /^(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})/.exec(rest);
   if (ipv4Match && parseIpv4(ipv4Match[1])) {
     // Ensure next char is not a digit or dot (would indicate malformed IPv4 like 1.2.3.4.5)
@@ -481,9 +515,10 @@ function matchTextSegments(segments, line) {
     }
 
     const cls = seg.class ?? "word";
+    const nextSeg = segments[i + 1];
+    const nextLit = nextSeg && "lit" in nextSeg ? nextSeg.lit : null;
 
     if (cls === "until") {
-      const nextLit = segments[i + 1].lit;
       const idx = line.indexOf(nextLit, pos);
       if (idx === -1) return null;
       const raw = line.slice(pos, idx);
@@ -501,31 +536,63 @@ function matchTextSegments(segments, line) {
       continue;
     }
 
-    // Check redaction token prefix for all structured/word classes (§5, §14)
-    if (line[pos] === "<") {
-      const tokMatch = REDACTION_TOKEN_PREFIX_RE.exec(line.slice(pos));
-      if (tokMatch) {
-        const raw = tokMatch[0];
-        const tokenInfo = classifyRedactionToken(raw);
-        holes.set(seg.hole, { raw, holeClass: cls, tokenInfo });
-        pos += raw.length;
+    if (cls === "word") {
+      // A known redaction token matches a word hole only when bounded by EOL,
+      // ASCII whitespace, or the immediately following literal. Unknown angle
+      // forms such as <nil> or <b>bold stay ordinary word text.
+      const tok = matchKnownRedactionTokenPrefix(line, pos);
+      if (
+        tok &&
+        (tok.nextPos === line.length ||
+          isAsciiWhitespace(line.charCodeAt(tok.nextPos)) ||
+          (nextLit !== null && line.startsWith(nextLit, tok.nextPos)))
+      ) {
+        holes.set(seg.hole, { raw: tok.raw, holeClass: cls, tokenInfo: tok.tokenInfo });
+        pos = tok.nextPos;
         continue;
       }
+      let limit = line.length;
+      if (nextLit !== null) {
+        const idx = line.indexOf(nextLit, pos);
+        if (idx === -1) return null;
+        limit = idx;
+      }
+      let end = pos;
+      while (end < limit && !isAsciiWhitespace(line.charCodeAt(end))) {
+        end += 1;
+      }
+      if (end === pos) return null;
+      const raw = line.slice(pos, end);
+      const tokenInfo = classifyRedactionToken(raw);
+      holes.set(seg.hole, { raw, holeClass: cls, tokenInfo });
+      pos = end;
+      continue;
     }
 
-    const rest = line.slice(pos);
+    // Known redaction tokens match any structured/typed hole class.
+    const tok = matchKnownRedactionTokenPrefix(line, pos);
+    if (tok) {
+      holes.set(seg.hole, { raw: tok.raw, holeClass: cls, tokenInfo: tok.tokenInfo });
+      pos = tok.nextPos;
+      continue;
+    }
+
+    // Variable-width scalar classes (int, float, hex, ip) are bounded by the
+    // leftmost occurrence of an immediately following literal segment (linear
+    // time, no backtracking). Self-delimited / fixed-syntax classes (uuid,
+    // time, quoted, json) lex directly without following-literal truncation.
+    const isBoundedScalar = cls === "int" || cls === "float" || cls === "hex" || cls === "ip";
+    let limit = line.length;
+    if (isBoundedScalar && nextLit !== null) {
+      const idx = line.indexOf(nextLit, pos);
+      if (idx === -1) return null;
+      limit = idx;
+    }
+
+    const rest = isBoundedScalar ? line.slice(pos, limit) : line.slice(pos);
     let lexed = null;
 
     switch (cls) {
-      case "word": {
-        let end = pos;
-        while (end < line.length && !isAsciiWhitespace(line.charCodeAt(end))) {
-          end += 1;
-        }
-        if (end === pos) return null;
-        lexed = { raw: line.slice(pos, end), nextPos: end };
-        break;
-      }
       case "int": {
         const m = /^[+-]?[0-9]+/.exec(rest);
         if (!m) return null;
@@ -554,7 +621,7 @@ function matchTextSegments(segments, line) {
         break;
       }
       case "ip": {
-        lexed = lexIpAt(line, pos);
+        lexed = lexIpAt(line, pos, limit);
         if (!lexed) return null;
         break;
       }
@@ -697,29 +764,61 @@ function parseSyslogTime(raw, referenceTsMs) {
   return Date.UTC(year, month - 1, day, hour, minute, second, 0);
 }
 
+function parseUnixDecimalToMs(val, shift) {
+  const str = typeof val === "number" || typeof val === "bigint" ? String(val) : val;
+  if (typeof str !== "string") return null;
+  const m = /^([+-]?)(\d+)(?:\.(\d+))?(?:[eE]([+-]?\d+))?$/.exec(str);
+  if (!m) return null;
+  const sign = m[1] === "-" ? -1n : 1n;
+  const intPart = m[2];
+  const fracPart = m[3] ?? "";
+  const expRaw = m[4];
+  let exp = 0;
+  if (expRaw !== undefined) {
+    if (expRaw.length > 8) {
+      return expRaw.startsWith("-") ? 0 : null;
+    }
+    exp = Number(expRaw);
+    if (!Number.isSafeInteger(exp)) return null;
+  }
+  const digits = (intPart + fracPart).replace(/^0+/, "");
+  if (digits.length === 0) return 0;
+  const totalShift = exp + shift - fracPart.length;
+  const intLen = digits.length + totalShift;
+  if (intLen <= 0) return 0;
+  if (intLen > 19) return null;
+  const scaled =
+    totalShift >= 0 ? digits + "0".repeat(totalShift) : digits.slice(0, intLen);
+  const bi = sign * BigInt(scaled);
+  if (bi < INT64_MIN || bi > INT64_MAX) return null;
+  const num = Number(bi);
+  return Number.isSafeInteger(num) ? num : null;
+}
+
+function parseUnixIntDivToMs(val, divisor) {
+  const str = typeof val === "number" || typeof val === "bigint" ? String(val) : val;
+  if (typeof str !== "string" || !/^[+-]?\d+$/.test(str)) return null;
+  const bi = BigInt(str);
+  if (bi < INT64_MIN || bi > INT64_MAX) return null;
+  const scaled = bi / divisor;
+  if (scaled < INT64_MIN || scaled > INT64_MAX) return null;
+  const num = Number(scaled);
+  return Number.isSafeInteger(num) ? num : null;
+}
+
 function parseTimeValue(val, format, context) {
   const fmt = format ?? "auto";
   if (fmt === "unix_s") {
-    const str = typeof val === "number" || typeof val === "bigint" ? String(val) : val;
-    if (typeof str !== "string" || !/^-?\d+(?:\.\d+)?$/.test(str)) return null;
-    const n = Number(str);
-    if (!Number.isFinite(n)) return null;
-    return Math.trunc(n * 1000);
+    return parseUnixDecimalToMs(val, 3);
   }
   if (fmt === "unix_ms") {
-    const str = typeof val === "number" || typeof val === "bigint" ? String(val) : val;
-    if (typeof str !== "string" || !/^-?\d+$/.test(str)) return null;
-    return Number(BigInt(str));
+    return parseUnixIntDivToMs(val, 1n);
   }
   if (fmt === "unix_us") {
-    const str = typeof val === "number" || typeof val === "bigint" ? String(val) : val;
-    if (typeof str !== "string" || !/^-?\d+$/.test(str)) return null;
-    return Number(BigInt(str) / 1000n);
+    return parseUnixIntDivToMs(val, 1000n);
   }
   if (fmt === "unix_ns") {
-    const str = typeof val === "number" || typeof val === "bigint" ? String(val) : val;
-    if (typeof str !== "string" || !/^-?\d+$/.test(str)) return null;
-    return Number(BigInt(str) / 1000000n);
+    return parseUnixIntDivToMs(val, 1000000n);
   }
   if (typeof val !== "string") return null;
 
@@ -738,8 +837,6 @@ function parseTimeValue(val, format, context) {
       if (a !== null) return a;
       const b = parseApacheTime(val);
       if (b !== null) return b;
-      const c = parseRfc2822Time(val);
-      if (c !== null) return c;
       return parseSyslogTime(val, context?.reference_ts_ms);
     }
     default:
@@ -785,33 +882,15 @@ function evaluateField(field, extracted, context) {
     return { status: "missing" };
   }
 
-  // Handle incoming pre-scrubbed redaction tokens (§5 line 112, §14 lines 39-41)
+  // Pre-scrubbed redaction tokens short-circuit the transform pipeline:
+  // a pseudonym token on a string field is preserved as-is, while mask tokens
+  // and pseudonyms on non-string fields remain redacted markers.
   if (extracted.tokenInfo) {
     const { token, isPseudonym } = extracted.tokenInfo;
-    if (!isPseudonym || field.type !== "string") {
-      return { status: "redacted", token };
+    if (isPseudonym && field.type === "string") {
+      return { status: "ok", type: "string", value: token };
     }
-    // Pseudonym token in string field: allow drop/mask, pass through hash unchanged
-    let cur = token;
-    for (const tr of field.transforms ?? []) {
-      if (tr.op === "drop") {
-        return { status: "dropped" };
-      }
-      if (tr.op === "mask") {
-        if ((tr.mode ?? "token") === "token") {
-          return { status: "redacted", token: `<${tr.kind ?? "redacted"}>` };
-        }
-        return { status: "redacted", token };
-      }
-      if (tr.op === "hash") {
-        // Never hash an already-tokenized pseudonym twice (§14)
-        continue;
-      }
-      if (tr.op === "lower") {
-        cur = cur.toLowerCase();
-      }
-    }
-    return { status: "ok", type: "string", value: cur };
+    return { status: "redacted", token };
   }
 
   let cur = extracted.value;
@@ -996,7 +1075,7 @@ function evaluateField(field, extracted, context) {
         if (num === null) {
           return { status: "parse_error", code: "type_mismatch" };
         }
-        // Single IEEE 754 binary64 op (§5, §17)
+        // Single IEEE 754 binary64 operation
         const out = tr.mul !== undefined ? num * tr.mul : num / tr.div;
         if (!Number.isFinite(out)) {
           return { status: "parse_error", code: "float_overflow" };
@@ -1043,7 +1122,7 @@ function evaluateField(field, extracted, context) {
     }
   }
 
-  // Final field type conversion & canonical §17 result encoding
+  // Final field type conversion and canonical result encoding
   switch (field.type) {
     case "string":
     case "enum": {
@@ -1287,7 +1366,7 @@ export function validateVectorSuiteDocument(suiteDoc, validator) {
       );
     }
 
-    // 3. Exact SQL refusal invariant (§5, T2.1.5)
+    // 3. Exact SQL refusal invariant
     const hasJsonHole = specHasJsonHole(vec.spec);
     if (hasJsonHole) {
       if (vec.sql.supported !== false || vec.sql.refusal_code !== "unsupported_json_hole") {
@@ -1382,15 +1461,142 @@ export function validateVectorSuiteDocument(suiteDoc, validator) {
   return errors;
 }
 
-export function validateAllVectors() {
+function isPlainObject(val) {
+  return val !== null && typeof val === "object" && !Array.isArray(val);
+}
+
+function validateManifestShape(manifest) {
+  const errors = [];
+  if (!isPlainObject(manifest)) {
+    return ["Manifest root must be a JSON object"];
+  }
+  const expectedRootKeys = [
+    "schema_version",
+    "description",
+    "default_context",
+    "total_vectors",
+    "sql_supported_count",
+    "sql_refused_count",
+    "suites",
+  ].sort();
+  const actualRootKeys = Object.keys(manifest).sort();
+  if (!deepEqual(actualRootKeys, expectedRootKeys)) {
+    errors.push(
+      `Manifest keys [${actualRootKeys.join(", ")}] do not match expected [${expectedRootKeys.join(", ")}]`
+    );
+  }
+  if (manifest.schema_version !== 1) {
+    errors.push(`Manifest schema_version must be 1, got ${JSON.stringify(manifest.schema_version)}`);
+  }
+  if (typeof manifest.description !== "string" || manifest.description.length === 0) {
+    errors.push("Manifest description must be a non-empty string");
+  }
+  for (const key of ["total_vectors", "sql_supported_count", "sql_refused_count"]) {
+    if (!Number.isInteger(manifest[key]) || manifest[key] < 0) {
+      errors.push(`Manifest ${key} must be a non-negative integer`);
+    }
+  }
+
+  const ctx = manifest.default_context;
+  if (!isPlainObject(ctx)) {
+    errors.push("Manifest default_context must be an object");
+  } else {
+    const ctxKeys = Object.keys(ctx).sort();
+    if (!deepEqual(ctxKeys, ["hmac_keys", "reference_ts_ms"])) {
+      errors.push(
+        `Manifest default_context keys [${ctxKeys.join(", ")}] must be [hmac_keys, reference_ts_ms]`
+      );
+    }
+    if (!isPlainObject(ctx.hmac_keys)) {
+      errors.push("Manifest default_context.hmac_keys must be an object");
+    } else {
+      const keyNames = Object.keys(ctx.hmac_keys).sort();
+      if (!deepEqual(keyNames, ["edge", "server"])) {
+        errors.push(
+          `Manifest default_context.hmac_keys keys [${keyNames.join(", ")}] must be [edge, server]`
+        );
+      }
+      if (typeof ctx.hmac_keys.edge !== "string" || ctx.hmac_keys.edge.length === 0) {
+        errors.push("Manifest default_context.hmac_keys.edge must be a non-empty string");
+      }
+      if (typeof ctx.hmac_keys.server !== "string" || ctx.hmac_keys.server.length === 0) {
+        errors.push("Manifest default_context.hmac_keys.server must be a non-empty string");
+      }
+    }
+    if (!Number.isSafeInteger(ctx.reference_ts_ms)) {
+      errors.push("Manifest default_context.reference_ts_ms must be a safe integer");
+    }
+  }
+
+  if (!Array.isArray(manifest.suites) || manifest.suites.length === 0) {
+    errors.push("Manifest suites must be a non-empty array");
+  } else {
+    const expectedEntryKeys = [
+      "suite",
+      "file",
+      "description",
+      "count",
+      "sql_supported_count",
+      "sql_refused_count",
+      "sha256",
+    ].sort();
+    for (let i = 0; i < manifest.suites.length; i += 1) {
+      const entry = manifest.suites[i];
+      if (!isPlainObject(entry)) {
+        errors.push(`Manifest suites[${i}] must be an object`);
+        continue;
+      }
+      const actualEntryKeys = Object.keys(entry).sort();
+      if (!deepEqual(actualEntryKeys, expectedEntryKeys)) {
+        errors.push(
+          `Manifest suites[${i}] keys [${actualEntryKeys.join(", ")}] do not match expected [${expectedEntryKeys.join(", ")}]`
+        );
+      }
+      if (typeof entry.suite !== "string" || !/^[0-9]{2}-[a-z0-9-]+$/.test(entry.suite)) {
+        errors.push(`Manifest suites[${i}].suite is invalid: ${JSON.stringify(entry.suite)}`);
+      }
+      if (entry.file !== `suites/${entry.suite}.json`) {
+        errors.push(
+          `Manifest suites[${i}].file (${JSON.stringify(entry.file)}) must equal "suites/${entry.suite}.json"`
+        );
+      }
+      if (typeof entry.description !== "string" || entry.description.length === 0) {
+        errors.push(`Manifest suites[${i}].description must be a non-empty string`);
+      }
+      for (const k of ["count", "sql_supported_count", "sql_refused_count"]) {
+        if (!Number.isInteger(entry[k]) || entry[k] < 0) {
+          errors.push(`Manifest suites[${i}].${k} must be a non-negative integer`);
+        }
+      }
+      if (typeof entry.sha256 !== "string" || !/^[0-9a-f]{64}$/.test(entry.sha256)) {
+        errors.push(`Manifest suites[${i}].sha256 must be a 64-char lowercase hex digest`);
+      }
+    }
+  }
+
+  return errors;
+}
+
+export function validateAllVectors(options = {}) {
+  const vectorsDir = options.vectorsDir ?? VECTORS_DIR;
+  const suitesDir = options.suitesDir ?? path.join(vectorsDir, "suites");
+  const manifestPath = options.manifestPath ?? path.join(vectorsDir, "manifest.json");
   const validator = createVectorValidator();
   const errors = [];
 
-  if (!fs.existsSync(MANIFEST_PATH)) {
-    return { valid: false, errors: [`Missing manifest at ${MANIFEST_PATH}`], stats: null };
+  if (!fs.existsSync(manifestPath)) {
+    return { valid: false, errors: [`Missing manifest at ${manifestPath}`], stats: null };
   }
-  const manifest = readJson(MANIFEST_PATH);
+  const manifest = readJson(manifestPath);
+  const manifestShapeErrors = validateManifestShape(manifest);
+  errors.push(...manifestShapeErrors);
+  if (!Array.isArray(manifest?.suites)) {
+    return { valid: false, errors, stats: null, manifest };
+  }
+
   const globalIds = new Set();
+  const seenSuites = new Set();
+  const listedSuiteFiles = new Set();
 
   const stats = {
     totalVectors: 0,
@@ -1413,7 +1619,19 @@ export function validateAllVectors() {
   };
 
   for (const entry of manifest.suites) {
-    const suitePath = path.join(VECTORS_DIR, entry.file);
+    if (!isPlainObject(entry) || typeof entry.file !== "string") {
+      continue;
+    }
+    if (seenSuites.has(entry.suite)) {
+      errors.push(`Duplicate manifest suite entry: ${entry.suite}`);
+    }
+    seenSuites.add(entry.suite);
+    if (listedSuiteFiles.has(entry.file)) {
+      errors.push(`Duplicate manifest suite file entry: ${entry.file}`);
+    }
+    listedSuiteFiles.add(entry.file);
+
+    const suitePath = path.join(vectorsDir, entry.file);
     if (!fs.existsSync(suitePath)) {
       errors.push(`Manifest suite file missing: ${entry.file}`);
       continue;
@@ -1427,6 +1645,18 @@ export function validateAllVectors() {
     if (suiteDoc.suite !== entry.suite) {
       errors.push(`Suite name mismatch for ${entry.file}: manifest=${entry.suite}, file=${suiteDoc.suite}`);
     }
+    if (suiteDoc.description !== entry.description) {
+      errors.push(`Suite description mismatch for ${entry.file}: manifest description differs from suite file`);
+    }
+    if (!deepEqual(suiteDoc.context, manifest.default_context)) {
+      errors.push(
+        `Manifest default_context mismatch for ${entry.file}: manifest=${JSON.stringify(manifest.default_context)}, suite=${JSON.stringify(suiteDoc.context)}`
+      );
+    }
+    if (!Array.isArray(suiteDoc.vectors)) {
+      errors.push(`Suite ${entry.file} vectors must be an array`);
+      continue;
+    }
     if (suiteDoc.vectors.length !== entry.count) {
       errors.push(`Vector count mismatch for ${entry.file}: manifest=${entry.count}, file=${suiteDoc.vectors.length}`);
     }
@@ -1436,6 +1666,9 @@ export function validateAllVectors() {
 
     stats.suiteCounts[entry.suite] = suiteDoc.vectors.length;
 
+    let suiteSqlSupported = 0;
+    let suiteSqlRefused = 0;
+
     for (const vec of suiteDoc.vectors) {
       if (globalIds.has(vec.id)) {
         errors.push(`Duplicate global vector id "${vec.id}" across suites`);
@@ -1443,8 +1676,13 @@ export function validateAllVectors() {
       globalIds.add(vec.id);
 
       stats.totalVectors += 1;
-      if (vec.sql.supported) stats.sqlSupported += 1;
-      else stats.sqlRefused += 1;
+      if (vec.sql.supported) {
+        stats.sqlSupported += 1;
+        suiteSqlSupported += 1;
+      } else {
+        stats.sqlRefused += 1;
+        suiteSqlRefused += 1;
+      }
       if (vec.expected.matched) stats.matchedTrue += 1;
       else stats.matchedFalse += 1;
 
@@ -1492,6 +1730,28 @@ export function validateAllVectors() {
       if (vec.input.kind === "text") {
         const byteLen = Buffer.byteLength(vec.input.line, "utf8");
         if (byteLen > stats.maxRecordBytes) stats.maxRecordBytes = byteLen;
+      }
+    }
+
+    if (entry.sql_supported_count !== suiteSqlSupported) {
+      errors.push(
+        `Suite sql_supported_count mismatch for ${entry.file}: manifest=${entry.sql_supported_count}, actual=${suiteSqlSupported}`
+      );
+    }
+    if (entry.sql_refused_count !== suiteSqlRefused) {
+      errors.push(
+        `Suite sql_refused_count mismatch for ${entry.file}: manifest=${entry.sql_refused_count}, actual=${suiteSqlRefused}`
+      );
+    }
+  }
+
+  // Detect any extra/unlisted files in the suites directory
+  if (fs.existsSync(suitesDir)) {
+    const diskEntries = fs.readdirSync(suitesDir).sort();
+    for (const name of diskEntries) {
+      const rel = `suites/${name}`;
+      if (!listedSuiteFiles.has(rel)) {
+        errors.push(`Unexpected extra file in suites directory not listed in manifest: ${rel}`);
       }
     }
   }

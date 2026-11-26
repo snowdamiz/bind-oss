@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://schemas.bind.dev/v1/golden-vector-suite.schema.json",
   "title": "Bind Parser Conformance Golden Vector Suite",
-  "description": "Deterministic golden vector suite verifying Bind parser runtimes (Mesh, TypeScript, ClickHouse SQL, Swift) against §5, §14, and §17.",
+  "description": "Deterministic golden vector suite verifying Bind parser runtimes (Mesh, TypeScript, ClickHouse SQL, Swift).",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -46,12 +46,12 @@
         "edge": {
           "type": "string",
           "minLength": 1,
-          "description": "Deterministic test k_edge UTF-8 secret for HMAC-SHA256 inner hash (§14)."
+          "description": "Deterministic test k_edge UTF-8 secret for HMAC-SHA256 inner hash."
         },
         "server": {
           "type": "string",
           "minLength": 1,
-          "description": "Deterministic test k_server UTF-8 secret for HMAC-SHA256 outer hash (§14)."
+          "description": "Deterministic test k_server UTF-8 secret for HMAC-SHA256 outer hash."
         }
       }
     },
@@ -85,7 +85,7 @@
         "refusal_code": {
           "type": "string",
           "enum": ["unsupported_json_hole"],
-          "description": "Machine-readable SQL compiler refusal reason (§5, T2.1.5)."
+          "description": "Machine-readable SQL compiler refusal reason."
         },
         "reason": {
           "type": "string",
@@ -217,7 +217,7 @@
         "value": {
           "type": "string",
           "pattern": "^-?(0|[1-9][0-9]*)$",
-          "description": "Signed 64-bit integer encoded as a canonical base-10 decimal string (§17)."
+          "description": "Signed 64-bit integer encoded as a canonical base-10 decimal string."
         }
       }
     },
@@ -231,7 +231,7 @@
         "value": {
           "type": "string",
           "pattern": "^[0-9a-f]{16}$",
-          "description": "IEEE 754 binary64 big-endian 64-bit pattern as 16 lowercase hex chars (§17)."
+          "description": "IEEE 754 binary64 big-endian 64-bit pattern as 16 lowercase hex chars."
         }
       }
     },
@@ -254,7 +254,7 @@
         "type": { "const": "timestamp" },
         "value": {
           "type": "integer",
-          "description": "Unix timestamp in integer milliseconds matching events.ts DateTime64(3) (§17)."
+          "description": "Unix timestamp in integer milliseconds matching events.ts DateTime64(3)."
         }
       }
     },
@@ -347,7 +347,7 @@
         "token": {
           "type": "string",
           "pattern": "^<[a-z][a-z0-9_]*(:[^\\s>]+)?>$",
-          "description": "Redaction marker token causing no value to be stored (§5, §14)."
+          "description": "Redaction marker token causing no value to be stored."
         }
       }
     },

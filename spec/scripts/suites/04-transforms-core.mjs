@@ -350,7 +350,7 @@ export function buildSuite04() {
   vectors.push(
     vec({
       id: "vec_tr_scale_div_1999_by_100_ieee754_001",
-      description: "canonical §5/§17 IEEE-754 pin: 1999 / 100 = 19.99 (4033fd70a3d70a3d, NOT 1999 * 0.01)",
+      description: "canonical IEEE-754 pin: 1999 / 100 = 19.99 (4033fd70a3d70a3d, NOT 1999 * 0.01)",
       tags: ["transform:scale", "ieee754", "section5:canonical"],
       spec: scaleDivSpec(100, "0001"),
       input: textInput("n=1999"),
@@ -514,7 +514,6 @@ export function buildSuite04() {
   // ---- UNIT (22 vectors — ALL 7 time units + ALL 9 byte units!) ----
   const unitVec = ({ id, desc, from, to, raw, outType = "float", expectedVal, extraTags = [] }) => {
     const holeCls = String(raw).includes(".") ? "float" : "int";
-    const sampleRaw = holeCls === "float" ? "1.0" : "1";
     const spec = textSpec({
       template: `tpl_04U${id.slice(-3).toUpperCase()}`,
       event: "test.transform.unit",
@@ -569,7 +568,7 @@ export function buildSuite04() {
     unitVec({ id: "vec_tr_unit_bytes_kib_to_kb_cross_022", desc: "unit converts cross-base KiB to decimal KB (1000 KiB = 1024 KB)", from: "KiB", to: "KB", raw: "1000", expectedVal: 1024, extraTags: ["unit:bytes", "ambiguity:unit_cross_base"] })
   );
 
-  // ---- PARSE_TIME (18 vectors — ALL 10 formats!) ----
+  // ---- PARSE_TIME (21 vectors — ALL 10 formats!) ----
   const ptSpec = (format, suffix, sampleRaw, sampleMs) => {
     const tr = format === undefined ? { op: "parse_time" } : { op: "parse_time", format };
     return textSpec({
@@ -736,10 +735,34 @@ export function buildSuite04() {
       spec: ptSpec("iso8601", "0018", "2026-11-26T14:00:00Z", T_BASE),
       input: textInput("ts=26/Nov/2026:14:00:00 +0000"),
       expected: match({ ts: parseErr("invalid_time") }),
+    }),
+    vec({
+      id: "vec_tr_parse_time_unix_s_exact_decimal_019",
+      description: "parse_time format:unix_s parses '1.001' via exact decimal arithmetic to 1001 ms (not binary64 1000)",
+      tags: ["transform:parse_time", "parse_time:unix_s", "type:timestamp", "ambiguity:unix_s_exact_decimal"],
+      spec: ptSpec("unix_s", "0019", "1.001", 1001),
+      input: textInput("ts=1.001"),
+      expected: match({ ts: okTs(1001) }),
+    }),
+    vec({
+      id: "vec_tr_parse_time_unix_s_negative_subms_020",
+      description: "parse_time format:unix_s truncates negative sub-millisecond fraction '-1.0019' toward zero to -1001 ms",
+      tags: ["transform:parse_time", "parse_time:unix_s", "boundary:negative", "ambiguity:unix_s_exact_decimal", "ambiguity:subms_truncation"],
+      spec: ptSpec("unix_s", "0020", "-1.0019", -1001),
+      input: textInput("ts=-1.0019"),
+      expected: match({ ts: okTs(-1001) }),
+    }),
+    vec({
+      id: "vec_tr_parse_time_fail_offsetless_iso_021",
+      description: "parse_time format:iso8601 rejects offset-less timestamp without Z or numeric offset",
+      tags: ["transform:parse_time", "parse_time:iso8601", "parse_error", "ambiguity:offsetless_time"],
+      spec: ptSpec("iso8601", "0021", "2026-11-26T14:00:00Z", T_BASE),
+      input: textInput("ts=2026-11-26T14:00:00"),
+      expected: match({ ts: parseErr("invalid_time") }),
     })
   );
 
-  // ---- LOWER & ENUM_MAP (12 vectors) ----
+  // ---- LOWER & ENUM_MAP (13 vectors) ----
   const lowerSpec = textSpec({
     template: "tpl_04LOWR001",
     event: "test.transform.lower",
@@ -946,12 +969,20 @@ export function buildSuite04() {
       }),
       input: objectInput({ name: 123 }),
       expected: match({ name: parseErr("type_mismatch") }),
+    }),
+    vec({
+      id: "vec_tr_lower_locale_independent_root_013",
+      description: "lower performs locale-independent root Unicode folding (İ -> i+U+0307, ASCII I -> i)",
+      tags: ["transform:lower", "unicode", "ambiguity:lower_unicode"],
+      spec: lowerSpec,
+      input: textInput("v=\u0130STANBUL I"),
+      expected: match({ v: okStr("i\u0307stanbul i") }),
     })
   );
 
   return {
     suite: "04-transforms-core",
-    description: "Golden conformance vectors covering cast, scale (IEEE-754 single-op bit patterns), unit (all time and byte units), parse_time (all 10 formats), lower, and enum_map transforms.",
+    description: "Golden conformance vectors covering cast, scale (IEEE-754 single-op bit patterns), unit (all time and byte units), parse_time (all 10 formats including exact decimal unix_s), lower (locale-independent UTF-8), and enum_map transforms.",
     vectors,
   };
 }

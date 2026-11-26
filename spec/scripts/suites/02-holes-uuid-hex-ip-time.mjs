@@ -12,7 +12,7 @@ import {
 export function buildSuite02() {
   const vectors = [];
 
-  // ---- UUID (12 vectors) ----
+  // ---- UUID (13 vectors) ----
   const uuidSpec = textSpec({
     template: "tpl_01HOLEUUID1",
     event: "test.hole.uuid",
@@ -28,6 +28,15 @@ export function buildSuite02() {
     segments: [{ lit: "req=" }, { hole: "id", class: "uuid" }, { lit: ";ok" }],
     fields: [field({ id: "fld_01UUID0002", name: "id", from: { hole: "id" }, type: "string", semantic: "id.request" })],
     sampleLine: "req=550e8400-e29b-41d4-a716-446655440000;ok",
+    sampleExpect: { id: "550e8400-e29b-41d4-a716-446655440000" },
+  });
+
+  const uuidBeforeFLitSpec = textSpec({
+    template: "tpl_01HOLEUUID3",
+    event: "test.hole.uuid_before_f",
+    segments: [{ lit: "id=" }, { hole: "id", class: "uuid" }, { lit: "f" }],
+    fields: [field({ id: "fld_01UUID0003", name: "id", from: { hole: "id" }, type: "string", semantic: "id.request" })],
+    sampleLine: "id=550e8400-e29b-41d4-a716-446655440000f",
     sampleExpect: { id: "550e8400-e29b-41d4-a716-446655440000" },
   });
 
@@ -127,10 +136,18 @@ export function buildSuite02() {
       spec: uuidSpec,
       input: textInput("id="),
       expected: noMatch(),
+    }),
+    vec({
+      id: "vec_hole_uuid_before_hex_lit_f_013",
+      description: "fixed-width uuid hole lexes all 36 chars without truncating at following literal 'f'",
+      tags: ["hole:uuid", "boundary:following_literal", "ambiguity:scanner_hole_boundary"],
+      spec: uuidBeforeFLitSpec,
+      input: textInput("id=550e8400-e29b-41d4-a716-446655440000f"),
+      expected: match({ id: okStr("550e8400-e29b-41d4-a716-446655440000") }),
     })
   );
 
-  // ---- HEX (12 vectors) ----
+  // ---- HEX (15 vectors) ----
   const hexSpec = textSpec({
     template: "tpl_01HOLEHEX01",
     event: "test.hole.hex",
@@ -147,6 +164,15 @@ export function buildSuite02() {
     fields: [field({ id: "fld_01HEX00002", name: "span", from: { hole: "span" }, type: "string", semantic: "id.span" })],
     sampleLine: "span=00f067aa0ba902b7:ok",
     sampleExpect: { span: "00f067aa0ba902b7" },
+  });
+
+  const hexBeforeFLitSpec = textSpec({
+    template: "tpl_01HOLEHEX03",
+    event: "test.hole.hex_before_f",
+    segments: [{ lit: "h=" }, { hole: "h", class: "hex" }, { lit: "f" }],
+    fields: [field({ id: "fld_01HEX00003", name: "h", from: { hole: "h" }, type: "string", semantic: "text" })],
+    sampleLine: "h=deadbeef",
+    sampleExpect: { h: "deadbee" },
   });
 
   vectors.push(
@@ -245,10 +271,34 @@ export function buildSuite02() {
       spec: hexSpec,
       input: textInput("trace="),
       expected: noMatch(),
+    }),
+    vec({
+      id: "vec_hole_hex_before_hex_lit_f_013",
+      description: "hex hole stops at leftmost following overlapping literal 'f'",
+      tags: ["hole:hex", "boundary:following_literal", "ambiguity:scanner_hole_boundary"],
+      spec: hexBeforeFLitSpec,
+      input: textInput("h=deadbeef"),
+      expected: match({ h: okStr("deadbee") }),
+    }),
+    vec({
+      id: "vec_hole_hex_before_hex_lit_f_no_backtrack_014",
+      description: "hex hole stops at leftmost 'f' and does not backtrack to a trailing 'f'",
+      tags: ["hole:hex", "boundary:following_literal", "no_match", "ambiguity:scanner_hole_boundary"],
+      spec: hexBeforeFLitSpec,
+      input: textInput("h=afbf"),
+      expected: noMatch(),
+    }),
+    vec({
+      id: "vec_hole_hex_before_hex_lit_f_reject_empty_015",
+      description: "hex hole bounded by following literal 'f' rejects empty capture",
+      tags: ["hole:hex", "boundary:following_literal", "boundary:empty", "no_match"],
+      spec: hexBeforeFLitSpec,
+      input: textInput("h=f"),
+      expected: noMatch(),
     })
   );
 
-  // ---- IP (20 vectors) ----
+  // ---- IP (24 vectors) ----
   const ipSpec = textSpec({
     template: "tpl_01HOLEIP001",
     event: "test.hole.ip",
@@ -265,6 +315,15 @@ export function buildSuite02() {
     fields: [field({ id: "fld_01IP000002", name: "ip", from: { hole: "ip" }, type: "string", semantic: "ip" })],
     sampleLine: "addr=127.0.0.1:8080",
     sampleExpect: { ip: "127.0.0.1" },
+  });
+
+  const ipDotOneSpec = textSpec({
+    template: "tpl_01HOLEIP003",
+    event: "test.hole.ip_dot_one",
+    segments: [{ lit: "addr=" }, { hole: "ip", class: "ip" }, { lit: ".1" }],
+    fields: [field({ id: "fld_01IP000003", name: "ip", from: { hole: "ip" }, type: "string", semantic: "ip" })],
+    sampleLine: "addr=10.20.30.40.1",
+    sampleExpect: { ip: "10.20.30.40" },
   });
 
   vectors.push(
@@ -427,10 +486,42 @@ export function buildSuite02() {
       spec: ipSpec,
       input: textInput("ip="),
       expected: noMatch(),
+    }),
+    vec({
+      id: "vec_hole_ip_v6_before_port_lit_021",
+      description: "ip hole stops IPv6 capture at leftmost following literal ':8080'",
+      tags: ["hole:ip", "ip:v6", "boundary:following_literal", "ambiguity:scanner_hole_boundary"],
+      spec: ipPortSpec,
+      input: textInput("addr=2001:db8::1:8080"),
+      expected: match({ ip: okStr("2001:db8::1") }),
+    }),
+    vec({
+      id: "vec_hole_ip_v6_before_port_lit_no_backtrack_022",
+      description: "ip hole stops at leftmost ':8080' inside IPv6 address without backtracking",
+      tags: ["hole:ip", "ip:v6", "boundary:following_literal", "no_match", "ambiguity:scanner_hole_boundary"],
+      spec: ipPortSpec,
+      input: textInput("addr=2001:8080::1:8080"),
+      expected: noMatch(),
+    }),
+    vec({
+      id: "vec_hole_ip_v4_before_dot_lit_023",
+      description: "ip hole stops IPv4 capture at leftmost following literal '.1'",
+      tags: ["hole:ip", "ip:v4", "boundary:following_literal", "ambiguity:scanner_hole_boundary"],
+      spec: ipDotOneSpec,
+      input: textInput("addr=10.20.30.40.1"),
+      expected: match({ ip: okStr("10.20.30.40") }),
+    }),
+    vec({
+      id: "vec_hole_ip_v4_before_dot_lit_no_backtrack_024",
+      description: "ip hole stops at leftmost '.1' inside IPv4 address without backtracking",
+      tags: ["hole:ip", "ip:v4", "boundary:following_literal", "no_match", "ambiguity:scanner_hole_boundary"],
+      spec: ipDotOneSpec,
+      input: textInput("addr=10.1.2.3.1"),
+      expected: noMatch(),
     })
   );
 
-  // ---- TIME (16 vectors) ----
+  // ---- TIME (20 vectors) ----
   const timeStrSpec = textSpec({
     template: "tpl_01HOLETIME1",
     event: "test.hole.time_str",
@@ -456,6 +547,33 @@ export function buildSuite02() {
     ],
     sampleLine: "[2026-11-26T14:00:00Z] ok",
     sampleExpect: { event_time: Date.UTC(2026, 10, 26, 14, 0, 0, 0) },
+  });
+
+  const timeBeforeZLitSpec = textSpec({
+    template: "tpl_01HOLETIME3",
+    event: "test.hole.time_before_z",
+    segments: [{ lit: "ts=" }, { hole: "ts", class: "time" }, { lit: "Z" }],
+    fields: [field({ id: "fld_01TIME0003", name: "ts", from: { hole: "ts" }, type: "string", semantic: "text" })],
+    sampleLine: "ts=2026-11-26T14:00:00ZZ",
+    sampleExpect: { ts: "2026-11-26T14:00:00Z" },
+  });
+
+  const timeBeforeColonLitSpec = textSpec({
+    template: "tpl_01HOLETIME4",
+    event: "test.hole.time_before_colon",
+    segments: [{ lit: "ts=" }, { hole: "ts", class: "time" }, { lit: ":ok" }],
+    fields: [field({ id: "fld_01TIME0004", name: "ts", from: { hole: "ts" }, type: "string", semantic: "text" })],
+    sampleLine: "ts=2026-11-26T14:00:00Z:ok",
+    sampleExpect: { ts: "2026-11-26T14:00:00Z" },
+  });
+
+  const timeBeforeZeroZeroLitSpec = textSpec({
+    template: "tpl_01HOLETIME5",
+    event: "test.hole.time_before_00",
+    segments: [{ lit: "ts=" }, { hole: "ts", class: "time" }, { lit: "00" }],
+    fields: [field({ id: "fld_01TIME0005", name: "ts", from: { hole: "ts" }, type: "string", semantic: "text" })],
+    sampleLine: "ts=Nov 26 14:00:0000",
+    sampleExpect: { ts: "Nov 26 14:00:00" },
   });
 
   vectors.push(
@@ -586,12 +704,44 @@ export function buildSuite02() {
       spec: timeStrSpec,
       input: textInput("ts="),
       expected: noMatch(),
+    }),
+    vec({
+      id: "vec_hole_time_iso_before_z_lit_017",
+      description: "self-delimited time hole consumes full ISO timestamp including Z before following literal 'Z'",
+      tags: ["hole:time", "time:iso8601", "boundary:following_literal", "ambiguity:scanner_hole_boundary"],
+      spec: timeBeforeZLitSpec,
+      input: textInput("ts=2026-11-26T14:00:00ZZ"),
+      expected: match({ ts: okStr("2026-11-26T14:00:00Z") }),
+    }),
+    vec({
+      id: "vec_hole_time_iso_before_colon_lit_018",
+      description: "self-delimited time hole consumes full ISO timestamp before following literal ':ok'",
+      tags: ["hole:time", "time:iso8601", "boundary:following_literal", "ambiguity:scanner_hole_boundary"],
+      spec: timeBeforeColonLitSpec,
+      input: textInput("ts=2026-11-26T14:00:00Z:ok"),
+      expected: match({ ts: okStr("2026-11-26T14:00:00Z") }),
+    }),
+    vec({
+      id: "vec_hole_time_syslog_before_digits_lit_019",
+      description: "self-delimited syslog time hole consumes full timestamp before following literal '00'",
+      tags: ["hole:time", "time:syslog", "boundary:following_literal", "ambiguity:scanner_hole_boundary"],
+      spec: timeBeforeZeroZeroLitSpec,
+      input: textInput("ts=Nov 26 14:00:0000"),
+      expected: match({ ts: okStr("Nov 26 14:00:00") }),
+    }),
+    vec({
+      id: "vec_hole_time_reject_offsetless_iso_020",
+      description: "time hole rejects offset-less ISO 8601 timestamp lacking Z or numeric timezone offset",
+      tags: ["hole:time", "time:iso8601", "no_match", "ambiguity:offsetless_time"],
+      spec: timeStrSpec,
+      input: textInput("ts=2026-11-26T14:00:00"),
+      expected: noMatch(),
     })
   );
 
   return {
     suite: "02-holes-uuid-hex-ip-time",
-    description: "Golden conformance vectors covering uuid, hex, ip (IPv4 and IPv6), and time (ISO 8601, Apache, syslog) hole classes.",
+    description: "Golden conformance vectors covering uuid, hex, ip (IPv4 and IPv6), and time (ISO 8601, Apache, syslog) hole classes including overlapping-literal boundaries.",
     vectors,
   };
 }

@@ -73,7 +73,24 @@ export function buildSuite01() {
     sampleExpect: { a: "left", b: "right" },
   });
 
-  // ---- WORD (18 vectors) ----
+  const wordCommaIdSpec = textSpec({
+    template: "tpl_01HOLEWORD8",
+    event: "test.hole.word_comma_id",
+    segments: [
+      { lit: "tok=" },
+      { hole: "val", class: "word" },
+      { lit: ",id=" },
+      { hole: "id", class: "int" },
+    ],
+    fields: [
+      field({ id: "fld_01WORD0009", name: "val", from: { hole: "val" }, type: "string", semantic: "text" }),
+      field({ id: "fld_01WORD0010", name: "id", from: { hole: "id" }, type: "int", semantic: "count" }),
+    ],
+    sampleLine: "tok=ord_8f2a,id=42",
+    sampleExpect: { val: "ord_8f2a", id: 42 },
+  });
+
+  // ---- WORD (22 vectors) ----
   const longWord = "w".repeat(4096);
   vectors.push(
     vec({
@@ -205,19 +222,11 @@ export function buildSuite01() {
       expected: noMatch(),
     }),
     vec({
-      id: "vec_hole_word_greedy_stops_only_at_ws_017",
-      description: "word hole is greedy up to ASCII whitespace and does not backtrack before non-space literal",
-      tags: ["hole:word", "no_match", "ambiguity:word_greedy_nonspace_lit"],
-      spec: textSpec({
-        template: "tpl_01HOLEWORD7",
-        event: "test.hole.word_greedy",
-        segments: [{ lit: "user=" }, { hole: "u", class: "word" }, { lit: ":ok" }],
-        fields: [field({ id: "fld_01WORD0008", name: "u", from: { hole: "u" }, type: "string", semantic: "text" })],
-        sampleLine: "user=alice:ok",
-        sampleExpect: { u: "alice" },
-      }),
-      // Note: sampleLine above would fail greedy word; fix spec below!
-      input: textInput("user=alice:ok"),
+      id: "vec_hole_word_reject_missing_suffix_017",
+      description: "word hole followed by space-delimited literal fails when suffix is missing",
+      tags: ["hole:word", "no_match"],
+      spec: wordMidSpec,
+      input: textInput("GET /v1/orders"),
       expected: noMatch(),
     }),
     vec({
@@ -227,20 +236,42 @@ export function buildSuite01() {
       spec: wordSpec,
       input: textInput('tok={"a":"b"}'),
       expected: match({ val: okStr('{"a":"b"}') }),
+    }),
+    vec({
+      id: "vec_hole_word_before_comma_id_lit_019",
+      description: "word hole stops at leftmost following non-space literal ',id='",
+      tags: ["hole:word", "boundary:following_literal", "ambiguity:scanner_hole_boundary"],
+      spec: wordCommaIdSpec,
+      input: textInput("tok=ord_8f2a,id=42"),
+      expected: match({ val: okStr("ord_8f2a"), id: okInt("42") }),
+    }),
+    vec({
+      id: "vec_hole_word_before_comma_id_reject_space_020",
+      description: "word hole bounded by ',id=' still rejects embedded ASCII space before literal",
+      tags: ["hole:word", "boundary:following_literal", "no_match", "ambiguity:scanner_hole_boundary"],
+      spec: wordCommaIdSpec,
+      input: textInput("tok=hello world,id=42"),
+      expected: noMatch(),
+    }),
+    vec({
+      id: "vec_hole_word_before_comma_id_no_backtrack_021",
+      description: "word hole stops at leftmost ',id=' occurrence and does not backtrack to a later ',id='",
+      tags: ["hole:word", "boundary:following_literal", "no_match", "ambiguity:scanner_hole_boundary"],
+      spec: wordCommaIdSpec,
+      input: textInput("tok=a,id=b,id=42"),
+      expected: noMatch(),
+    }),
+    vec({
+      id: "vec_hole_word_before_comma_id_reject_empty_022",
+      description: "word hole bounded by ',id=' rejects empty capture before literal",
+      tags: ["hole:word", "boundary:following_literal", "boundary:empty", "no_match"],
+      spec: wordCommaIdSpec,
+      input: textInput("tok=,id=42"),
+      expected: noMatch(),
     })
   );
 
-  // Replace vec_hole_word_greedy_stops_only_at_ws_017 with a valid-test spec where literal starts with space!
-  vectors[16] = vec({
-    id: "vec_hole_word_reject_missing_suffix_017",
-    description: "word hole followed by space-delimited literal fails when suffix is missing",
-    tags: ["hole:word", "no_match"],
-    spec: wordMidSpec,
-    input: textInput("GET /v1/orders"),
-    expected: noMatch(),
-  });
-
-  // ---- INT (22 vectors) ----
+  // ---- INT (24 vectors) ----
   const intSpec = textSpec({
     template: "tpl_01HOLEINT01",
     event: "test.hole.int",
@@ -275,6 +306,15 @@ export function buildSuite01() {
     fields: [field({ id: "fld_01INT00004", name: "qty", from: { hole: "qty" }, type: "float", semantic: "count" })],
     sampleLine: "qty=42",
     sampleExpect: { qty: 42 },
+  });
+
+  const intBeforeZeroSpec = textSpec({
+    template: "tpl_01HOLEINT05",
+    event: "test.hole.int_before_zero",
+    segments: [{ lit: "n=" }, { hole: "n", class: "int" }, { lit: "0" }],
+    fields: [field({ id: "fld_01INT00005", name: "n", from: { hole: "n" }, type: "int", semantic: "count" })],
+    sampleLine: "n=120",
+    sampleExpect: { n: 12 },
   });
 
   vectors.push(
@@ -453,10 +493,26 @@ export function buildSuite01() {
       spec: intSpec,
       input: textInput("n=\u0661\u0662\u0663"),
       expected: noMatch(),
+    }),
+    vec({
+      id: "vec_hole_int_before_digit_lit_023",
+      description: "int hole stops at leftmost following overlapping digit literal '0'",
+      tags: ["hole:int", "boundary:following_literal", "ambiguity:scanner_hole_boundary"],
+      spec: intBeforeZeroSpec,
+      input: textInput("n=120"),
+      expected: match({ n: okInt("12") }),
+    }),
+    vec({
+      id: "vec_hole_int_before_digit_lit_no_backtrack_024",
+      description: "int hole stops at leftmost '0' and does not backtrack to a trailing '0'",
+      tags: ["hole:int", "boundary:following_literal", "no_match", "ambiguity:scanner_hole_boundary"],
+      spec: intBeforeZeroSpec,
+      input: textInput("n=1020"),
+      expected: noMatch(),
     })
   );
 
-  // ---- FLOAT (20 vectors) ----
+  // ---- FLOAT (23 vectors) ----
   const floatSpec = textSpec({
     template: "tpl_01HOLEFLT01",
     event: "test.hole.float",
@@ -473,6 +529,24 @@ export function buildSuite01() {
     fields: [field({ id: "fld_01FLT00002", name: "f", from: { hole: "f" }, type: "string", semantic: "text" })],
     sampleLine: "f=1.50",
     sampleExpect: { f: "1.50" },
+  });
+
+  const floatBeforeExpLitSpec = textSpec({
+    template: "tpl_01HOLEFLT03",
+    event: "test.hole.float_before_exp",
+    segments: [{ lit: "v=" }, { hole: "v", class: "float" }, { lit: "e1" }],
+    fields: [field({ id: "fld_01FLT00003", name: "v", from: { hole: "v" }, type: "float", semantic: "ratio" })],
+    sampleLine: "v=1.5e1",
+    sampleExpect: { v: 1.5 },
+  });
+
+  const floatBeforeDotZeroLitSpec = textSpec({
+    template: "tpl_01HOLEFLT04",
+    event: "test.hole.float_before_dot_zero",
+    segments: [{ lit: "v=" }, { hole: "v", class: "float" }, { lit: ".0" }],
+    fields: [field({ id: "fld_01FLT00004", name: "v", from: { hole: "v" }, type: "float", semantic: "ratio" })],
+    sampleLine: "v=42.0",
+    sampleExpect: { v: 42 },
   });
 
   vectors.push(
@@ -635,12 +709,36 @@ export function buildSuite01() {
       spec: floatSpec,
       input: textInput("f="),
       expected: noMatch(),
+    }),
+    vec({
+      id: "vec_hole_float_before_exponent_lit_021",
+      description: "float hole stops before leftmost following literal 'e1' instead of consuming exponent",
+      tags: ["hole:float", "boundary:following_literal", "ieee754", "ambiguity:scanner_hole_boundary"],
+      spec: floatBeforeExpLitSpec,
+      input: textInput("v=1.5e1"),
+      expected: match({ v: okFloat(1.5) }),
+    }),
+    vec({
+      id: "vec_hole_float_before_dot_zero_lit_022",
+      description: "float hole stops before leftmost following literal '.0'",
+      tags: ["hole:float", "boundary:following_literal", "ieee754", "ambiguity:scanner_hole_boundary"],
+      spec: floatBeforeDotZeroLitSpec,
+      input: textInput("v=42.0"),
+      expected: match({ v: okFloat(42) }),
+    }),
+    vec({
+      id: "vec_hole_float_before_dot_zero_no_backtrack_023",
+      description: "float hole stops at leftmost '.0' and does not backtrack to a trailing '.0'",
+      tags: ["hole:float", "boundary:following_literal", "no_match", "ambiguity:scanner_hole_boundary"],
+      spec: floatBeforeDotZeroLitSpec,
+      input: textInput("v=4.0.0"),
+      expected: noMatch(),
     })
   );
 
   return {
     suite: "01-holes-word-int-float",
-    description: "Golden conformance vectors covering word (including default class), int, and float hole classes with boundary values and overflow semantics.",
+    description: "Golden conformance vectors covering word (including default class), int, and float hole classes with boundary values, overlapping literals, and overflow semantics.",
     vectors,
   };
 }

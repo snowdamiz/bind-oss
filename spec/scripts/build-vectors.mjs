@@ -13,9 +13,9 @@ import { buildSuite06 } from "./suites/06-matchers-object-and-args.mjs";
 import { buildSuite07 } from "./suites/07-boundaries-unicode-adjacent-large.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const VECTORS_DIR = path.resolve(__dirname, "..", "vectors");
-const SUITES_DIR = path.join(VECTORS_DIR, "suites");
-const MANIFEST_PATH = path.join(VECTORS_DIR, "manifest.json");
+export const VECTORS_DIR = path.resolve(__dirname, "..", "vectors");
+export const SUITES_DIR = path.join(VECTORS_DIR, "suites");
+export const MANIFEST_PATH = path.join(VECTORS_DIR, "manifest.json");
 
 function sha256Text(text) {
   return crypto.createHash("sha256").update(Buffer.from(text, "utf8")).digest("hex");
@@ -77,7 +77,7 @@ export function buildAllArtifacts() {
   const manifestDoc = {
     schema_version: 1,
     description:
-      "Deterministic golden conformance vector manifest for Bind ParserSpec runtimes (Mesh, TypeScript, ClickHouse SQL, Swift) per §5, §14, and §17.",
+      "Deterministic golden conformance vector manifest for Bind ParserSpec runtimes (Mesh, TypeScript, ClickHouse SQL, Swift).",
     default_context: DEFAULT_CONTEXT,
     total_vectors: totalVectors,
     sql_supported_count: sqlSupportedCount,
@@ -89,39 +89,88 @@ export function buildAllArtifacts() {
   return { suiteFiles, manifestText, manifestDoc };
 }
 
+export function findExtraSuiteFiles(suitesDir, expectedRelFiles) {
+  if (!fs.existsSync(suitesDir)) return [];
+  const expectedNames = new Set(expectedRelFiles.map((rel) => path.basename(rel)));
+  return fs
+    .readdirSync(suitesDir)
+    .filter((name) => !expectedNames.has(name))
+    .sort();
+}
+
+export function checkAllArtifacts(options = {}) {
+  const vectorsDir = options.vectorsDir ?? VECTORS_DIR;
+  const suitesDir = options.suitesDir ?? path.join(vectorsDir, "suites");
+  const manifestPath = options.manifestPath ?? path.join(vectorsDir, "manifest.json");
+  const built = options.built ?? buildAllArtifacts();
+  const mismatches = [];
+
+  for (const f of built.suiteFiles) {
+    const targetPath = path.join(vectorsDir, f.relFile);
+    if (!fs.existsSync(targetPath)) {
+      mismatches.push(`missing ${f.relFile}`);
+    } else if (fs.readFileSync(targetPath, "utf8") !== f.jsonText) {
+      mismatches.push(`drift in ${f.relFile}`);
+    }
+  }
+
+  const extraFiles = findExtraSuiteFiles(
+    suitesDir,
+    built.suiteFiles.map((f) => f.relFile)
+  );
+  for (const extra of extraFiles) {
+    mismatches.push(`extra unlisted file in suites/: ${extra}`);
+  }
+
+  if (!fs.existsSync(manifestPath)) {
+    mismatches.push("missing manifest.json");
+  } else if (fs.readFileSync(manifestPath, "utf8") !== built.manifestText) {
+    mismatches.push("drift in manifest.json");
+  }
+
+  return {
+    ok: mismatches.length === 0,
+    mismatches,
+    manifestDoc: built.manifestDoc,
+    suiteCount: built.suiteFiles.length,
+  };
+}
+
 function main() {
   const checkOnly = process.argv.includes("--check");
-  const { suiteFiles, manifestText, manifestDoc } = buildAllArtifacts();
+  const built = buildAllArtifacts();
 
   if (checkOnly) {
-    const mismatches = [];
-    for (const f of suiteFiles) {
-      if (!fs.existsSync(f.absPath)) {
-        mismatches.push(`missing ${f.relFile}`);
-      } else if (fs.readFileSync(f.absPath, "utf8") !== f.jsonText) {
-        mismatches.push(`drift in ${f.relFile}`);
-      }
-    }
-    if (!fs.existsSync(MANIFEST_PATH)) {
-      mismatches.push("missing manifest.json");
-    } else if (fs.readFileSync(MANIFEST_PATH, "utf8") !== manifestText) {
-      mismatches.push("drift in manifest.json");
-    }
-    if (mismatches.length > 0) {
-      console.error("Determinism check FAILED:\n  - " + mismatches.join("\n  - "));
+    const res = checkAllArtifacts({ built });
+    if (!res.ok) {
+      console.error("Determinism check FAILED:\n  - " + res.mismatches.join("\n  - "));
       process.exit(1);
     }
-    console.log(`OK: ${manifestDoc.total_vectors} vectors across ${suiteFiles.length} suites match byte-for-byte.`);
+    console.log(
+      `OK: ${res.manifestDoc.total_vectors} vectors across ${res.suiteCount} suites match byte-for-byte.`
+    );
     return;
   }
 
+  const extraFiles = findExtraSuiteFiles(
+    SUITES_DIR,
+    built.suiteFiles.map((f) => f.relFile)
+  );
+  if (extraFiles.length > 0) {
+    console.error(
+      "Regeneration FAILED: unexpected extra file(s) in spec/vectors/suites/:\n  - " +
+        extraFiles.join("\n  - ")
+    );
+    process.exit(1);
+  }
+
   fs.mkdirSync(SUITES_DIR, { recursive: true });
-  for (const f of suiteFiles) {
+  for (const f of built.suiteFiles) {
     fs.writeFileSync(f.absPath, f.jsonText, "utf8");
   }
-  fs.writeFileSync(MANIFEST_PATH, manifestText, "utf8");
+  fs.writeFileSync(MANIFEST_PATH, built.manifestText, "utf8");
   console.log(
-    `Generated ${manifestDoc.total_vectors} golden vectors (${manifestDoc.sql_supported_count} SQL-supported, ${manifestDoc.sql_refused_count} SQL-refused) across ${suiteFiles.length} suites.`
+    `Generated ${built.manifestDoc.total_vectors} golden vectors (${built.manifestDoc.sql_supported_count} SQL-supported, ${built.manifestDoc.sql_refused_count} SQL-refused) across ${built.suiteFiles.length} suites.`
   );
 }
 

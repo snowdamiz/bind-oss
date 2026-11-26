@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "suite": "05-transforms-privacy-and-redaction",
-  "description": "Golden conformance vectors covering hash, mask (token and ip_prefix), drop, and Stage 2/3 redaction tokens across all 11 hole classes and field types (§5, §14).",
+  "description": "Golden conformance vectors covering hash, mask (token and ip_prefix), drop, known redaction tokens across all 11 hole classes and field types, neutral unknown angle-bracket strings, and explicit PII transform placement.",
   "context": {
     "hmac_keys": {
       "edge": "bind-conformance-edge-key-v1",
@@ -469,7 +469,7 @@
     },
     {
       "id": "vec_tr_hash_already_tokenized_passthrough_007",
-      "description": "hash transform leaves pre-existing pseudonym token unchanged (no double hashing, §14)",
+      "description": "hash transform leaves pre-existing pseudonym token unchanged (no double hashing)",
       "tags": [
         "transform:hash",
         "redaction:pseudonym",
@@ -1821,7 +1821,7 @@
     },
     {
       "id": "vec_redact_mask_in_word_001",
-      "description": "mask token <card> matches word hole and produces redacted marker (§5)",
+      "description": "mask token <card> matches word hole and produces redacted marker",
       "tags": [
         "hole:word",
         "redaction:mask",
@@ -1889,7 +1889,7 @@
     },
     {
       "id": "vec_redact_mask_in_int_002",
-      "description": "mask token <card> matches int hole and produces redacted marker (§5)",
+      "description": "mask token <card> matches int hole and produces redacted marker",
       "tags": [
         "hole:int",
         "redaction:mask",
@@ -1957,7 +1957,7 @@
     },
     {
       "id": "vec_redact_mask_in_float_003",
-      "description": "mask token <secret:jwt> matches float hole and produces redacted marker (§5)",
+      "description": "mask token <secret:jwt> matches float hole and produces redacted marker",
       "tags": [
         "hole:float",
         "redaction:mask",
@@ -2025,7 +2025,7 @@
     },
     {
       "id": "vec_redact_mask_in_uuid_004",
-      "description": "mask token <secret:kv> matches uuid hole and produces redacted marker (§5)",
+      "description": "mask token <secret:kv> matches uuid hole and produces redacted marker",
       "tags": [
         "hole:uuid",
         "redaction:mask",
@@ -2093,7 +2093,7 @@
     },
     {
       "id": "vec_redact_mask_in_hex_005",
-      "description": "mask token <secret:jwt> matches hex hole and produces redacted marker (§5)",
+      "description": "mask token <secret:jwt> matches hex hole and produces redacted marker",
       "tags": [
         "hole:hex",
         "redaction:mask",
@@ -2161,7 +2161,7 @@
     },
     {
       "id": "vec_redact_mask_in_ip_006",
-      "description": "mask token <card> matches ip hole and produces redacted marker (§5)",
+      "description": "mask token <card> matches ip hole and produces redacted marker",
       "tags": [
         "hole:ip",
         "redaction:mask",
@@ -2229,7 +2229,7 @@
     },
     {
       "id": "vec_redact_mask_in_time_007",
-      "description": "mask token <us_ssn> matches time hole and produces redacted marker (§5)",
+      "description": "mask token <us_ssn> matches time hole and produces redacted marker",
       "tags": [
         "hole:time",
         "redaction:mask",
@@ -2297,7 +2297,7 @@
     },
     {
       "id": "vec_redact_mask_in_quoted_008",
-      "description": "mask token <name> matches quoted hole and produces redacted marker (§5)",
+      "description": "mask token <name> matches quoted hole and produces redacted marker",
       "tags": [
         "hole:quoted",
         "redaction:mask",
@@ -2365,7 +2365,7 @@
     },
     {
       "id": "vec_redact_mask_in_json_009",
-      "description": "mask token <secret:kv> matches json hole and produces redacted marker (§5)",
+      "description": "mask token <secret:kv> matches json hole and produces redacted marker",
       "tags": [
         "hole:json",
         "redaction:mask",
@@ -2377,7 +2377,7 @@
       "sql": {
         "supported": false,
         "refusal_code": "unsupported_json_hole",
-        "reason": "Specs containing a json hole cannot be compiled to ClickHouse RE2 extractGroups because RE2 cannot match balanced brackets (§5, T2.1.5)."
+        "reason": "Specs containing a text json hole are refused by the ClickHouse SQL compiler because balanced JSON text scanning is not supported in SQL compilation."
       },
       "spec": {
         "spec_version": 1,
@@ -2439,7 +2439,7 @@
     },
     {
       "id": "vec_redact_mask_in_until_010",
-      "description": "mask token <card> matches until hole and produces redacted marker (§5)",
+      "description": "mask token <card> matches until hole and produces redacted marker",
       "tags": [
         "hole:until",
         "redaction:mask",
@@ -2510,7 +2510,7 @@
     },
     {
       "id": "vec_redact_mask_in_rest_011",
-      "description": "mask token <secret:jwt> matches rest hole and produces redacted marker (§5)",
+      "description": "mask token <secret:jwt> matches rest hole and produces redacted marker",
       "tags": [
         "hole:rest",
         "redaction:mask",
@@ -2578,7 +2578,7 @@
     },
     {
       "id": "vec_redact_pseudonym_string_word_001",
-      "description": "pseudonym token matches word hole and is stored as value of string field (§5)",
+      "description": "pseudonym token matches word hole and is stored as value of string field",
       "tags": [
         "hole:word",
         "redaction:pseudonym",
@@ -2647,7 +2647,7 @@
     },
     {
       "id": "vec_redact_pseudonym_string_quoted_002",
-      "description": "pseudonym token matches quoted hole and is stored as value of string field (§5)",
+      "description": "pseudonym token matches quoted hole and is stored as value of string field",
       "tags": [
         "hole:quoted",
         "redaction:pseudonym",
@@ -2716,7 +2716,7 @@
     },
     {
       "id": "vec_redact_pseudonym_string_uuid_003",
-      "description": "pseudonym token matches uuid hole and is stored as value of string field (§5)",
+      "description": "pseudonym token matches uuid hole and is stored as value of string field",
       "tags": [
         "hole:uuid",
         "redaction:pseudonym",
@@ -2785,7 +2785,7 @@
     },
     {
       "id": "vec_redact_pseudonym_string_ip_004",
-      "description": "pseudonym token matches ip hole and is stored as value of string field (§5)",
+      "description": "pseudonym token matches ip hole and is stored as value of string field",
       "tags": [
         "hole:ip",
         "redaction:pseudonym",
@@ -2854,7 +2854,7 @@
     },
     {
       "id": "vec_redact_pseudonym_string_until_005",
-      "description": "pseudonym token matches until hole and is stored as value of string field (§5)",
+      "description": "pseudonym token matches until hole and is stored as value of string field",
       "tags": [
         "hole:until",
         "redaction:pseudonym",
@@ -2926,7 +2926,7 @@
     },
     {
       "id": "vec_redact_pseudonym_string_rest_006",
-      "description": "pseudonym token matches rest hole and is stored as value of string field (§5)",
+      "description": "pseudonym token matches rest hole and is stored as value of string field",
       "tags": [
         "hole:rest",
         "redaction:pseudonym",
@@ -2995,7 +2995,7 @@
     },
     {
       "id": "vec_redact_pseudonym_nonstring_int_001",
-      "description": "pseudonym token in non-string (int) field is treated as a mask (§5)",
+      "description": "pseudonym token in non-string (int) field is treated as a mask",
       "tags": [
         "hole:int",
         "type:int",
@@ -3064,7 +3064,7 @@
     },
     {
       "id": "vec_redact_pseudonym_nonstring_float_002",
-      "description": "pseudonym token in non-string (float) field is treated as a mask (§5)",
+      "description": "pseudonym token in non-string (float) field is treated as a mask",
       "tags": [
         "hole:float",
         "type:float",
@@ -3133,7 +3133,7 @@
     },
     {
       "id": "vec_redact_pseudonym_nonstring_bool_003",
-      "description": "pseudonym token in non-string (bool) field is treated as a mask (§5)",
+      "description": "pseudonym token in non-string (bool) field is treated as a mask",
       "tags": [
         "hole:word",
         "type:bool",
@@ -3208,7 +3208,7 @@
     },
     {
       "id": "vec_redact_pseudonym_nonstring_timestamp_004",
-      "description": "pseudonym token in non-string (timestamp) field is treated as a mask (§5)",
+      "description": "pseudonym token in non-string (timestamp) field is treated as a mask",
       "tags": [
         "hole:time",
         "type:timestamp",
@@ -3282,7 +3282,7 @@
     },
     {
       "id": "vec_redact_pseudonym_nonstring_enum_005",
-      "description": "pseudonym token in non-string (enum) field is treated as a mask (§5)",
+      "description": "pseudonym token in non-string (enum) field is treated as a mask",
       "tags": [
         "hole:word",
         "type:enum",
@@ -3359,7 +3359,7 @@
     },
     {
       "id": "vec_redact_pseudonym_nonstring_json_006",
-      "description": "pseudonym token in non-string (json) field is treated as a mask (§5)",
+      "description": "pseudonym token in non-string (json) field is treated as a mask",
       "tags": [
         "hole:json",
         "type:json",
@@ -3372,7 +3372,7 @@
       "sql": {
         "supported": false,
         "refusal_code": "unsupported_json_hole",
-        "reason": "Specs containing a json hole cannot be compiled to ClickHouse RE2 extractGroups because RE2 cannot match balanced brackets (§5, T2.1.5)."
+        "reason": "Specs containing a text json hole are refused by the ClickHouse SQL compiler because balanced JSON text scanning is not supported in SQL compilation."
       },
       "spec": {
         "spec_version": 1,
@@ -3709,6 +3709,436 @@
       },
       "expected": {
         "matched": false
+      }
+    },
+    {
+      "id": "vec_redact_pseudonym_string_short_circuits_drop_001",
+      "description": "pre-scrubbed pseudonym token on string field short-circuits drop transform and is stored unchanged",
+      "tags": [
+        "hole:word",
+        "transform:drop",
+        "redaction:pseudonym",
+        "ambiguity:prescrubbed_token_transforms",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_05DROP001",
+        "event": "test.transform.drop",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "secret="
+            },
+            {
+              "hole": "s",
+              "class": "word"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_05DROP0001",
+            "name": "secret",
+            "from": {
+              "hole": "s"
+            },
+            "type": "string",
+            "semantic": "unknown",
+            "pii": "secret",
+            "transforms": [
+              {
+                "op": "drop"
+              }
+            ]
+          }
+        ],
+        "tests": [
+          {
+            "line": "secret=fixture",
+            "expect": {
+              "secret": null
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "secret=<email:9f2c41d07a3b55e1>"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "secret": {
+            "status": "ok",
+            "type": "string",
+            "value": "<email:9f2c41d07a3b55e1>"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_redact_pseudonym_string_short_circuits_mask_002",
+      "description": "pre-scrubbed pseudonym token on string field short-circuits mask transform and is stored unchanged",
+      "tags": [
+        "hole:word",
+        "transform:mask",
+        "redaction:pseudonym",
+        "ambiguity:prescrubbed_token_transforms",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_05REDM99",
+        "event": "test.redaction.pseudo_mask",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "email="
+            },
+            {
+              "hole": "e",
+              "class": "word"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_05REDM99",
+            "name": "email",
+            "from": {
+              "hole": "e"
+            },
+            "type": "string",
+            "semantic": "email",
+            "pii": "email",
+            "transforms": [
+              {
+                "op": "mask",
+                "mode": "token",
+                "kind": "email"
+              }
+            ]
+          }
+        ],
+        "tests": [
+          {
+            "line": "email=alice@example.com",
+            "expect": {
+              "email": null
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "email=<email:9f2c41d07a3b55e1>"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "email": {
+            "status": "ok",
+            "type": "string",
+            "value": "<email:9f2c41d07a3b55e1>"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_redact_neutral_unknown_nil_in_word_005",
+      "description": "unknown angle-bracket token <nil> is NOT a known redaction kind and stays an ordinary string in word hole",
+      "tags": [
+        "hole:word",
+        "redaction:neutral",
+        "type:string",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_05REDW01",
+        "event": "test.redaction.neutral_word",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "tok="
+            },
+            {
+              "hole": "val",
+              "class": "word"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_05REDW01",
+            "name": "val",
+            "from": {
+              "hole": "val"
+            },
+            "type": "string",
+            "semantic": "text"
+          }
+        ],
+        "tests": [
+          {
+            "line": "tok=ok",
+            "expect": {
+              "val": "ok"
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "tok=<nil>"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "val": {
+            "status": "ok",
+            "type": "string",
+            "value": "<nil>"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_redact_neutral_html_tag_prefix_in_word_006",
+      "description": "HTML-like token <b>bold is NOT a known redaction kind and scans cleanly as a single word",
+      "tags": [
+        "hole:word",
+        "redaction:neutral",
+        "type:string",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_05REDW01",
+        "event": "test.redaction.neutral_word",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "tok="
+            },
+            {
+              "hole": "val",
+              "class": "word"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_05REDW01",
+            "name": "val",
+            "from": {
+              "hole": "val"
+            },
+            "type": "string",
+            "semantic": "text"
+          }
+        ],
+        "tests": [
+          {
+            "line": "tok=ok",
+            "expect": {
+              "val": "ok"
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "tok=<b>bold"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "val": {
+            "status": "ok",
+            "type": "string",
+            "value": "<b>bold"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_redact_reject_unknown_nil_in_int_007",
+      "description": "unknown angle-bracket token <nil> is NOT accepted as a redaction token by typed int hole",
+      "tags": [
+        "hole:int",
+        "redaction:neutral",
+        "no_match",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_05REDSC1",
+        "event": "test.redaction.scale",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "amt="
+            },
+            {
+              "hole": "a",
+              "class": "int"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_05REDSC1",
+            "name": "usd",
+            "from": {
+              "hole": "a"
+            },
+            "type": "float",
+            "semantic": "unknown",
+            "transforms": [
+              {
+                "op": "scale",
+                "div": 100
+              }
+            ]
+          }
+        ],
+        "tests": [
+          {
+            "line": "amt=1999",
+            "expect": {
+              "usd": 19.99
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "amt=<nil>"
+      },
+      "expected": {
+        "matched": false
+      }
+    },
+    {
+      "id": "vec_pii_metadata_without_transforms_raw_001",
+      "description": "field pii metadata alone without explicit transforms leaves raw string value unchanged in pure ParserSpec execution",
+      "tags": [
+        "hole:word",
+        "type:string",
+        "ambiguity:pii_default_transform_placement",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_05PII001",
+        "event": "test.pii.metadata_only",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "email="
+            },
+            {
+              "hole": "e",
+              "class": "word"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_05PII001",
+            "name": "email",
+            "from": {
+              "hole": "e"
+            },
+            "type": "string",
+            "semantic": "email",
+            "pii": "email"
+          }
+        ],
+        "tests": [
+          {
+            "line": "email=alice@example.com",
+            "expect": {
+              "email": "alice@example.com"
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "email=alice@example.com"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "email": {
+            "status": "ok",
+            "type": "string",
+            "value": "alice@example.com"
+          }
+        }
       }
     }
   ]

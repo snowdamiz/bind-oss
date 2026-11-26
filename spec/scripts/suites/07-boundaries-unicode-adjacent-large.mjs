@@ -28,7 +28,7 @@ export function buildSuite07() {
   const vectors = [];
   const T_BASE = Date.UTC(2026, 10, 26, 14, 0, 0, 0);
 
-  // ---- §5 Canonical Example, Static Text, Regex-Meta Literals (4 vectors) ----
+  // ---- Canonical Example, Static Text, Regex-Meta Literals (4 vectors) ----
   const section5OrderSpec = textSpec({
     template: "tpl_01JD8Q2M4K",
     event: "order.paid",
@@ -116,7 +116,7 @@ export function buildSuite07() {
   vectors.push(
     vec({
       id: "vec_s5_canonical_order_paid_001",
-      description: "exact §5 canonical order.paid text example with IEEE-754 pinned amount_usd",
+      description: "canonical order.paid text example with IEEE-754 pinned amount_usd",
       tags: ["section5:canonical", "hole:word", "hole:int", "transform:scale", "ieee754"],
       spec: section5OrderSpec,
       input: textInput("order ord_8f2a paid 1999 in 212ms"),
@@ -152,7 +152,7 @@ export function buildSuite07() {
     })
   );
 
-  // ---- ADJACENT HOLES (§17 explicit requirement!) (10 vectors) ----
+  // ---- ADJACENT HOLES (13 vectors) ----
   vectors.push(
     vec({
       id: "vec_adj_int_word_001",
@@ -333,10 +333,64 @@ export function buildSuite07() {
       }),
       input: textInput('"err" details here'),
       expected: match({ tag: okStr("err"), details: okStr(" details here") }),
+    }),
+    vec({
+      id: "vec_adj_int_word_all_digits_no_backtrack_011",
+      description: "adjacent int + word holes consume all digits in int without backtracking, failing on empty word",
+      tags: ["adjacent_holes", "hole:int", "hole:word", "no_match", "ambiguity:scanner_hole_boundary"],
+      spec: textSpec({
+        template: "tpl_07ADJ0011",
+        event: "test.adjacent",
+        segments: [{ lit: "t=" }, { hole: "num", class: "int" }, { hole: "unit", class: "word" }],
+        fields: [
+          field({ id: "fld_07ADJ0021", name: "num", from: { hole: "num" }, type: "int" }),
+          field({ id: "fld_07ADJ0022", name: "unit", from: { hole: "unit" }, type: "string" }),
+        ],
+        sampleLine: "t=212ms",
+        sampleExpect: { num: 212, unit: "ms" },
+      }),
+      input: textInput("t=212345"),
+      expected: noMatch(),
+    }),
+    vec({
+      id: "vec_adj_float_word_exponent_consumes_all_012",
+      description: "adjacent float + word holes consume valid scientific exponent 1.5e2 without backtracking",
+      tags: ["adjacent_holes", "hole:float", "hole:word", "no_match", "ambiguity:scanner_hole_boundary"],
+      spec: textSpec({
+        template: "tpl_07ADJ0012",
+        event: "test.adjacent",
+        segments: [{ lit: "sz=" }, { hole: "sz", class: "float" }, { hole: "unit", class: "word" }],
+        fields: [
+          field({ id: "fld_07ADJ0023", name: "sz", from: { hole: "sz" }, type: "float" }),
+          field({ id: "fld_07ADJ0024", name: "unit", from: { hole: "unit" }, type: "string" }),
+        ],
+        sampleLine: "sz=1.5GB",
+        sampleExpect: { sz: 1.5, unit: "GB" },
+      }),
+      input: textInput("sz=1.5e2"),
+      expected: noMatch(),
+    }),
+    vec({
+      id: "vec_adj_float_word_non_exponent_suffix_013",
+      description: "adjacent float + word holes stop float before non-exponent 'ex' suffix",
+      tags: ["adjacent_holes", "hole:float", "hole:word", "ambiguity:scanner_hole_boundary"],
+      spec: textSpec({
+        template: "tpl_07ADJ0013",
+        event: "test.adjacent",
+        segments: [{ lit: "sz=" }, { hole: "sz", class: "float" }, { hole: "unit", class: "word" }],
+        fields: [
+          field({ id: "fld_07ADJ0025", name: "sz", from: { hole: "sz" }, type: "float" }),
+          field({ id: "fld_07ADJ0026", name: "unit", from: { hole: "unit" }, type: "string" }),
+        ],
+        sampleLine: "sz=1.5ex",
+        sampleExpect: { sz: 1.5, unit: "ex" },
+      }),
+      input: textInput("sz=1.5ex"),
+      expected: match({ sz: okFloat(1.5), unit: okStr("ex") }),
     })
   );
 
-  // ---- NON-ASCII UTF-8 CASES (§17 explicit requirement: U+00A0, U+3000, combining marks, emoji!) (18 vectors) ----
+  // ---- NON-ASCII UTF-8 CASES (U+00A0, U+3000, combining marks, emoji) (18 vectors) ----
   const uniWordSpec = textSpec({
     template: "tpl_07UNI0001",
     event: "test.unicode.word",
@@ -402,7 +456,7 @@ export function buildSuite07() {
   vectors.push(
     vec({
       id: "vec_unicode_nbsp_inside_word_001",
-      description: "U+00A0 (NO-BREAK SPACE) is NOT ASCII whitespace and stays inside a single word hole (§17)",
+      description: "U+00A0 (NO-BREAK SPACE) is NOT ASCII whitespace and stays inside a single word hole",
       tags: ["unicode", "unicode:nbsp", "hole:word"],
       spec: uniWordSpec,
       input: textInput("w=hello\u00a0world end"),
@@ -410,7 +464,7 @@ export function buildSuite07() {
     }),
     vec({
       id: "vec_unicode_ascii_space_lit_rejects_nbsp_002",
-      description: "ASCII space in literal does NOT match U+00A0 in input (§17)",
+      description: "ASCII space in literal does NOT match U+00A0 in input",
       tags: ["unicode", "unicode:nbsp", "no_match"],
       spec: uniLitSpaceSpec,
       input: textInput("a\u00a0b=1"),
@@ -418,7 +472,7 @@ export function buildSuite07() {
     }),
     vec({
       id: "vec_unicode_nbsp_lit_rejects_ascii_space_003",
-      description: "U+00A0 in literal does NOT match ASCII space 0x20 in input (§17)",
+      description: "U+00A0 in literal does NOT match ASCII space 0x20 in input",
       tags: ["unicode", "unicode:nbsp", "no_match"],
       spec: uniLitNbspSpec,
       input: textInput("a b=1"),
@@ -434,7 +488,7 @@ export function buildSuite07() {
     }),
     vec({
       id: "vec_unicode_ideographic_space_inside_word_005",
-      description: "U+3000 (IDEOGRAPHIC SPACE) is NOT ASCII whitespace and stays inside a single word hole (§17)",
+      description: "U+3000 (IDEOGRAPHIC SPACE) is NOT ASCII whitespace and stays inside a single word hole",
       tags: ["unicode", "unicode:ideographic_space", "hole:word"],
       spec: uniWordSpec,
       input: textInput("w=\u6771\u4eac\u3000\u5927\u962a end"),
@@ -442,7 +496,7 @@ export function buildSuite07() {
     }),
     vec({
       id: "vec_unicode_ascii_space_lit_rejects_ideographic_space_006",
-      description: "ASCII space in literal does NOT match U+3000 in input (§17)",
+      description: "ASCII space in literal does NOT match U+3000 in input",
       tags: ["unicode", "unicode:ideographic_space", "no_match"],
       spec: uniLitSpaceSpec,
       input: textInput("a\u3000b=1"),
@@ -450,7 +504,7 @@ export function buildSuite07() {
     }),
     vec({
       id: "vec_unicode_combining_mark_nfd_preserved_007",
-      description: "NFD combining mark (e + U+0301) in word hole is preserved byte-for-byte without NFC normalization (§17)",
+      description: "NFD combining mark (e + U+0301) in word hole is preserved byte-for-byte without NFC normalization",
       tags: ["unicode", "unicode:combining", "hole:word"],
       spec: uniWordSpec,
       input: textInput("w=cafe\u0301 end"),
@@ -458,7 +512,7 @@ export function buildSuite07() {
     }),
     vec({
       id: "vec_unicode_nfc_lit_rejects_nfd_input_008",
-      description: "UTF-8 byte matching: NFC literal caf\\u00e9= does NOT match NFD input cafe\\u0301= (§17)",
+      description: "UTF-8 byte matching: NFC literal caf\\u00e9= does NOT match NFD input cafe\\u0301=",
       tags: ["unicode", "unicode:combining", "no_match"],
       spec: uniNfcLitSpec,
       input: textInput("cafe\u0301=open"),
@@ -466,7 +520,7 @@ export function buildSuite07() {
     }),
     vec({
       id: "vec_unicode_nfd_lit_rejects_nfc_input_009",
-      description: "UTF-8 byte matching: NFD literal cafe\\u0301= does NOT match NFC input caf\\u00e9= (§17)",
+      description: "UTF-8 byte matching: NFD literal cafe\\u0301= does NOT match NFC input caf\\u00e9=",
       tags: ["unicode", "unicode:combining", "no_match"],
       spec: uniNfdLitSpec,
       input: textInput("caf\u00e9=open"),
@@ -498,7 +552,7 @@ export function buildSuite07() {
     }),
     vec({
       id: "vec_unicode_emoji_zwj_family_in_word_013",
-      description: "multi-scalar ZWJ emoji grapheme cluster 👨‍👩‍👧‍👦 stays intact in word hole (§17)",
+      description: "multi-scalar ZWJ emoji grapheme cluster 👨‍👩‍👧‍👦 stays intact in word hole",
       tags: ["unicode", "unicode:emoji", "hole:word"],
       spec: uniWordSpec,
       input: textInput("w=team:\u{1F468}\u200D\u{1F469}\u200D\u{1F467}\u200D\u{1F466} end"),
@@ -506,7 +560,7 @@ export function buildSuite07() {
     }),
     vec({
       id: "vec_unicode_emoji_zwj_as_until_delimiter_014",
-      description: "until hole stops at multi-scalar ZWJ emoji literal without splitting grapheme bytes (§17)",
+      description: "until hole stops at multi-scalar ZWJ emoji literal without splitting grapheme bytes",
       tags: ["unicode", "unicode:emoji", "hole:until"],
       spec: uniEmojiZwjUntilSpec,
       input: textInput("fam=before \u{1F468} still before\u{1F468}\u200D\u{1F469}\u200D\u{1F467}\u200D\u{1F466}after"),
@@ -543,7 +597,7 @@ export function buildSuite07() {
     }),
     vec({
       id: "vec_unicode_swift_grapheme_boundary_check_017",
-      description: "literal ending in base 'e' matches before combining acute U+0301 in UTF-8 byte mode (§17 Swift byte scanner pin)",
+      description: "literal ending in base 'e' matches before combining acute U+0301 in UTF-8 byte mode (UTF-8 byte scanner pin)",
       tags: ["unicode", "unicode:combining", "boundary:utf8_bytes"],
       spec: textSpec({
         template: "tpl_07UNI0017",
@@ -576,7 +630,7 @@ export function buildSuite07() {
     })
   );
 
-  // ---- 64 KiB BOUNDARY RECORDS (§17 explicit requirement!) (5 vectors) ----
+  // ---- 64 KiB BOUNDARY RECORDS (5 vectors) ----
   const prefix64kRest = "blob ";
   const payload64kRest = "A".repeat(65536 - Buffer.byteLength(prefix64kRest, "utf8")); // exact 65536 bytes!
 
@@ -594,7 +648,7 @@ export function buildSuite07() {
   vectors.push(
     vec({
       id: "vec_large_64kib_text_rest_001",
-      description: "exact 65,536-byte (64 KiB) text record parsed via rest hole (§17)",
+      description: "exact 65,536-byte (64 KiB) text record parsed via rest hole",
       tags: ["boundary:64kib", "hole:rest"],
       spec: textSpec({
         template: "tpl_07BIG0001",
@@ -609,7 +663,7 @@ export function buildSuite07() {
     }),
     vec({
       id: "vec_large_64kib_text_until_int_002",
-      description: "exact 65,536-byte (64 KiB) text record with until hole followed by literal and int hole (§17)",
+      description: "exact 65,536-byte (64 KiB) text record with until hole followed by literal and int hole",
       tags: ["boundary:64kib", "hole:until", "hole:int"],
       spec: textSpec({
         template: "tpl_07BIG0002",
@@ -999,7 +1053,7 @@ export function buildSuite07() {
 
   return {
     suite: "07-boundaries-unicode-adjacent-large",
-    description: "Golden conformance vectors covering §5 canonical example, adjacent holes, UTF-8 non-ASCII cases (U+00A0, U+3000, combining marks, emoji), 64 KiB boundary records, and multi-field isolation.",
+    description: "Golden conformance vectors covering canonical order.paid example, adjacent holes, UTF-8 non-ASCII cases (U+00A0, U+3000, combining marks, emoji), 64 KiB boundary records, and multi-field isolation.",
     vectors,
   };
 }

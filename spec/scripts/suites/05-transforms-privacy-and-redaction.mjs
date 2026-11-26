@@ -191,7 +191,7 @@ export function buildSuite05() {
     }),
     vec({
       id: "vec_tr_hash_already_tokenized_passthrough_007",
-      description: "hash transform leaves pre-existing pseudonym token unchanged (no double hashing, §14)",
+      description: "hash transform leaves pre-existing pseudonym token unchanged (no double hashing)",
       tags: ["transform:hash", "redaction:pseudonym"],
       spec: emailHashSpec,
       input: textInput("email=<email:9f2c41d07a3b55e1>"),
@@ -399,28 +399,30 @@ export function buildSuite05() {
   );
 
   // ---- DROP (4 vectors across text, object, args, chained) ----
+  const dropTextSpec = textSpec({
+    template: "tpl_05DROP001",
+    event: "test.transform.drop",
+    segments: [{ lit: "secret=" }, { hole: "s", class: "word" }],
+    fields: [
+      field({
+        id: "fld_05DROP0001",
+        name: "secret",
+        from: { hole: "s" },
+        type: "string",
+        pii: "secret",
+        transforms: [{ op: "drop" }],
+      }),
+    ],
+    sampleLine: "secret=fixture",
+    sampleExpect: { secret: null },
+  });
+
   vectors.push(
     vec({
       id: "vec_tr_drop_text_001",
       description: "drop transform discards secret text field value",
       tags: ["transform:drop", "dropped"],
-      spec: textSpec({
-        template: "tpl_05DROP001",
-        event: "test.transform.drop",
-        segments: [{ lit: "secret=" }, { hole: "s", class: "word" }],
-        fields: [
-          field({
-            id: "fld_05DROP0001",
-            name: "secret",
-            from: { hole: "s" },
-            type: "string",
-            pii: "secret",
-            transforms: [{ op: "drop" }],
-          }),
-        ],
-        sampleLine: "secret=fixture",
-        sampleExpect: { secret: null },
-      }),
+      spec: dropTextSpec,
       input: textInput("secret=fixture"),
       expected: match({ secret: dropped() }),
     }),
@@ -498,7 +500,7 @@ export function buildSuite05() {
     })
   );
 
-  // ---- REDACTION TOKENS ACROSS ALL 11 HOLE CLASSES (§5 line 112, §14 line 39) ----
+  // ---- REDACTION TOKENS ACROSS ALL 11 HOLE CLASSES ----
   const holeMaskConfigs = [
     { cls: "word", fieldType: "string", sample: "abc", segs: [{ lit: "v=" }, { hole: "v", class: "word" }], token: "<card>", sampleExpectVal: "abc" },
     { cls: "int", fieldType: "int", sample: "42", segs: [{ lit: "v=" }, { hole: "v", class: "int" }], token: "<card>", sampleExpectVal: 42 },
@@ -519,7 +521,7 @@ export function buildSuite05() {
     vectors.push(
       vec({
         id: `vec_redact_mask_in_${cfg.cls}_${n}`,
-        description: `mask token ${cfg.token} matches ${cfg.cls} hole and produces redacted marker (§5)`,
+        description: `mask token ${cfg.token} matches ${cfg.cls} hole and produces redacted marker`,
         tags: [`hole:${cfg.cls}`, "redaction:mask", "redacted"],
         spec: textSpec({
           template: `tpl_05REDM${n}`,
@@ -558,7 +560,7 @@ export function buildSuite05() {
     vectors.push(
       vec({
         id: `vec_redact_pseudonym_string_${cfg.cls}_${n}`,
-        description: `pseudonym token matches ${cfg.cls} hole and is stored as value of string field (§5)`,
+        description: `pseudonym token matches ${cfg.cls} hole and is stored as value of string field`,
         tags: [`hole:${cfg.cls}`, "redaction:pseudonym", "type:string"],
         spec: textSpec({
           template: `tpl_05REDS${n}`,
@@ -574,7 +576,7 @@ export function buildSuite05() {
     );
   });
 
-  // Pseudonym token in ALL 6 non-string field types -> treated as mask (§5 line 112!)
+  // Pseudonym token in ALL 6 non-string field types -> treated as mask
   const pseudoNonStringTypes = [
     { type: "int", cls: "int", sample: "42", sampleExpect: 42 },
     { type: "float", cls: "float", sample: "3.5", sampleExpect: 3.5 },
@@ -589,7 +591,7 @@ export function buildSuite05() {
     vectors.push(
       vec({
         id: `vec_redact_pseudonym_nonstring_${cfg.type}_${n}`,
-        description: `pseudonym token in non-string (${cfg.type}) field is treated as a mask (§5)`,
+        description: `pseudonym token in non-string (${cfg.type}) field is treated as a mask`,
         tags: [`hole:${cfg.cls}`, `type:${cfg.type}`, "redaction:pseudonym_as_mask", "redacted"],
         spec: textSpec({
           template: `tpl_05REDN${n}`,
@@ -613,7 +615,7 @@ export function buildSuite05() {
     );
   });
 
-  // Mask token short-circuits scale transform + non-token angle-bracket rejection (4 vectors)
+  // Pre-scrubbed pseudonym short-circuiting drop & mask, neutral unknown angle-bracket strings, and PII placement (10 vectors)
   const intScaleSpec = textSpec({
     template: "tpl_05REDSC1",
     event: "test.redaction.scale",
@@ -629,6 +631,52 @@ export function buildSuite05() {
     ],
     sampleLine: "amt=1999",
     sampleExpect: { usd: 19.99 },
+  });
+
+  const wordNeutralSpec = textSpec({
+    template: "tpl_05REDW01",
+    event: "test.redaction.neutral_word",
+    segments: [{ lit: "tok=" }, { hole: "val", class: "word" }],
+    fields: [field({ id: "fld_05REDW01", name: "val", from: { hole: "val" }, type: "string", semantic: "text" })],
+    sampleLine: "tok=ok",
+    sampleExpect: { val: "ok" },
+  });
+
+  const maskEmailWordSpec = textSpec({
+    template: "tpl_05REDM99",
+    event: "test.redaction.pseudo_mask",
+    segments: [{ lit: "email=" }, { hole: "e", class: "word" }],
+    fields: [
+      field({
+        id: "fld_05REDM99",
+        name: "email",
+        from: { hole: "e" },
+        type: "string",
+        semantic: "email",
+        pii: "email",
+        transforms: [{ op: "mask", mode: "token", kind: "email" }],
+      }),
+    ],
+    sampleLine: "email=alice@example.com",
+    sampleExpect: { email: null },
+  });
+
+  const piiNoTransformSpec = textSpec({
+    template: "tpl_05PII001",
+    event: "test.pii.metadata_only",
+    segments: [{ lit: "email=" }, { hole: "e", class: "word" }],
+    fields: [
+      field({
+        id: "fld_05PII001",
+        name: "email",
+        from: { hole: "e" },
+        type: "string",
+        semantic: "email",
+        pii: "email",
+      }),
+    ],
+    sampleLine: "email=alice@example.com",
+    sampleExpect: { email: "alice@example.com" },
   });
 
   vectors.push(
@@ -663,12 +711,60 @@ export function buildSuite05() {
       spec: intScaleSpec,
       input: textInput("amt=<CARD>"),
       expected: noMatch(),
+    }),
+    vec({
+      id: "vec_redact_pseudonym_string_short_circuits_drop_001",
+      description: "pre-scrubbed pseudonym token on string field short-circuits drop transform and is stored unchanged",
+      tags: ["hole:word", "transform:drop", "redaction:pseudonym", "ambiguity:prescrubbed_token_transforms"],
+      spec: dropTextSpec,
+      input: textInput(`secret=${PSEUDO}`),
+      expected: match({ secret: okStr(PSEUDO) }),
+    }),
+    vec({
+      id: "vec_redact_pseudonym_string_short_circuits_mask_002",
+      description: "pre-scrubbed pseudonym token on string field short-circuits mask transform and is stored unchanged",
+      tags: ["hole:word", "transform:mask", "redaction:pseudonym", "ambiguity:prescrubbed_token_transforms"],
+      spec: maskEmailWordSpec,
+      input: textInput(`email=${PSEUDO}`),
+      expected: match({ email: okStr(PSEUDO) }),
+    }),
+    vec({
+      id: "vec_redact_neutral_unknown_nil_in_word_005",
+      description: "unknown angle-bracket token <nil> is NOT a known redaction kind and stays an ordinary string in word hole",
+      tags: ["hole:word", "redaction:neutral", "type:string"],
+      spec: wordNeutralSpec,
+      input: textInput("tok=<nil>"),
+      expected: match({ val: okStr("<nil>") }),
+    }),
+    vec({
+      id: "vec_redact_neutral_html_tag_prefix_in_word_006",
+      description: "HTML-like token <b>bold is NOT a known redaction kind and scans cleanly as a single word",
+      tags: ["hole:word", "redaction:neutral", "type:string"],
+      spec: wordNeutralSpec,
+      input: textInput("tok=<b>bold"),
+      expected: match({ val: okStr("<b>bold") }),
+    }),
+    vec({
+      id: "vec_redact_reject_unknown_nil_in_int_007",
+      description: "unknown angle-bracket token <nil> is NOT accepted as a redaction token by typed int hole",
+      tags: ["hole:int", "redaction:neutral", "no_match"],
+      spec: intScaleSpec,
+      input: textInput("amt=<nil>"),
+      expected: noMatch(),
+    }),
+    vec({
+      id: "vec_pii_metadata_without_transforms_raw_001",
+      description: "field pii metadata alone without explicit transforms leaves raw string value unchanged in pure ParserSpec execution",
+      tags: ["hole:word", "type:string", "ambiguity:pii_default_transform_placement"],
+      spec: piiNoTransformSpec,
+      input: textInput("email=alice@example.com"),
+      expected: match({ email: okStr("alice@example.com") }),
     })
   );
 
   return {
     suite: "05-transforms-privacy-and-redaction",
-    description: "Golden conformance vectors covering hash, mask (token and ip_prefix), drop, and Stage 2/3 redaction tokens across all 11 hole classes and field types (§5, §14).",
+    description: "Golden conformance vectors covering hash, mask (token and ip_prefix), drop, known redaction tokens across all 11 hole classes and field types, neutral unknown angle-bracket strings, and explicit PII transform placement.",
     vectors,
   };
 }

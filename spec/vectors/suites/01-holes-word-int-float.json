@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "suite": "01-holes-word-int-float",
-  "description": "Golden conformance vectors covering word (including default class), int, and float hole classes with boundary values and overflow semantics.",
+  "description": "Golden conformance vectors covering word (including default class), int, and float hole classes with boundary values, overlapping literals, and overflow semantics.",
   "context": {
     "hmac_keys": {
       "edge": "bind-conformance-edge-key-v1",
@@ -1198,6 +1198,337 @@
             "value": "{\"a\":\"b\"}"
           }
         }
+      }
+    },
+    {
+      "id": "vec_hole_word_before_comma_id_lit_019",
+      "description": "word hole stops at leftmost following non-space literal ',id='",
+      "tags": [
+        "hole:word",
+        "boundary:following_literal",
+        "ambiguity:scanner_hole_boundary",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01HOLEWORD8",
+        "event": "test.hole.word_comma_id",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "tok="
+            },
+            {
+              "hole": "val",
+              "class": "word"
+            },
+            {
+              "lit": ",id="
+            },
+            {
+              "hole": "id",
+              "class": "int"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01WORD0009",
+            "name": "val",
+            "from": {
+              "hole": "val"
+            },
+            "type": "string",
+            "semantic": "text"
+          },
+          {
+            "id": "fld_01WORD0010",
+            "name": "id",
+            "from": {
+              "hole": "id"
+            },
+            "type": "int",
+            "semantic": "count"
+          }
+        ],
+        "tests": [
+          {
+            "line": "tok=ord_8f2a,id=42",
+            "expect": {
+              "val": "ord_8f2a",
+              "id": 42
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "tok=ord_8f2a,id=42"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "val": {
+            "status": "ok",
+            "type": "string",
+            "value": "ord_8f2a"
+          },
+          "id": {
+            "status": "ok",
+            "type": "int",
+            "value": "42"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_hole_word_before_comma_id_reject_space_020",
+      "description": "word hole bounded by ',id=' still rejects embedded ASCII space before literal",
+      "tags": [
+        "hole:word",
+        "boundary:following_literal",
+        "no_match",
+        "ambiguity:scanner_hole_boundary",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01HOLEWORD8",
+        "event": "test.hole.word_comma_id",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "tok="
+            },
+            {
+              "hole": "val",
+              "class": "word"
+            },
+            {
+              "lit": ",id="
+            },
+            {
+              "hole": "id",
+              "class": "int"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01WORD0009",
+            "name": "val",
+            "from": {
+              "hole": "val"
+            },
+            "type": "string",
+            "semantic": "text"
+          },
+          {
+            "id": "fld_01WORD0010",
+            "name": "id",
+            "from": {
+              "hole": "id"
+            },
+            "type": "int",
+            "semantic": "count"
+          }
+        ],
+        "tests": [
+          {
+            "line": "tok=ord_8f2a,id=42",
+            "expect": {
+              "val": "ord_8f2a",
+              "id": 42
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "tok=hello world,id=42"
+      },
+      "expected": {
+        "matched": false
+      }
+    },
+    {
+      "id": "vec_hole_word_before_comma_id_no_backtrack_021",
+      "description": "word hole stops at leftmost ',id=' occurrence and does not backtrack to a later ',id='",
+      "tags": [
+        "hole:word",
+        "boundary:following_literal",
+        "no_match",
+        "ambiguity:scanner_hole_boundary",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01HOLEWORD8",
+        "event": "test.hole.word_comma_id",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "tok="
+            },
+            {
+              "hole": "val",
+              "class": "word"
+            },
+            {
+              "lit": ",id="
+            },
+            {
+              "hole": "id",
+              "class": "int"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01WORD0009",
+            "name": "val",
+            "from": {
+              "hole": "val"
+            },
+            "type": "string",
+            "semantic": "text"
+          },
+          {
+            "id": "fld_01WORD0010",
+            "name": "id",
+            "from": {
+              "hole": "id"
+            },
+            "type": "int",
+            "semantic": "count"
+          }
+        ],
+        "tests": [
+          {
+            "line": "tok=ord_8f2a,id=42",
+            "expect": {
+              "val": "ord_8f2a",
+              "id": 42
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "tok=a,id=b,id=42"
+      },
+      "expected": {
+        "matched": false
+      }
+    },
+    {
+      "id": "vec_hole_word_before_comma_id_reject_empty_022",
+      "description": "word hole bounded by ',id=' rejects empty capture before literal",
+      "tags": [
+        "hole:word",
+        "boundary:following_literal",
+        "boundary:empty",
+        "no_match",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01HOLEWORD8",
+        "event": "test.hole.word_comma_id",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "tok="
+            },
+            {
+              "hole": "val",
+              "class": "word"
+            },
+            {
+              "lit": ",id="
+            },
+            {
+              "hole": "id",
+              "class": "int"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01WORD0009",
+            "name": "val",
+            "from": {
+              "hole": "val"
+            },
+            "type": "string",
+            "semantic": "text"
+          },
+          {
+            "id": "fld_01WORD0010",
+            "name": "id",
+            "from": {
+              "hole": "id"
+            },
+            "type": "int",
+            "semantic": "count"
+          }
+        ],
+        "tests": [
+          {
+            "line": "tok=ord_8f2a,id=42",
+            "expect": {
+              "val": "ord_8f2a",
+              "id": 42
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "tok=,id=42"
+      },
+      "expected": {
+        "matched": false
       }
     },
     {
@@ -2670,6 +3001,144 @@
       }
     },
     {
+      "id": "vec_hole_int_before_digit_lit_023",
+      "description": "int hole stops at leftmost following overlapping digit literal '0'",
+      "tags": [
+        "hole:int",
+        "boundary:following_literal",
+        "ambiguity:scanner_hole_boundary",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01HOLEINT05",
+        "event": "test.hole.int_before_zero",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "n="
+            },
+            {
+              "hole": "n",
+              "class": "int"
+            },
+            {
+              "lit": "0"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01INT00005",
+            "name": "n",
+            "from": {
+              "hole": "n"
+            },
+            "type": "int",
+            "semantic": "count"
+          }
+        ],
+        "tests": [
+          {
+            "line": "n=120",
+            "expect": {
+              "n": 12
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "n=120"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "n": {
+            "status": "ok",
+            "type": "int",
+            "value": "12"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_hole_int_before_digit_lit_no_backtrack_024",
+      "description": "int hole stops at leftmost '0' and does not backtrack to a trailing '0'",
+      "tags": [
+        "hole:int",
+        "boundary:following_literal",
+        "no_match",
+        "ambiguity:scanner_hole_boundary",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01HOLEINT05",
+        "event": "test.hole.int_before_zero",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "n="
+            },
+            {
+              "hole": "n",
+              "class": "int"
+            },
+            {
+              "lit": "0"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01INT00005",
+            "name": "n",
+            "from": {
+              "hole": "n"
+            },
+            "type": "int",
+            "semantic": "count"
+          }
+        ],
+        "tests": [
+          {
+            "line": "n=120",
+            "expect": {
+              "n": 12
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "n=1020"
+      },
+      "expected": {
+        "matched": false
+      }
+    },
+    {
       "id": "vec_hole_float_zero_001",
       "description": "float hole matches 0.0 with positive zero IEEE-754 bits",
       "tags": [
@@ -4007,6 +4476,218 @@
       "input": {
         "kind": "text",
         "line": "f="
+      },
+      "expected": {
+        "matched": false
+      }
+    },
+    {
+      "id": "vec_hole_float_before_exponent_lit_021",
+      "description": "float hole stops before leftmost following literal 'e1' instead of consuming exponent",
+      "tags": [
+        "hole:float",
+        "boundary:following_literal",
+        "ieee754",
+        "ambiguity:scanner_hole_boundary",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01HOLEFLT03",
+        "event": "test.hole.float_before_exp",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "v="
+            },
+            {
+              "hole": "v",
+              "class": "float"
+            },
+            {
+              "lit": "e1"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01FLT00003",
+            "name": "v",
+            "from": {
+              "hole": "v"
+            },
+            "type": "float",
+            "semantic": "ratio"
+          }
+        ],
+        "tests": [
+          {
+            "line": "v=1.5e1",
+            "expect": {
+              "v": 1.5
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "v=1.5e1"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "v": {
+            "status": "ok",
+            "type": "float",
+            "value": "3ff8000000000000"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_hole_float_before_dot_zero_lit_022",
+      "description": "float hole stops before leftmost following literal '.0'",
+      "tags": [
+        "hole:float",
+        "boundary:following_literal",
+        "ieee754",
+        "ambiguity:scanner_hole_boundary",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01HOLEFLT04",
+        "event": "test.hole.float_before_dot_zero",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "v="
+            },
+            {
+              "hole": "v",
+              "class": "float"
+            },
+            {
+              "lit": ".0"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01FLT00004",
+            "name": "v",
+            "from": {
+              "hole": "v"
+            },
+            "type": "float",
+            "semantic": "ratio"
+          }
+        ],
+        "tests": [
+          {
+            "line": "v=42.0",
+            "expect": {
+              "v": 42
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "v=42.0"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "v": {
+            "status": "ok",
+            "type": "float",
+            "value": "4045000000000000"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_hole_float_before_dot_zero_no_backtrack_023",
+      "description": "float hole stops at leftmost '.0' and does not backtrack to a trailing '.0'",
+      "tags": [
+        "hole:float",
+        "boundary:following_literal",
+        "no_match",
+        "ambiguity:scanner_hole_boundary",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01HOLEFLT04",
+        "event": "test.hole.float_before_dot_zero",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "v="
+            },
+            {
+              "hole": "v",
+              "class": "float"
+            },
+            {
+              "lit": ".0"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01FLT00004",
+            "name": "v",
+            "from": {
+              "hole": "v"
+            },
+            "type": "float",
+            "semantic": "ratio"
+          }
+        ],
+        "tests": [
+          {
+            "line": "v=42.0",
+            "expect": {
+              "v": 42
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "v=4.0.0"
       },
       "expected": {
         "matched": false
