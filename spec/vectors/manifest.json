@@ -8,8 +8,8 @@
     },
     "reference_ts_ms": 1795701600000
   },
-  "total_vectors": 482,
-  "sql_supported_count": 455,
+  "total_vectors": 496,
+  "sql_supported_count": 469,
   "sql_refused_count": 27,
   "suites": [
     {
@@ -43,19 +43,19 @@
       "suite": "04-transforms-core",
       "file": "suites/04-transforms-core.json",
       "description": "Golden conformance vectors covering cast, scale (IEEE-754 single-op bit patterns), unit (all time and byte units), parse_time (all 10 formats including exact decimal unix_s), lower (locale-independent UTF-8), and enum_map transforms.",
-      "count": 95,
-      "sql_supported_count": 95,
+      "count": 98,
+      "sql_supported_count": 98,
       "sql_refused_count": 0,
-      "sha256": "09293f7179e0b8d8402a1f0a5bb3525bca02c18a7039b1944f571cc9efbeff02"
+      "sha256": "2f13dd3ec3d143dae898dccc758898b0923be587bb2c0e6da2c19beddc7f9898"
     },
     {
       "suite": "05-transforms-privacy-and-redaction",
       "file": "suites/05-transforms-privacy-and-redaction.json",
       "description": "Golden conformance vectors covering hash, mask (token and ip_prefix), drop, known redaction tokens across all 11 hole classes and field types, neutral unknown angle-bracket strings, and explicit PII transform placement.",
-      "count": 77,
-      "sql_supported_count": 75,
+      "count": 88,
+      "sql_supported_count": 86,
       "sql_refused_count": 2,
-      "sha256": "d337d94eed0f4fa4c78bc02930570cda6644270134692e93cb5ef557fe52d0e8"
+      "sha256": "f34d6ae34ce8e7c616d923070a87567f378166bbbdb5a0d7409d3cf9a1c08acd"
     },
     {
       "suite": "06-matchers-object-and-args",

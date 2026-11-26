@@ -262,6 +262,62 @@ function matchKnownRedactionTokenPrefix(line, pos) {
   return { raw: m[0], tokenInfo, nextPos: pos + m[0].length };
 }
 
+const KNOWN_INNER_EDGE_TOKEN_RE = new RegExp(
+  `<(?:${[...KNOWN_REDACTION_KINDS].sort().join("|")}):~[0-9a-f]{64}>`,
+  "g"
+);
+
+function findKnownInnerEdgeTokenSpans(text) {
+  if (typeof text !== "string" || !text.includes(":~")) {
+    return [];
+  }
+  const spans = [];
+  KNOWN_INNER_EDGE_TOKEN_RE.lastIndex = 0;
+  let m;
+  while ((m = KNOWN_INNER_EDGE_TOKEN_RE.exec(text)) !== null) {
+    spans.push([m.index, m.index + m[0].length]);
+  }
+  return spans;
+}
+
+function containsKnownInnerEdgeToken(text) {
+  if (typeof text !== "string" || !text.includes(":~")) {
+    return false;
+  }
+  KNOWN_INNER_EDGE_TOKEN_RE.lastIndex = 0;
+  return KNOWN_INNER_EDGE_TOKEN_RE.test(text);
+}
+
+function jsonContainsKnownInnerEdgeToken(val) {
+  if (typeof val === "string") {
+    return containsKnownInnerEdgeToken(val);
+  }
+  if (Array.isArray(val)) {
+    for (const item of val) {
+      if (jsonContainsKnownInnerEdgeToken(item)) return true;
+    }
+    return false;
+  }
+  if (val !== null && typeof val === "object") {
+    for (const k of Object.keys(val)) {
+      if (containsKnownInnerEdgeToken(k) || jsonContainsKnownInnerEdgeToken(val[k])) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+function spanOverlapsAny(start, end, spans) {
+  if (start >= end || spans.length === 0) return false;
+  for (const [s, e] of spans) {
+    if (start < e && s < end) {
+      return true;
+    }
+  }
+  return false;
+}
+
 function isAsciiWhitespace(code) {
   return code === 0x20 || code === 0x09 || code === 0x0a || code === 0x0d;
 }
@@ -446,6 +502,22 @@ function lexQuotedAt(line, pos) {
         case "t":
           out += "\t";
           break;
+        case "b":
+          out += "\b";
+          break;
+        case "f":
+          out += "\f";
+          break;
+        case "u": {
+          const hex = line.slice(i + 2, i + 6);
+          if (/^[0-9a-fA-F]{4}$/.test(hex)) {
+            out += String.fromCharCode(parseInt(hex, 16));
+            i += 6;
+            continue;
+          }
+          out += esc;
+          break;
+        }
         default:
           out += esc;
           break;
@@ -506,6 +578,20 @@ function lexJsonAt(line, pos) {
 function matchTextSegments(segments, line) {
   let pos = 0;
   const holes = new Map();
+  const innerEdgeSpans = findKnownInnerEdgeTokenSpans(line);
+
+  const classifyHoleToken = (raw, capStart, capEnd, cls, baseTokenInfo, parsedJson) => {
+    if (spanOverlapsAny(capStart, capEnd, innerEdgeSpans)) {
+      return { token: "<redacted>", category: "inner_edge", isPseudonym: false };
+    }
+    if (cls === "quoted" && containsKnownInnerEdgeToken(raw)) {
+      return { token: "<redacted>", category: "inner_edge", isPseudonym: false };
+    }
+    if (cls === "json" && parsedJson !== undefined && jsonContainsKnownInnerEdgeToken(parsedJson)) {
+      return { token: "<redacted>", category: "inner_edge", isPseudonym: false };
+    }
+    return baseTokenInfo;
+  };
 
   for (let i = 0; i < segments.length; i += 1) {
     const seg = segments[i];
@@ -525,7 +611,7 @@ function matchTextSegments(segments, line) {
       const idx = line.indexOf(nextLit, pos);
       if (idx === -1) return null;
       const raw = line.slice(pos, idx);
-      const tokenInfo = classifyRedactionToken(raw);
+      const tokenInfo = classifyHoleToken(raw, pos, idx, cls, classifyRedactionToken(raw));
       holes.set(seg.hole, { raw, holeClass: cls, tokenInfo });
       pos = idx;
       continue;
@@ -533,7 +619,7 @@ function matchTextSegments(segments, line) {
 
     if (cls === "rest") {
       const raw = line.slice(pos);
-      const tokenInfo = classifyRedactionToken(raw);
+      const tokenInfo = classifyHoleToken(raw, pos, line.length, cls, classifyRedactionToken(raw));
       holes.set(seg.hole, { raw, holeClass: cls, tokenInfo });
       pos = line.length;
       continue;
@@ -550,7 +636,8 @@ function matchTextSegments(segments, line) {
           isAsciiWhitespace(line.charCodeAt(tok.nextPos)) ||
           (nextLit !== null && line.startsWith(nextLit, tok.nextPos)))
       ) {
-        holes.set(seg.hole, { raw: tok.raw, holeClass: cls, tokenInfo: tok.tokenInfo });
+        const tokenInfo = classifyHoleToken(tok.raw, pos, tok.nextPos, cls, tok.tokenInfo);
+        holes.set(seg.hole, { raw: tok.raw, holeClass: cls, tokenInfo });
         pos = tok.nextPos;
         continue;
       }
@@ -566,7 +653,7 @@ function matchTextSegments(segments, line) {
       }
       if (end === pos) return null;
       const raw = line.slice(pos, end);
-      const tokenInfo = classifyRedactionToken(raw);
+      const tokenInfo = classifyHoleToken(raw, pos, end, cls, classifyRedactionToken(raw));
       holes.set(seg.hole, { raw, holeClass: cls, tokenInfo });
       pos = end;
       continue;
@@ -575,7 +662,8 @@ function matchTextSegments(segments, line) {
     // Known redaction tokens match any structured/typed hole class.
     const tok = matchKnownRedactionTokenPrefix(line, pos);
     if (tok) {
-      holes.set(seg.hole, { raw: tok.raw, holeClass: cls, tokenInfo: tok.tokenInfo });
+      const tokenInfo = classifyHoleToken(tok.raw, pos, tok.nextPos, cls, tok.tokenInfo);
+      holes.set(seg.hole, { raw: tok.raw, holeClass: cls, tokenInfo });
       pos = tok.nextPos;
       continue;
     }
@@ -647,7 +735,15 @@ function matchTextSegments(segments, line) {
         throw new Error(`Unsupported hole class: ${cls}`);
     }
 
-    const tokenInfo = cls === "quoted" ? classifyRedactionToken(lexed.raw) : null;
+    const baseTokenInfo = cls === "quoted" ? classifyRedactionToken(lexed.raw) : null;
+    const tokenInfo = classifyHoleToken(
+      lexed.raw,
+      pos,
+      lexed.nextPos,
+      cls,
+      baseTokenInfo,
+      lexed.parsedJson
+    );
     holes.set(seg.hole, {
       raw: lexed.raw,
       parsedJson: lexed.parsedJson,
@@ -912,9 +1008,29 @@ function evaluateField(field, extracted, context) {
   let curKind = extracted.kind; // "string" | "int" | "float" | "bool" | "timestamp" | "json"
   let generatedTag = null;
 
-  // Keep numeric hole lexemes as exact strings through transforms so direct
-  // parse_time(unix_s) preserves decimal precision and hash operates on text.
-  if (extracted.holeClass === "json" && field.type === "json") {
+  const firstOp = field.transforms?.[0];
+  const isDirectUnixS = firstOp?.op === "parse_time" && firstOp.format === "unix_s";
+
+  // Initial coercion from hole lexeme when hole has inherent numeric/json class.
+  // Preserve original numeric semantics (Int64 check on int holes before scale,
+  // integral float-to-int conversion, overflow checks) except when a float hole
+  // feeds parse_time(format: "unix_s") directly so decimal precision is preserved.
+  if (extracted.holeClass === "int" && field.type !== "string" && firstOp?.op !== "cast") {
+    const parsed = parseInt64String(cur);
+    if (!parsed.ok) return { status: "parse_error", code: parsed.code };
+    cur = parsed.value;
+    curKind = "int";
+  } else if (
+    extracted.holeClass === "float" &&
+    field.type !== "string" &&
+    firstOp?.op !== "cast" &&
+    !isDirectUnixS
+  ) {
+    const n = Number(cur);
+    if (!Number.isFinite(n)) return { status: "parse_error", code: "float_overflow" };
+    cur = n;
+    curKind = "float";
+  } else if (extracted.holeClass === "json" && field.type === "json") {
     cur = extracted.parsedJson;
     curKind = "json";
   }
@@ -951,7 +1067,7 @@ function evaluateField(field, extracted, context) {
           break;
         }
         if (typeof cur !== "string") {
-          return { status: "parse_error", code: "type_mismatch" };
+          cur = typeof cur === "bigint" ? cur.toString(10) : String(cur);
         }
         const alreadyToken = classifyRedactionToken(cur);
         if (alreadyToken) {
@@ -963,6 +1079,9 @@ function evaluateField(field, extracted, context) {
             curKind = "string";
             break;
           }
+        }
+        if (containsKnownInnerEdgeToken(cur)) {
+          return { status: "redacted", token: "<redacted>" };
         }
         const tagKind = tr.kind ?? (field.pii && field.pii !== "none" ? field.pii : "hash");
         const tag = computeHmacTag(cur, context.hmac_keys);
@@ -1247,6 +1366,15 @@ function extractRawFromValue(val) {
     return { missing: true };
   }
   if (typeof val === "string") {
+    if (containsKnownInnerEdgeToken(val)) {
+      return {
+        missing: false,
+        value: val,
+        kind: "string",
+        tokenInfo: { token: "<redacted>", category: "inner_edge", isPseudonym: false },
+        fromHole: false,
+      };
+    }
     const tokenInfo = classifyRedactionToken(val);
     return { missing: false, value: val, kind: "string", tokenInfo, fromHole: false };
   }
@@ -1259,6 +1387,15 @@ function extractRawFromValue(val) {
       value: val,
       kind: Number.isInteger(val) ? "int" : "float",
       tokenInfo: null,
+      fromHole: false,
+    };
+  }
+  if (jsonContainsKnownInnerEdgeToken(val)) {
+    return {
+      missing: false,
+      value: val,
+      kind: "json",
+      tokenInfo: { token: "<redacted>", category: "inner_edge", isPseudonym: false },
       fromHole: false,
     };
   }
