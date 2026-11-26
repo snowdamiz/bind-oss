@@ -24,3 +24,18 @@ jobs:
             test -d "$dir"
           done
           echo "bind-oss CI no-op smoke check passed"
+
+  spec:
+    name: Spec schemas and golden vectors
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Verify spec schemas, tests, and deterministic golden vectors
+        run: |
+          node --version
+          npm --prefix spec ci --ignore-scripts
+          npm --prefix spec test
+          npm --prefix spec run validate:vectors
+          npm --prefix spec run check:vectors
