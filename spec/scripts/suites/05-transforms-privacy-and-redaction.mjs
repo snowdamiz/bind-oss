@@ -1197,6 +1197,289 @@ export function buildSuite05() {
     })
   );
 
+  // ---- SCHEMA-VALID cast(int) -> hash PIPELINE ----
+  const castIntThenHashStrSpec = textSpec({
+    template: "tpl_05HASH015",
+    event: "test.transform.cast_int_hash_str",
+    segments: [{ lit: "uid=" }, { hole: "u", class: "word" }],
+    fields: [
+      field({
+        id: "fld_05HASH0015",
+        name: "uid",
+        from: { hole: "u" },
+        type: "string",
+        transforms: [
+          { op: "cast", to: "int" },
+          { op: "hash", kind: "uid" },
+        ],
+      }),
+    ],
+    sampleLine: "uid=0042",
+    sampleExpect: { uid: `<uid:${hmacTag("42")}>` },
+  });
+
+  const castIntThenHashIntSpec = textSpec({
+    template: "tpl_05HASH016",
+    event: "test.transform.cast_int_hash_int",
+    segments: [{ lit: "uid=" }, { hole: "u", class: "word" }],
+    fields: [
+      field({
+        id: "fld_05HASH0016",
+        name: "uid",
+        from: { hole: "u" },
+        type: "int",
+        transforms: [
+          { op: "cast", to: "int" },
+          { op: "hash", kind: "uid" },
+        ],
+      }),
+    ],
+    sampleLine: "uid=0042",
+    sampleExpect: { uid: null },
+  });
+
+  vectors.push(
+    vec({
+      id: "vec_tr_cast_int_then_hash_string_015",
+      description: "schema-valid cast(int) followed by hash normalizes integer text and hashes its canonical decimal form",
+      tags: ["transform:cast", "cast:int", "transform:hash", "transform:chain", "type:string"],
+      spec: castIntThenHashStrSpec,
+      input: textInput("uid=0042"),
+      expected: match({ uid: okStr(`<uid:${hmacTag("42")}>`) }),
+    }),
+    vec({
+      id: "vec_tr_cast_int_then_hash_nonstring_int_016",
+      description: "schema-valid cast(int) followed by hash on int field finalizes generated tag as redacted marker",
+      tags: ["transform:cast", "cast:int", "transform:hash", "transform:chain", "type:int", "redacted", "ambiguity:generated_tag_identity"],
+      spec: castIntThenHashIntSpec,
+      input: textInput("uid=0042"),
+      expected: match({ uid: redacted(`<uid:${hmacTag("42")}>`) }),
+    })
+  );
+
+  // ---- HOSTED INNER-EDGE NO-SPILL ACROSS CAPTURE BOUNDARIES (PRESERVING NORMAL LITERALS) ----
+  const untilGtSpec = textSpec({
+    template: "tpl_05INED06",
+    event: "test.redaction.inner_edge_until_gt",
+    segments: [{ lit: "user=" }, { hole: "u", class: "until" }, { lit: ">" }],
+    fields: [field({ id: "fld_05INED06", name: "u", from: { hole: "u" }, type: "string" })],
+    sampleLine: "user=alice>",
+    sampleExpect: { u: "alice" },
+  });
+
+  const untilGtSiblingSpec = textSpec({
+    template: "tpl_05INED07",
+    event: "test.redaction.inner_edge_until_gt_sibling",
+    segments: [
+      { lit: "user=" },
+      { hole: "u", class: "until" },
+      { lit: "> status=" },
+      { hole: "s", class: "int" },
+    ],
+    fields: [
+      field({ id: "fld_05INED07A", name: "u", from: { hole: "u" }, type: "string" }),
+      field({ id: "fld_05INED07B", name: "s", from: { hole: "s" }, type: "int" }),
+    ],
+    sampleLine: "user=alice> status=200",
+    sampleExpect: { u: "alice", s: 200 },
+  });
+
+  const untilColonRestSpec = textSpec({
+    template: "tpl_05INED08",
+    event: "test.redaction.inner_edge_split_colon",
+    segments: [
+      { lit: "user=" },
+      { hole: "u", class: "until" },
+      { lit: ":" },
+      { hole: "r", class: "rest" },
+    ],
+    fields: [
+      field({ id: "fld_05INED08A", name: "u", from: { hole: "u" }, type: "string" }),
+      field({ id: "fld_05INED08B", name: "r", from: { hole: "r" }, type: "string" }),
+    ],
+    sampleLine: "user=alice:bob",
+    sampleExpect: { u: "alice", r: "bob" },
+  });
+
+  const litLtUntilGtSpec = textSpec({
+    template: "tpl_05INED09",
+    event: "test.redaction.inner_edge_lit_lt_gt",
+    segments: [{ lit: "user=<" }, { hole: "u", class: "until" }, { lit: ">" }],
+    fields: [field({ id: "fld_05INED09", name: "u", from: { hole: "u" }, type: "string" })],
+    sampleLine: "user=<alice>",
+    sampleExpect: { u: "alice" },
+  });
+
+  const restEmbeddedSpec = textSpec({
+    template: "tpl_05INED10",
+    event: "test.redaction.inner_edge_rest",
+    segments: [{ lit: "msg=" }, { hole: "m", class: "rest" }],
+    fields: [field({ id: "fld_05INED10", name: "m", from: { hole: "m" }, type: "string" })],
+    sampleLine: "msg=hello world",
+    sampleExpect: { m: "hello world" },
+  });
+
+  const INNER_EDGE_ESCAPED_TILDE =
+    "<email:\\u007e0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef>";
+
+  vectors.push(
+    vec({
+      id: "vec_redact_inner_edge_until_stops_at_gt_006",
+      description: "until hole stopping at token-closing '>' overlaps whole-input inner edge token and fails closed as <redacted>",
+      tags: ["hole:until", "type:string", "redaction:inner_edge", "redacted", "ambiguity:hosted_inner_edge_token"],
+      spec: untilGtSpec,
+      input: textInput(`user=${INNER_EDGE}`),
+      expected: match({ u: redacted("<redacted>") }),
+    }),
+    vec({
+      id: "vec_redact_inner_edge_until_gt_preserves_sibling_007",
+      description: "whole-input inner edge span overlap redacts straddling until hole while preserving unaffected sibling fields",
+      tags: ["hole:until", "hole:int", "redaction:inner_edge", "redacted", "ambiguity:hosted_inner_edge_token"],
+      spec: untilGtSiblingSpec,
+      input: textInput(`user=${INNER_EDGE} status=200`),
+      expected: match({ u: redacted("<redacted>"), s: okInt("200") }),
+    }),
+    vec({
+      id: "vec_redact_inner_edge_until_colon_split_across_holes_008",
+      description: "inner edge token split across until ':' and rest holes fails closed as <redacted> on both overlapping fields",
+      tags: ["hole:until", "hole:rest", "redaction:inner_edge", "redacted", "ambiguity:hosted_inner_edge_token"],
+      spec: untilColonRestSpec,
+      input: textInput(`user=${INNER_EDGE}`),
+      expected: match({ u: redacted("<redacted>"), r: redacted("<redacted>") }),
+    }),
+    vec({
+      id: "vec_redact_inner_edge_lit_consumes_lt_until_gt_009",
+      description: "inner edge token straddling leading '<' literal and trailing '>' literal still fails closed as <redacted>",
+      tags: ["hole:until", "redaction:inner_edge", "redacted", "ambiguity:hosted_inner_edge_token"],
+      spec: litLtUntilGtSpec,
+      input: textInput(`user=${INNER_EDGE}`),
+      expected: match({ u: redacted("<redacted>") }),
+    }),
+    vec({
+      id: "vec_redact_inner_edge_embedded_in_rest_010",
+      description: "rest capture containing an embedded well-formed known inner edge token fails closed as <redacted>",
+      tags: ["hole:rest", "redaction:inner_edge", "redacted", "ambiguity:hosted_inner_edge_token"],
+      spec: restEmbeddedSpec,
+      input: textInput(`msg=prefix ${INNER_EDGE} suffix`),
+      expected: match({ m: redacted("<redacted>") }),
+    }),
+    vec({
+      id: "vec_redact_inner_edge_quoted_escaped_tilde_011",
+      description: "quoted capture unescaping \\u007e into a well-formed known inner edge token fails closed as <redacted>",
+      tags: ["hole:quoted", "redaction:inner_edge", "redacted", "ambiguity:hosted_inner_edge_token", "ambiguity:quoted_token_classification"],
+      spec: quotedUserStrSpec,
+      input: textInput(`user="${INNER_EDGE_ESCAPED_TILDE}"`),
+      expected: match({ user: redacted("<redacted>") }),
+    }),
+    vec({
+      id: "vec_redact_inner_edge_object_embedded_string_012",
+      description: "object string value containing an embedded well-formed known inner edge token fails closed as <redacted>",
+      tags: ["type:string", "transform:hash", "redaction:inner_edge", "redacted", "ambiguity:hosted_inner_edge_token"],
+      spec: innerEdgeObjSpec,
+      input: objectInput({ email: `prefix ${INNER_EDGE} suffix` }),
+      expected: match({ email: redacted("<redacted>") }),
+    }),
+    vec({
+      id: "vec_redact_inner_edge_until_gt_normal_boundary_preserved_013",
+      description: "normal literal '>' boundary on until hole is unchanged when no known inner edge token is present",
+      tags: ["hole:until", "type:string", "boundary:following_literal", "ambiguity:hosted_inner_edge_token"],
+      spec: untilGtSpec,
+      input: textInput("user=alice>"),
+      expected: match({ u: okStr("alice") }),
+    }),
+    vec({
+      id: "vec_redact_inner_edge_until_gt_pseudonym_boundary_preserved_014",
+      description: "normal literal '>' boundary on until hole is preserved for non-inner 16-hex final pseudonym text",
+      tags: ["hole:until", "type:string", "boundary:following_literal", "ambiguity:hosted_inner_edge_token"],
+      spec: untilGtSpec,
+      input: textInput(`user=${PSEUDO}`),
+      expected: match({ u: okStr(PSEUDO.slice(0, -1)) }),
+    })
+  );
+
+  // ---- CUSTOM SCHEMA-VALID hash.kind INNER EDGE TOKENS (e.g. kind: "user") ----
+  const CUSTOM_USER_INNER_EDGE =
+    "<user:~0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef>";
+  const CUSTOM_USER_INNER_EDGE_DECODED_ESC =
+    "\\u003cuser:\\u007e0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\\u003e";
+
+  const customUserHashSpec = textSpec({
+    template: "tpl_05INED15",
+    event: "test.redaction.inner_edge_custom_user",
+    segments: [{ lit: "user=" }, { hole: "u", class: "word" }],
+    fields: [
+      field({
+        id: "fld_05INED15",
+        name: "user",
+        from: { hole: "u" },
+        type: "string",
+        transforms: [{ op: "hash", kind: "user" }],
+      }),
+    ],
+    sampleLine: "user=alice",
+    sampleExpect: { user: `<user:${hmacTag("alice")}>` },
+  });
+
+  const customUserDropSpec = textSpec({
+    template: "tpl_05INED19",
+    event: "test.redaction.custom_user_non_inner_drop",
+    segments: [{ lit: "user=" }, { hole: "u", class: "word" }],
+    fields: [
+      field({
+        id: "fld_05INED19",
+        name: "user",
+        from: { hole: "u" },
+        type: "string",
+        transforms: [{ op: "drop" }],
+      }),
+    ],
+    sampleLine: "user=alice",
+    sampleExpect: { user: null },
+  });
+
+  vectors.push(
+    vec({
+      id: "vec_redact_inner_edge_custom_kind_user_single_string_015",
+      description: "hosted conformance fails closed to <redacted> on custom schema-valid hash.kind 'user' inner edge token in string field",
+      tags: ["hole:word", "type:string", "transform:hash", "redaction:inner_edge", "redacted", "ambiguity:hosted_inner_edge_token"],
+      spec: customUserHashSpec,
+      input: textInput(`user=${CUSTOM_USER_INNER_EDGE}`),
+      expected: match({ user: redacted("<redacted>") }),
+    }),
+    vec({
+      id: "vec_redact_inner_edge_custom_kind_user_single_int_016",
+      description: "hosted conformance matches and fails closed to <redacted> on custom schema-valid hash.kind 'user' inner edge token in int hole",
+      tags: ["hole:int", "type:float", "transform:scale", "redaction:inner_edge", "redacted", "ambiguity:hosted_inner_edge_token"],
+      spec: intScaleSpec,
+      input: textInput(`amt=${CUSTOM_USER_INNER_EDGE}`),
+      expected: match({ usd: redacted("<redacted>") }),
+    }),
+    vec({
+      id: "vec_redact_inner_edge_custom_kind_user_until_gt_overlap_017",
+      description: "custom schema-valid hash.kind 'user' inner edge token straddling until '>' fails closed as <redacted> without spilling digest",
+      tags: ["hole:until", "type:string", "redaction:inner_edge", "redacted", "ambiguity:hosted_inner_edge_token"],
+      spec: untilGtSpec,
+      input: textInput(`user=${CUSTOM_USER_INNER_EDGE}`),
+      expected: match({ u: redacted("<redacted>") }),
+    }),
+    vec({
+      id: "vec_redact_inner_edge_custom_kind_user_quoted_decoded_018",
+      description: "quoted capture decoding \\u003c/\\u007e/\\u003e into custom inner edge token <user:~64hex> fails closed as <redacted>",
+      tags: ["hole:quoted", "type:string", "redaction:inner_edge", "redacted", "ambiguity:hosted_inner_edge_token", "ambiguity:quoted_token_classification"],
+      spec: quotedUserStrSpec,
+      input: textInput(`user="${CUSTOM_USER_INNER_EDGE_DECODED_ESC}"`),
+      expected: match({ user: redacted("<redacted>") }),
+    }),
+    vec({
+      id: "vec_redact_custom_kind_user_non_inner_stays_ordinary_019",
+      description: "non-inner custom angle form <user:9f2c41d07a3b55e1> stays ordinary text under closed-catalog final/mask rules and is still dropped",
+      tags: ["hole:word", "type:string", "transform:drop", "redaction:neutral", "dropped", "ambiguity:hosted_inner_edge_token"],
+      spec: customUserDropSpec,
+      input: textInput("user=<user:9f2c41d07a3b55e1>"),
+      expected: match({ user: dropped() }),
+    })
+  );
+
   return {
     suite: "05-transforms-privacy-and-redaction",
     description: "Golden conformance vectors covering hash, mask (token and ip_prefix), drop, known redaction tokens across all 11 hole classes and field types, neutral unknown angle-bracket strings, and explicit PII transform placement.",

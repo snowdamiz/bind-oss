@@ -1080,6 +1080,67 @@ export function buildSuite04() {
     })
   );
 
+  // ---- NUMERIC HOLE SEMANTICS PRESERVED OUTSIDE DIRECT parse_time(unix_s) ----
+  const scaleIntOverflowSpec = textSpec({
+    template: "tpl_04SCL0015",
+    event: "test.transform.scale_int_overflow",
+    segments: [{ lit: "amt=" }, { hole: "a", class: "int" }],
+    fields: [
+      field({
+        id: "fld_04SCL0015",
+        name: "usd",
+        from: { hole: "a" },
+        type: "float",
+        transforms: [{ op: "scale", div: 100 }],
+      }),
+    ],
+    sampleLine: "amt=1999",
+    sampleExpect: { usd: 19.99 },
+  });
+
+  const floatHoleToIntSpec = textSpec({
+    template: "tpl_04FLT0016",
+    event: "test.transform.float_to_int",
+    segments: [{ lit: "v=" }, { hole: "v", class: "float" }],
+    fields: [
+      field({
+        id: "fld_04FLT0016",
+        name: "v",
+        from: { hole: "v" },
+        type: "int",
+      }),
+    ],
+    sampleLine: "v=12.0",
+    sampleExpect: { v: 12 },
+  });
+
+  vectors.push(
+    vec({
+      id: "vec_tr_scale_int_hole_overflow_before_scale_015",
+      description: "int hole enforces Int64 range before scale transform and rejects 2^63 with int_overflow",
+      tags: ["hole:int", "transform:scale", "type:float", "parse_error", "boundary:int64_overflow"],
+      spec: scaleIntOverflowSpec,
+      input: textInput("amt=9223372036854775808"),
+      expected: match({ usd: parseErr("int_overflow") }),
+    }),
+    vec({
+      id: "vec_tr_float_hole_integral_to_int_016",
+      description: "float hole with integral value 12.0 converts cleanly to int field",
+      tags: ["hole:float", "type:int"],
+      spec: floatHoleToIntSpec,
+      input: textInput("v=12.0"),
+      expected: match({ v: okInt("12") }),
+    }),
+    vec({
+      id: "vec_tr_float_hole_fractional_to_int_error_017",
+      description: "float hole with fractional value 12.5 fails conversion to int field with type_mismatch",
+      tags: ["hole:float", "type:int", "parse_error"],
+      spec: floatHoleToIntSpec,
+      input: textInput("v=12.5"),
+      expected: match({ v: parseErr("type_mismatch") }),
+    })
+  );
+
   return {
     suite: "04-transforms-core",
     description: "Golden conformance vectors covering cast, scale (IEEE-754 single-op bit patterns), unit (all time and byte units), parse_time (all 10 formats including exact decimal unix_s), lower (locale-independent UTF-8), and enum_map transforms.",

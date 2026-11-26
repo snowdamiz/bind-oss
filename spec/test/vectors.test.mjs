@@ -610,6 +610,209 @@ describe("Negative validation checks: malformed vectors and semantic regressions
       )
     );
   });
+  it("preserves numeric hole semantics outside direct parse_time(unix_s): Int64 int-hole before scale, integral float-to-int, and cast(int)->hash", () => {
+    const intOverflowScale = suite04.vectors.find(
+      (v) => v.id === "vec_tr_scale_int_hole_overflow_before_scale_015"
+    );
+    const floatIntegralToInt = suite04.vectors.find(
+      (v) => v.id === "vec_tr_float_hole_integral_to_int_016"
+    );
+    const floatFracToInt = suite04.vectors.find(
+      (v) => v.id === "vec_tr_float_hole_fractional_to_int_error_017"
+    );
+    const castIntHashStr = suite05.vectors.find(
+      (v) => v.id === "vec_tr_cast_int_then_hash_string_015"
+    );
+    const castIntHashInt = suite05.vectors.find(
+      (v) => v.id === "vec_tr_cast_int_then_hash_nonstring_int_016"
+    );
+    assert.ok(intOverflowScale && floatIntegralToInt && floatFracToInt && castIntHashStr && castIntHashInt);
+
+    // Int64 int-hole overflow before scale must not silently widen to ok float
+    const badScale = singleVectorSuite(suite04, intOverflowScale);
+    badScale.vectors[0].expected.fields.usd = {
+      status: "ok",
+      type: "float",
+      value: "43747ae147ae147b",
+    };
+    assert.ok(
+      validateVectorSuiteDocument(badScale, validator).some((e) =>
+        e.includes("reference evaluator mismatch")
+      )
+    );
+
+    // Integral float hole 12.0 -> int must remain ok int "12"
+    const badFloatInt = singleVectorSuite(suite04, floatIntegralToInt);
+    badFloatInt.vectors[0].expected.fields.v = { status: "parse_error", code: "type_mismatch" };
+    assert.ok(
+      validateVectorSuiteDocument(badFloatInt, validator).some((e) =>
+        e.includes("reference evaluator mismatch")
+      )
+    );
+
+    // Schema-valid cast(int) -> hash must not reject int input with type_mismatch
+    const badCastHash = singleVectorSuite(suite05, castIntHashStr);
+    badCastHash.vectors[0].expected.fields.uid = { status: "parse_error", code: "type_mismatch" };
+    assert.ok(
+      validateVectorSuiteDocument(badCastHash, validator).some((e) =>
+        e.includes("reference evaluator mismatch")
+      )
+    );
+  });
+
+  it("prevents inner edge digest spill across straddling capture boundaries while preserving normal literal boundaries", () => {
+    const untilGt = suite05.vectors.find(
+      (v) => v.id === "vec_redact_inner_edge_until_stops_at_gt_006"
+    );
+    const untilSibling = suite05.vectors.find(
+      (v) => v.id === "vec_redact_inner_edge_until_gt_preserves_sibling_007"
+    );
+    const splitColon = suite05.vectors.find(
+      (v) => v.id === "vec_redact_inner_edge_until_colon_split_across_holes_008"
+    );
+    const litLtGt = suite05.vectors.find(
+      (v) => v.id === "vec_redact_inner_edge_lit_consumes_lt_until_gt_009"
+    );
+    const restEmbed = suite05.vectors.find(
+      (v) => v.id === "vec_redact_inner_edge_embedded_in_rest_010"
+    );
+    const quotedEsc = suite05.vectors.find(
+      (v) => v.id === "vec_redact_inner_edge_quoted_escaped_tilde_011"
+    );
+    const objEmbed = suite05.vectors.find(
+      (v) => v.id === "vec_redact_inner_edge_object_embedded_string_012"
+    );
+    const normalGt = suite05.vectors.find(
+      (v) => v.id === "vec_redact_inner_edge_until_gt_normal_boundary_preserved_013"
+    );
+    const pseudoGt = suite05.vectors.find(
+      (v) => v.id === "vec_redact_inner_edge_until_gt_pseudonym_boundary_preserved_014"
+    );
+    assert.ok(
+      untilGt &&
+        untilSibling &&
+        splitColon &&
+        litLtGt &&
+        restEmbed &&
+        quotedEsc &&
+        objEmbed &&
+        normalGt &&
+        pseudoGt
+    );
+
+    // Reject spilling truncated inner digest when until stops at closing '>'
+    const spillUntilGt = singleVectorSuite(suite05, untilGt);
+    spillUntilGt.vectors[0].expected.fields.u = {
+      status: "ok",
+      type: "string",
+      value: "<email:~0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+    };
+    assert.ok(
+      validateVectorSuiteDocument(spillUntilGt, validator).some((e) =>
+        e.includes("reference evaluator mismatch")
+      )
+    );
+
+    // Reject spilling digest half across ':' split
+    const spillSplit = singleVectorSuite(suite05, splitColon);
+    spillSplit.vectors[0].expected.fields.r = {
+      status: "ok",
+      type: "string",
+      value: "~0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef>",
+    };
+    assert.ok(
+      validateVectorSuiteDocument(spillSplit, validator).some((e) =>
+        e.includes("reference evaluator mismatch")
+      )
+    );
+
+    // Ensure normal literal '>' boundary is preserved for non-inner final pseudonym text
+    const brokenBoundary = singleVectorSuite(suite05, pseudoGt);
+    brokenBoundary.vectors[0].expected.fields.u = { status: "redacted", token: "<redacted>" };
+    assert.ok(
+      validateVectorSuiteDocument(brokenBoundary, validator).some((e) =>
+        e.includes("reference evaluator mismatch")
+      )
+    );
+  });
+  it("redacts custom schema-valid hash.kind inner edge tokens (single, overlap, and decoded escapes) while keeping closed-catalog final/mask rules", () => {
+    const customSingleStr = suite05.vectors.find(
+      (v) => v.id === "vec_redact_inner_edge_custom_kind_user_single_string_015"
+    );
+    const customSingleInt = suite05.vectors.find(
+      (v) => v.id === "vec_redact_inner_edge_custom_kind_user_single_int_016"
+    );
+    const customOverlap = suite05.vectors.find(
+      (v) => v.id === "vec_redact_inner_edge_custom_kind_user_until_gt_overlap_017"
+    );
+    const customDecoded = suite05.vectors.find(
+      (v) => v.id === "vec_redact_inner_edge_custom_kind_user_quoted_decoded_018"
+    );
+    const customOrdinary = suite05.vectors.find(
+      (v) => v.id === "vec_redact_custom_kind_user_non_inner_stays_ordinary_019"
+    );
+    assert.ok(customSingleStr && customSingleInt && customOverlap && customDecoded && customOrdinary);
+
+    // Reject exposing custom inner digest on single capture
+    const badSingle = singleVectorSuite(suite05, customSingleStr);
+    badSingle.vectors[0].expected.fields.user = {
+      status: "ok",
+      type: "string",
+      value: "<user:~0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef>",
+    };
+    assert.ok(
+      validateVectorSuiteDocument(badSingle, validator).some((e) =>
+        e.includes("reference evaluator mismatch")
+      )
+    );
+
+    // Reject spilling custom inner digest when until stops at '>'
+    const badOverlap = singleVectorSuite(suite05, customOverlap);
+    badOverlap.vectors[0].expected.fields.u = {
+      status: "ok",
+      type: "string",
+      value: "<user:~0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+    };
+    assert.ok(
+      validateVectorSuiteDocument(badOverlap, validator).some((e) =>
+        e.includes("reference evaluator mismatch")
+      )
+    );
+
+    // Targeted decoder check: \u003c / \u007e / \u003e must decode and redact, while non-inner
+    // custom <user:9f2c41d07a3b55e1> and <nil> stay ordinary text under closed-catalog rules.
+    const badDecoded = singleVectorSuite(suite05, customDecoded);
+    badDecoded.vectors[0].expected.fields.user = {
+      status: "ok",
+      type: "string",
+      value: "<user:~0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef>",
+    };
+    assert.ok(
+      validateVectorSuiteDocument(badDecoded, validator).some((e) =>
+        e.includes("reference evaluator mismatch")
+      )
+    );
+
+    const decodedOrdinarySuite = singleVectorSuite(suite05, customDecoded);
+    decodedOrdinarySuite.vectors[0].input = { kind: "text", line: 'user="\\u003cnil\\u003e"' };
+    decodedOrdinarySuite.vectors[0].expected = {
+      matched: true,
+      fields: { user: { status: "ok", type: "string", value: "<nil>" } },
+    };
+    assert.deepEqual(validateVectorSuiteDocument(decodedOrdinarySuite, validator), []);
+
+    const badOrdinaryCustom = singleVectorSuite(suite05, customOrdinary);
+    badOrdinaryCustom.vectors[0].expected.fields.user = {
+      status: "ok",
+      type: "string",
+      value: "<user:9f2c41d07a3b55e1>",
+    };
+    assert.ok(
+      validateVectorSuiteDocument(badOrdinaryCustom, validator).some((e) =>
+        e.includes("reference evaluator mismatch")
+      )
+    );
+  });
 });
 
 describe("Manifest integrity checks: per-suite SQL counts, default_context, and extra suite files", () => {
