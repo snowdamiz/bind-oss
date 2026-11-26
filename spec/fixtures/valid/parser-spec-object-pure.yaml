@@ -1,0 +1,54 @@
+spec_version: 1
+template: tpl_01JD8Q4OBJ2
+event: payment.failed
+version: 2
+status: active
+origin: user
+source:
+  kind: callsite
+  repo: github.com/acme/shop
+  path: src/payments/stripe.ts
+  line: 204
+  logger: pino.error
+match:
+  kind: object
+  shape:
+    - error.code
+    - error.message
+    - retryable
+    - meta
+fields:
+  - id: fld_01JD8Q4P01
+    name: error_type
+    from: { path: error.code }
+    type: string
+    semantic: error.type
+  - id: fld_01JD8Q4P02
+    name: error_message
+    from: { path: error.message }
+    type: string
+    semantic: error.message
+  - id: fld_01JD8Q4P03
+    name: is_retryable
+    from: { path: retryable }
+    type: bool
+    semantic: flag
+  - id: fld_01JD8Q4P04
+    name: metadata
+    from: { path: meta }
+    type: json
+    semantic: unknown
+tests:
+  - object:
+      error:
+        code: "card_declined"
+        message: "insufficient funds"
+      retryable: false
+      meta:
+        gateway: "stripe"
+    expect:
+      error_type: "card_declined"
+      error_message: "insufficient funds"
+      is_retryable: false
+      metadata:
+        gateway: "stripe"

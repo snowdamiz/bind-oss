@@ -1,0 +1,10 @@
+event: order.paid
+id: evt_01JD8Q2KZZ
+description: A customer completed payment for an order.
+schema_version: 4
+fields:
+  - { id: fld_01JD8Q2M9A, name: order_id,    type: string, semantic: id.order, slot: s01 }
+  - { id: fld_01JD8Q2M9B, name: amount_usd,  type: float,  semantic: money,    slot: f01, unit: USD }
+  - { id: fld_01JD8Q2M9C, name: duration_ms, type: int,    semantic: duration, slot: i01, unit: ms }
+  - { id: fld_01JD8Q2M9D, name: user_id,     type: string, semantic: id.user,  slot: actor }
+templates: [tpl_01JD8Q2M4K, tpl_01JC7T1A0P]

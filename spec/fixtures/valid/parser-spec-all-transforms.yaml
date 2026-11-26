@@ -1,0 +1,168 @@
+spec_version: 1
+template: tpl_01JD8Q6ALL9
+event: audit.catalog.exercised
+version: 1
+status: provisional
+origin: agent
+source:
+  kind: mined
+  logger: custom.info
+match:
+  kind: text
+  segments:
+    - lit: "ts="
+    - hole: ts_raw
+      class: time
+    - lit: " id="
+    - hole: req_uuid
+      class: uuid
+    - lit: " trace="
+    - hole: trace_hex
+      class: hex
+    - lit: " ip="
+    - hole: client_ip
+      class: ip
+    - lit: " user="
+    - hole: user_email
+    - lit: " name="
+    - hole: full_name
+      class: quoted
+    - lit: " ratio="
+    - hole: hit_ratio
+      class: float
+    - lit: " count="
+    - hole: item_count
+      class: int
+    - lit: " size="
+    - hole: size_kib
+      class: int
+    - lit: " lvl="
+    - hole: level_raw
+      class: word
+    - lit: " secret="
+    - hole: api_secret
+      class: until
+    - lit: " payload="
+    - hole: extra_json
+      class: json
+    - lit: " note="
+    - hole: free_note
+      class: rest
+fields:
+  - id: fld_01JD8Q6A01
+    name: event_time
+    from: { hole: ts_raw }
+    type: timestamp
+    semantic: unknown
+    pii: none
+    transforms:
+      - { op: parse_time, format: iso8601 }
+  - id: fld_01JD8Q6A02
+    name: request_id
+    from: { hole: req_uuid }
+    type: string
+    semantic: id.request
+    pii: pseudonymous_id
+  - id: fld_01JD8Q6A03
+    name: trace_id
+    from: { hole: trace_hex }
+    type: string
+    semantic: id.trace
+    pii: none
+  - id: fld_01JD8Q6A04
+    name: client_ip
+    from: { hole: client_ip }
+    type: string
+    semantic: ip
+    pii: ip
+    transforms:
+      - { op: mask, mode: ip_prefix }
+  - id: fld_01JD8Q6A05
+    name: user_email
+    from: { hole: user_email }
+    type: string
+    semantic: email
+    pii: email
+    transforms:
+      - { op: lower }
+      - { op: hash, kind: email }
+  - id: fld_01JD8Q6A06
+    name: customer_name
+    from: { hole: full_name }
+    type: string
+    semantic: text
+    pii: name
+    transforms:
+      - { op: mask, mode: token, kind: name }
+  - id: fld_01JD8Q6A07
+    name: cache_hit_pct
+    from: { hole: hit_ratio }
+    type: float
+    semantic: ratio
+    pii: none
+    transforms:
+      - { op: scale, mul: 100 }
+  - id: fld_01JD8Q6A08
+    name: items_flag
+    from: { hole: item_count }
+    type: bool
+    semantic: flag
+    pii: none
+    transforms:
+      - { op: cast, to: bool }
+  - id: fld_01JD8Q6A09
+    name: payload_bytes
+    from: { hole: size_kib }
+    type: int
+    semantic: bytes
+    unit: B
+    pii: none
+    transforms:
+      - { op: unit, from: KiB, to: B }
+  - id: fld_01JD8Q6A10
+    name: severity_bucket
+    from: { hole: level_raw }
+    type: enum
+    semantic: version
+    pii: none
+    transforms:
+      - { op: lower }
+      - { op: enum_map, map: { v1: "1", v2: "2" }, default: "unknown" }
+  - id: fld_01JD8Q6A11
+    name: redacted_secret
+    from: { hole: api_secret }
+    type: string
+    semantic: unknown
+    pii: secret
+    transforms:
+      - { op: drop }
+  - id: fld_01JD8Q6A12
+    name: payload_obj
+    from: { hole: extra_json }
+    type: json
+    semantic: unknown
+    pii: none
+  - id: fld_01JD8Q6A13
+    name: note_text
+    from: { hole: free_note }
+    type: string
+    semantic: text
+    pii: free_text
+    transforms:
+      - { op: drop }
+tests:
+  - line: 'ts=2026-11-26T14:00:00Z id=550e8400-e29b-41d4-a716-446655440000 trace=deadbeef ip=203.0.113.42 user=Alice@Example.COM name="Alice Smith" ratio=0.75 count=1 size=4 lvl=V2 secret=tok_123 payload={"k":1} note=hello world'
+    expect:
+      event_time: 1795701600000
+      request_id: "550e8400-e29b-41d4-a716-446655440000"
+      trace_id: "deadbeef"
+      client_ip: "203.0.113.0/24"
+      user_email: "<email:9f2c41d07a3b55e1>"
+      customer_name: null
+      cache_hit_pct: 75
+      items_flag: true
+      payload_bytes: 4096
+      severity_bucket: "2"
+      redacted_secret: null
+      payload_obj: { k: 1 }
+      note_text: null

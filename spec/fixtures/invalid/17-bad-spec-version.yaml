@@ -1,0 +1,16 @@
+spec_version: 2
+template: tpl_01JD8Q2M4K
+event: order.paid
+version: 1
+status: active
+origin: agent
+source:
+  kind: mined
+match:
+  kind: text
+  segments:
+    - lit: "order paid"
+fields: []
+tests:
+  - line: "order paid"
+    expect: {}

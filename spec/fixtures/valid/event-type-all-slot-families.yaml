@@ -1,0 +1,22 @@
+event: checkout.completed
+id: evt_01JD8Q8FULL
+description: Exercises every ClickHouse slot family, entity column, and overflow map.
+schema_version: 1
+fields:
+  - { id: fld_01JD8Q8F01, name: user_id,     type: string,    semantic: id.user,      slot: actor,   entity: user,    pii: pseudonymous_id }
+  - { id: fld_01JD8Q8F02, name: org_id,      type: string,    semantic: id.account,   slot: account, entity: account, pii: none }
+  - { id: fld_01JD8Q8F03, name: country,     type: string,    semantic: geo.country,  slot: s01 }
+  - { id: fld_01JD8Q8F04, name: user_agent,  type: string,    semantic: user_agent,   slot: s24 }
+  - { id: fld_01JD8Q8F05, name: status,      type: enum,      semantic: text,         slot: s02 }
+  - { id: fld_01JD8Q8F06, name: payload,     type: json,      semantic: unknown,      slot: s03 }
+  - { id: fld_01JD8Q8F07, name: item_count,  type: int,       semantic: count,        slot: i01 }
+  - { id: fld_01JD8Q8F08, name: retry_count, type: int,       semantic: count,        slot: i12 }
+  - { id: fld_01JD8Q8F09, name: total_usd,   type: float,     semantic: money,        slot: f01, unit: USD }
+  - { id: fld_01JD8Q8F10, name: tax_ratio,   type: float,     semantic: ratio,        slot: f12 }
+  - { id: fld_01JD8Q8F11, name: is_express,  type: bool,      semantic: flag,         slot: b01 }
+  - { id: fld_01JD8Q8F12, name: is_vip,      type: bool,      semantic: flag,         slot: b04 }
+  - { id: fld_01JD8Q8F13, name: paid_at,     type: timestamp, semantic: unknown,      slot: t01 }
+  - { id: fld_01JD8Q8F14, name: shipped_at,  type: timestamp, semantic: unknown,      slot: t04 }
+  - { id: fld_01JD8Q8F15, name: overflow_kv, type: int,       semantic: count,        slot: extra, description: Spilled to extra map after slots filled }
+templates:
+  - tpl_01JD8Q8T01

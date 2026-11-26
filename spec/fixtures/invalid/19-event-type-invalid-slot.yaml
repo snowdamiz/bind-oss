@@ -1,0 +1,7 @@
+event: order.paid
+id: evt_01JD8Q2KZZ
+description: Slot s25 is outside the ClickHouse s01..s24 string slot range.
+schema_version: 1
+fields:
+  - { id: fld_01JD8Q2M9A, name: order_id, type: string, semantic: id.order, slot: s25 }
+templates: [tpl_01JD8Q2M4K]

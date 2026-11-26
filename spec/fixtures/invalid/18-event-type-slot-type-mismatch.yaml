@@ -1,0 +1,7 @@
+event: order.paid
+id: evt_01JD8Q2KZZ
+description: Float field illegally assigned to an integer slot.
+schema_version: 1
+fields:
+  - { id: fld_01JD8Q2M9B, name: amount_usd, type: float, semantic: money, slot: i01, unit: USD }
+templates: [tpl_01JD8Q2M4K]

@@ -1,0 +1,16 @@
+spec_version: 1
+template: tpl_01JD8Q7ZERO
+event: server.started
+version: 1
+status: retired
+origin: user
+source:
+  kind: mined
+match:
+  kind: text
+  segments:
+    - lit: "server ready and listening"
+fields: []
+tests:
+  - line: "server ready and listening"
+    expect: {}

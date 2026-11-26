@@ -1,0 +1,25 @@
+spec_version: 1
+template: tpl_01JD8Q2M4K
+event: request.done
+version: 1
+status: active
+origin: agent
+source:
+  kind: mined
+match:
+  kind: text
+  segments:
+    - lit: "elapsed="
+    - hole: elapsed
+      class: int
+fields:
+  - id: fld_01JD8Q2M9C
+    name: duration_ms
+    from: { hole: elapsed }
+    type: float
+    semantic: duration
+    transforms:
+      - { op: unit, from: ms, to: MB }
+tests:
+  - line: "elapsed=200"
+    expect: { duration_ms: 200 }
