@@ -1,0 +1,156 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.bind.dev/v1/event-type.schema.json",
+  "title": "Bind EventType Schema",
+  "description": "Registry schema entry for a Bind EventType, owning the typed field catalog, ClickHouse storage slot assignments, and associated templates.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "event",
+    "id",
+    "schema_version",
+    "fields",
+    "templates"
+  ],
+  "properties": {
+    "event": {
+      "$ref": "./common.schema.json#/$defs/EventName"
+    },
+    "id": {
+      "$ref": "./common.schema.json#/$defs/EventTypeId"
+    },
+    "description": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Human-readable description of what this event represents."
+    },
+    "schema_version": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Monotonically increasing schema version number for this event type."
+    },
+    "fields": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/EventTypeField" },
+      "description": "Typed fields owned by this event type and their assigned storage slots."
+    },
+    "templates": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "$ref": "./common.schema.json#/$defs/TemplateId" },
+      "description": "Templates that emit this event type."
+    }
+  },
+  "$defs": {
+    "EventTypeField": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name", "type", "semantic", "slot"],
+      "properties": {
+        "id": { "$ref": "./common.schema.json#/$defs/FieldId" },
+        "name": { "$ref": "./common.schema.json#/$defs/FieldName" },
+        "description": { "type": "string", "minLength": 1 },
+        "type": { "$ref": "./common.schema.json#/$defs/FieldType" },
+        "semantic": { "$ref": "./common.schema.json#/$defs/FieldSemantic" },
+        "slot": { "$ref": "./common.schema.json#/$defs/StorageSlot" },
+        "unit": { "type": "string", "minLength": 1 },
+        "entity": { "$ref": "./common.schema.json#/$defs/EntityName" },
+        "pii": { "$ref": "./common.schema.json#/$defs/PiiClass" }
+      },
+      "allOf": [
+        {
+          "if": { "type": "object", "required": ["type"], "properties": { "type": { "const": "string" } } },
+          "then": {
+            "type": "object",
+            "properties": {
+              "slot": {
+                "anyOf": [
+                  { "$ref": "./common.schema.json#/$defs/StringSlot" },
+                  { "$ref": "./common.schema.json#/$defs/EntityColumnSlot" },
+                  { "$ref": "./common.schema.json#/$defs/OverflowSlot" }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "type": "object",
+            "required": ["type"],
+            "properties": {
+              "type": { "enum": ["enum", "json"] }
+            }
+          },
+          "then": {
+            "type": "object",
+            "properties": {
+              "slot": {
+                "anyOf": [
+                  { "$ref": "./common.schema.json#/$defs/StringSlot" },
+                  { "$ref": "./common.schema.json#/$defs/OverflowSlot" }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": { "type": "object", "required": ["type"], "properties": { "type": { "const": "int" } } },
+          "then": {
+            "type": "object",
+            "properties": {
+              "slot": {
+                "anyOf": [
+                  { "$ref": "./common.schema.json#/$defs/IntSlot" },
+                  { "$ref": "./common.schema.json#/$defs/OverflowSlot" }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": { "type": "object", "required": ["type"], "properties": { "type": { "const": "float" } } },
+          "then": {
+            "type": "object",
+            "properties": {
+              "slot": {
+                "anyOf": [
+                  { "$ref": "./common.schema.json#/$defs/FloatSlot" },
+                  { "$ref": "./common.schema.json#/$defs/OverflowSlot" }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": { "type": "object", "required": ["type"], "properties": { "type": { "const": "bool" } } },
+          "then": {
+            "type": "object",
+            "properties": {
+              "slot": {
+                "anyOf": [
+                  { "$ref": "./common.schema.json#/$defs/BoolSlot" },
+                  { "$ref": "./common.schema.json#/$defs/OverflowSlot" }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": { "type": "object", "required": ["type"], "properties": { "type": { "const": "timestamp" } } },
+          "then": {
+            "type": "object",
+            "properties": {
+              "slot": {
+                "anyOf": [
+                  { "$ref": "./common.schema.json#/$defs/TimestampSlot" },
+                  { "$ref": "./common.schema.json#/$defs/OverflowSlot" }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,25 @@
+spec_version: 1
+template: tpl_01JD8Q2M4K
+event: order.paid
+version: 1
+status: active
+origin: agent
+source:
+  kind: mined
+match:
+  kind: text
+  segments:
+    - lit: "paid "
+    - hole: cents
+      class: int
+fields:
+  - id: fld_01JD8Q2M9B
+    name: amount_usd
+    from: { hole: cents }
+    type: float
+    semantic: money
+    transforms:
+      - { op: scale, mul: 10, div: 100 }
+tests:
+  - line: "paid 1999"
+    expect: { amount_usd: 199.9 }

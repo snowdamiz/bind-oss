@@ -1,0 +1,497 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.bind.dev/v1/parser-spec.schema.json",
+  "title": "Bind ParserSpec",
+  "description": "Declarative, versioned parser specification turning a matched log record into typed event fields across Bind's Mesh, SQL, TypeScript, and Swift runtimes.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "spec_version",
+    "template",
+    "event",
+    "version",
+    "status",
+    "origin",
+    "source",
+    "match",
+    "fields",
+    "tests"
+  ],
+  "properties": {
+    "spec_version": {
+      "const": 1,
+      "description": "Format version of the ParserSpec schema. Currently 1."
+    },
+    "template": {
+      "$ref": "./common.schema.json#/$defs/TemplateId"
+    },
+    "event": {
+      "$ref": "./common.schema.json#/$defs/EventName"
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Monotonically increasing version number scoped to this template."
+    },
+    "status": {
+      "$ref": "./common.schema.json#/$defs/SpecStatus"
+    },
+    "origin": {
+      "$ref": "./common.schema.json#/$defs/SpecOrigin"
+    },
+    "source": {
+      "$ref": "#/$defs/Source"
+    },
+    "match": {
+      "$ref": "#/$defs/Match"
+    },
+    "fields": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/ParserField" },
+      "description": "Ordered list of extracted fields. May be empty for static log templates with no dynamic fields."
+    },
+    "tests": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/SpecTest" },
+      "description": "Built-in positive test cases gated by the registry before publication."
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "type": "object",
+        "required": ["match"],
+        "properties": {
+          "match": {
+            "type": "object",
+            "required": ["kind"],
+            "properties": { "kind": { "const": "text" } }
+          }
+        }
+      },
+      "then": {
+        "type": "object",
+        "properties": {
+          "fields": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "from": { "$ref": "#/$defs/FromHole" }
+              }
+            }
+          },
+          "tests": {
+            "type": "array",
+            "items": { "$ref": "#/$defs/TextSpecTest" }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "type": "object",
+        "required": ["match"],
+        "properties": {
+          "match": {
+            "type": "object",
+            "required": ["kind"],
+            "properties": { "kind": { "const": "args" } }
+          }
+        }
+      },
+      "then": {
+        "type": "object",
+        "properties": {
+          "fields": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "from": { "$ref": "#/$defs/FromArg" }
+              }
+            }
+          },
+          "tests": {
+            "type": "array",
+            "items": { "$ref": "#/$defs/ArgsSpecTest" }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "type": "object",
+        "required": ["match"],
+        "properties": {
+          "match": {
+            "type": "object",
+            "required": ["kind"],
+            "properties": { "kind": { "const": "object" } }
+          }
+        }
+      },
+      "then": {
+        "type": "object",
+        "properties": {
+          "tests": {
+            "type": "array",
+            "items": { "$ref": "#/$defs/ObjectSpecTest" }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "type": "object",
+        "required": ["match"],
+        "properties": {
+          "match": {
+            "type": "object",
+            "required": ["kind", "message"],
+            "properties": {
+              "kind": { "const": "object" },
+              "message": {}
+            }
+          }
+        }
+      },
+      "then": {
+        "type": "object",
+        "properties": {
+          "fields": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "from": {
+                  "oneOf": [
+                    { "$ref": "#/$defs/FromPath" },
+                    { "$ref": "#/$defs/FromHole" }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "type": "object",
+        "required": ["match"],
+        "properties": {
+          "match": {
+            "type": "object",
+            "required": ["kind"],
+            "properties": {
+              "kind": { "const": "object" },
+              "message": {}
+            },
+            "not": {
+              "type": "object",
+              "required": ["message"],
+              "properties": { "message": {} }
+            }
+          }
+        }
+      },
+      "then": {
+        "type": "object",
+        "properties": {
+          "fields": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "from": { "$ref": "#/$defs/FromPath" }
+              }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "CallsiteSource": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "repo", "path", "line"],
+      "properties": {
+        "kind": { "const": "callsite" },
+        "repo": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Repository identifier (e.g. github.com/acme/shop)."
+        },
+        "path": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Repository-relative path to the source file."
+        },
+        "line": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "1-based source line number of the logging call."
+        },
+        "symbol": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Enclosing function or method symbol name, when available."
+        },
+        "logger": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Logger API call expression (e.g. pino.info, os.Logger.info)."
+        },
+        "valid_from_commit": {
+          "$ref": "./common.schema.json#/$defs/CommitSha"
+        }
+      }
+    },
+    "SdkTemplateSource": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind"],
+      "properties": {
+        "kind": { "const": "sdk_template" },
+        "repo": { "type": "string", "minLength": 1 },
+        "path": { "type": "string", "minLength": 1 },
+        "line": { "type": "integer", "minimum": 1 },
+        "symbol": { "type": "string", "minLength": 1 },
+        "logger": { "type": "string", "minLength": 1 },
+        "valid_from_commit": { "$ref": "./common.schema.json#/$defs/CommitSha" }
+      }
+    },
+    "MinedSource": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind"],
+      "properties": {
+        "kind": { "const": "mined" },
+        "logger": { "type": "string", "minLength": 1 },
+        "valid_from_commit": { "$ref": "./common.schema.json#/$defs/CommitSha" }
+      }
+    },
+    "Source": {
+      "type": "object",
+      "required": ["kind"],
+      "properties": {
+        "kind": { "$ref": "./common.schema.json#/$defs/SourceKind" }
+      },
+      "allOf": [
+        {
+          "if": { "type": "object", "required": ["kind"], "properties": { "kind": { "const": "callsite" } } },
+          "then": { "$ref": "#/$defs/CallsiteSource" }
+        },
+        {
+          "if": { "type": "object", "required": ["kind"], "properties": { "kind": { "const": "sdk_template" } } },
+          "then": { "$ref": "#/$defs/SdkTemplateSource" }
+        },
+        {
+          "if": { "type": "object", "required": ["kind"], "properties": { "kind": { "const": "mined" } } },
+          "then": { "$ref": "#/$defs/MinedSource" }
+        }
+      ]
+    },
+    "TextMatch": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "segments"],
+      "properties": {
+        "kind": { "const": "text" },
+        "segments": { "$ref": "./common.schema.json#/$defs/TextSegments" }
+      }
+    },
+    "ObjectMessageSubpattern": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "segments"],
+      "description": "Optional text matcher applied to one string key path inside a JSON object body.",
+      "properties": {
+        "path": { "$ref": "./common.schema.json#/$defs/KeyPath" },
+        "segments": { "$ref": "./common.schema.json#/$defs/TextSegments" }
+      }
+    },
+    "ObjectMatch": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "shape"],
+      "properties": {
+        "kind": { "const": "object" },
+        "shape": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "./common.schema.json#/$defs/KeyPath" },
+          "description": "Required JSON key paths defining the object shape signature."
+        },
+        "message": { "$ref": "#/$defs/ObjectMessageSubpattern" }
+      }
+    },
+    "ArgsMatch": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "strings"],
+      "properties": {
+        "kind": { "const": "args" },
+        "strings": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string" },
+          "description": "Literal template parts captured by an SDK; empty strings are permitted around adjacent or leading/trailing arguments."
+        }
+      }
+    },
+    "Match": {
+      "type": "object",
+      "required": ["kind"],
+      "properties": {
+        "kind": { "$ref": "./common.schema.json#/$defs/MatchKind" }
+      },
+      "allOf": [
+        {
+          "if": { "type": "object", "required": ["kind"], "properties": { "kind": { "const": "text" } } },
+          "then": { "$ref": "#/$defs/TextMatch" }
+        },
+        {
+          "if": { "type": "object", "required": ["kind"], "properties": { "kind": { "const": "object" } } },
+          "then": { "$ref": "#/$defs/ObjectMatch" }
+        },
+        {
+          "if": { "type": "object", "required": ["kind"], "properties": { "kind": { "const": "args" } } },
+          "then": { "$ref": "#/$defs/ArgsMatch" }
+        }
+      ]
+    },
+    "FromHole": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["hole"],
+      "properties": {
+        "hole": { "$ref": "./common.schema.json#/$defs/HoleName" }
+      }
+    },
+    "FromPath": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path"],
+      "properties": {
+        "path": { "$ref": "./common.schema.json#/$defs/KeyPath" }
+      }
+    },
+    "FromArg": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["arg"],
+      "properties": {
+        "arg": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "0-based argument index in an args match."
+        }
+      }
+    },
+    "FieldFrom": {
+      "description": "Binding from a matched hole, JSON key path, or SDK argument position.",
+      "oneOf": [
+        { "$ref": "#/$defs/FromHole" },
+        { "$ref": "#/$defs/FromPath" },
+        { "$ref": "#/$defs/FromArg" }
+      ]
+    },
+    "FieldEvidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "minProperties": 1,
+      "description": "Source-code or sample provenance supporting a field's name, type, semantic, and unit.",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": ["hole", "payload_key", "sample"]
+        },
+        "expr": { "type": "string", "minLength": 1 },
+        "path": { "type": "string", "minLength": 1 },
+        "line": { "type": "integer", "minimum": 1 },
+        "reason": { "type": "string", "minLength": 1 }
+      }
+    },
+    "ParserField": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name", "from", "type", "semantic"],
+      "properties": {
+        "id": { "$ref": "./common.schema.json#/$defs/FieldId" },
+        "name": { "$ref": "./common.schema.json#/$defs/FieldName" },
+        "from": { "$ref": "#/$defs/FieldFrom" },
+        "type": { "$ref": "./common.schema.json#/$defs/FieldType" },
+        "semantic": { "$ref": "./common.schema.json#/$defs/FieldSemantic" },
+        "entity": { "$ref": "./common.schema.json#/$defs/EntityName" },
+        "unit": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Display or storage unit label (e.g. USD, ms, bytes)."
+        },
+        "pii": { "$ref": "./common.schema.json#/$defs/PiiClass" },
+        "transforms": {
+          "type": "array",
+          "items": { "$ref": "./common.schema.json#/$defs/Transform" },
+          "description": "Ordered pipeline of declarative transforms applied after extraction."
+        },
+        "confidence": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Structuring agent confidence score in [0, 1]."
+        },
+        "evidence": { "$ref": "#/$defs/FieldEvidence" }
+      }
+    },
+    "TestExpectation": {
+      "type": "object",
+      "description": "Expected extracted field values keyed by field name. Null denotes a missing, dropped, or mask-redacted value.",
+      "propertyNames": { "$ref": "./common.schema.json#/$defs/FieldName" },
+      "additionalProperties": {
+        "type": ["string", "number", "boolean", "null", "object", "array"]
+      }
+    },
+    "TextSpecTest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["line", "expect"],
+      "properties": {
+        "description": { "type": "string", "minLength": 1 },
+        "line": { "type": "string" },
+        "expect": { "$ref": "#/$defs/TestExpectation" }
+      }
+    },
+    "ObjectSpecTest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["object", "expect"],
+      "properties": {
+        "description": { "type": "string", "minLength": 1 },
+        "object": { "type": "object" },
+        "expect": { "$ref": "#/$defs/TestExpectation" }
+      }
+    },
+    "ArgsSpecTest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["args", "expect"],
+      "properties": {
+        "description": { "type": "string", "minLength": 1 },
+        "args": { "type": "array" },
+        "expect": { "$ref": "#/$defs/TestExpectation" }
+      }
+    },
+    "SpecTest": {
+      "oneOf": [
+        { "$ref": "#/$defs/TextSpecTest" },
+        { "$ref": "#/$defs/ObjectSpecTest" },
+        { "$ref": "#/$defs/ArgsSpecTest" }
+      ]
+    }
+  }
+}
