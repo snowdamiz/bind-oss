@@ -1,0 +1,542 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.bind.dev/v1/golden-vector-suite.schema.json",
+  "title": "Bind Parser Conformance Golden Vector Suite",
+  "description": "Deterministic golden vector suite verifying Bind parser runtimes (Mesh, TypeScript, ClickHouse SQL, Swift) against §5, §14, and §17.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "suite",
+    "description",
+    "context",
+    "vectors"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1,
+      "description": "Golden vector suite envelope version."
+    },
+    "suite": {
+      "type": "string",
+      "pattern": "^[0-9]{2}-[a-z0-9-]+$",
+      "description": "Stable suite identifier matching its filename stem."
+    },
+    "description": {
+      "type": "string",
+      "minLength": 1
+    },
+    "context": {
+      "$ref": "#/$defs/ExecutionContext"
+    },
+    "vectors": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/GoldenVector"
+      }
+    }
+  },
+  "$defs": {
+    "HmacKeys": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["edge", "server"],
+      "properties": {
+        "edge": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Deterministic test k_edge UTF-8 secret for HMAC-SHA256 inner hash (§14)."
+        },
+        "server": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Deterministic test k_server UTF-8 secret for HMAC-SHA256 outer hash (§14)."
+        }
+      }
+    },
+    "ExecutionContext": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "hmac_keys": {
+          "$ref": "#/$defs/HmacKeys"
+        },
+        "reference_ts_ms": {
+          "type": "integer",
+          "description": "UTC epoch milliseconds used as the record reference timestamp for yearless formats (e.g. RFC 3164 syslog)."
+        }
+      }
+    },
+    "SqlSupportSupported": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["supported"],
+      "properties": {
+        "supported": { "const": true }
+      }
+    },
+    "SqlSupportRefused": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["supported", "refusal_code", "reason"],
+      "properties": {
+        "supported": { "const": false },
+        "refusal_code": {
+          "type": "string",
+          "enum": ["unsupported_json_hole"],
+          "description": "Machine-readable SQL compiler refusal reason (§5, T2.1.5)."
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "SqlExpectation": {
+      "type": "object",
+      "required": ["supported"],
+      "properties": {
+        "supported": { "type": "boolean" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "type": "object",
+            "required": ["supported"],
+            "properties": { "supported": { "const": true } }
+          },
+          "then": { "$ref": "#/$defs/SqlSupportSupported" }
+        },
+        {
+          "if": {
+            "type": "object",
+            "required": ["supported"],
+            "properties": { "supported": { "const": false } }
+          },
+          "then": { "$ref": "#/$defs/SqlSupportRefused" }
+        }
+      ]
+    },
+    "TextInput": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "line"],
+      "properties": {
+        "kind": { "const": "text" },
+        "line": { "type": "string" }
+      }
+    },
+    "ObjectInput": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "object"],
+      "properties": {
+        "kind": { "const": "object" },
+        "object": { "type": "object" }
+      }
+    },
+    "ArgsInput": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "strings", "args"],
+      "properties": {
+        "kind": { "const": "args" },
+        "strings": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string" }
+        },
+        "args": {
+          "type": "array"
+        }
+      }
+    },
+    "VectorInput": {
+      "type": "object",
+      "required": ["kind"],
+      "properties": {
+        "kind": {
+          "$ref": "https://schemas.bind.dev/v1/common.schema.json#/$defs/MatchKind"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "type": "object",
+            "required": ["kind"],
+            "properties": { "kind": { "const": "text" } }
+          },
+          "then": { "$ref": "#/$defs/TextInput" }
+        },
+        {
+          "if": {
+            "type": "object",
+            "required": ["kind"],
+            "properties": { "kind": { "const": "object" } }
+          },
+          "then": { "$ref": "#/$defs/ObjectInput" }
+        },
+        {
+          "if": {
+            "type": "object",
+            "required": ["kind"],
+            "properties": { "kind": { "const": "args" } }
+          },
+          "then": { "$ref": "#/$defs/ArgsInput" }
+        }
+      ]
+    },
+    "OkStringField": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "type", "value"],
+      "properties": {
+        "status": { "const": "ok" },
+        "type": { "const": "string" },
+        "value": { "type": "string" }
+      }
+    },
+    "OkEnumField": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "type", "value"],
+      "properties": {
+        "status": { "const": "ok" },
+        "type": { "const": "enum" },
+        "value": { "type": "string" }
+      }
+    },
+    "OkIntField": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "type", "value"],
+      "properties": {
+        "status": { "const": "ok" },
+        "type": { "const": "int" },
+        "value": {
+          "type": "string",
+          "pattern": "^-?(0|[1-9][0-9]*)$",
+          "description": "Signed 64-bit integer encoded as a canonical base-10 decimal string (§17)."
+        }
+      }
+    },
+    "OkFloatField": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "type", "value"],
+      "properties": {
+        "status": { "const": "ok" },
+        "type": { "const": "float" },
+        "value": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{16}$",
+          "description": "IEEE 754 binary64 big-endian 64-bit pattern as 16 lowercase hex chars (§17)."
+        }
+      }
+    },
+    "OkBoolField": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "type", "value"],
+      "properties": {
+        "status": { "const": "ok" },
+        "type": { "const": "bool" },
+        "value": { "type": "boolean" }
+      }
+    },
+    "OkTimestampField": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "type", "value"],
+      "properties": {
+        "status": { "const": "ok" },
+        "type": { "const": "timestamp" },
+        "value": {
+          "type": "integer",
+          "description": "Unix timestamp in integer milliseconds matching events.ts DateTime64(3) (§17)."
+        }
+      }
+    },
+    "OkJsonField": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "type", "value"],
+      "properties": {
+        "status": { "const": "ok" },
+        "type": { "const": "json" },
+        "value": {
+          "type": ["object", "array", "string", "number", "boolean", "null"]
+        }
+      }
+    },
+    "OkFieldResult": {
+      "type": "object",
+      "required": ["status", "type", "value"],
+      "properties": {
+        "status": { "const": "ok" },
+        "type": {
+          "$ref": "https://schemas.bind.dev/v1/common.schema.json#/$defs/FieldType"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "type": "object",
+            "required": ["type"],
+            "properties": { "type": { "const": "string" } }
+          },
+          "then": { "$ref": "#/$defs/OkStringField" }
+        },
+        {
+          "if": {
+            "type": "object",
+            "required": ["type"],
+            "properties": { "type": { "const": "enum" } }
+          },
+          "then": { "$ref": "#/$defs/OkEnumField" }
+        },
+        {
+          "if": {
+            "type": "object",
+            "required": ["type"],
+            "properties": { "type": { "const": "int" } }
+          },
+          "then": { "$ref": "#/$defs/OkIntField" }
+        },
+        {
+          "if": {
+            "type": "object",
+            "required": ["type"],
+            "properties": { "type": { "const": "float" } }
+          },
+          "then": { "$ref": "#/$defs/OkFloatField" }
+        },
+        {
+          "if": {
+            "type": "object",
+            "required": ["type"],
+            "properties": { "type": { "const": "bool" } }
+          },
+          "then": { "$ref": "#/$defs/OkBoolField" }
+        },
+        {
+          "if": {
+            "type": "object",
+            "required": ["type"],
+            "properties": { "type": { "const": "timestamp" } }
+          },
+          "then": { "$ref": "#/$defs/OkTimestampField" }
+        },
+        {
+          "if": {
+            "type": "object",
+            "required": ["type"],
+            "properties": { "type": { "const": "json" } }
+          },
+          "then": { "$ref": "#/$defs/OkJsonField" }
+        }
+      ]
+    },
+    "RedactedFieldResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "token"],
+      "properties": {
+        "status": { "const": "redacted" },
+        "token": {
+          "type": "string",
+          "pattern": "^<[a-z][a-z0-9_]*(:[^\\s>]+)?>$",
+          "description": "Redaction marker token causing no value to be stored (§5, §14)."
+        }
+      }
+    },
+    "DroppedFieldResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status"],
+      "properties": {
+        "status": { "const": "dropped" }
+      }
+    },
+    "MissingFieldResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status"],
+      "properties": {
+        "status": { "const": "missing" }
+      }
+    },
+    "ParseErrorFieldResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "code"],
+      "properties": {
+        "status": { "const": "parse_error" },
+        "code": {
+          "type": "string",
+          "enum": [
+            "int_overflow",
+            "float_overflow",
+            "cast_failed",
+            "invalid_time",
+            "unmapped_enum",
+            "invalid_ip",
+            "type_mismatch",
+            "invalid_json"
+          ]
+        }
+      }
+    },
+    "FieldResult": {
+      "type": "object",
+      "required": ["status"],
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": ["ok", "redacted", "dropped", "missing", "parse_error"]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "type": "object",
+            "required": ["status"],
+            "properties": { "status": { "const": "ok" } }
+          },
+          "then": { "$ref": "#/$defs/OkFieldResult" }
+        },
+        {
+          "if": {
+            "type": "object",
+            "required": ["status"],
+            "properties": { "status": { "const": "redacted" } }
+          },
+          "then": { "$ref": "#/$defs/RedactedFieldResult" }
+        },
+        {
+          "if": {
+            "type": "object",
+            "required": ["status"],
+            "properties": { "status": { "const": "dropped" } }
+          },
+          "then": { "$ref": "#/$defs/DroppedFieldResult" }
+        },
+        {
+          "if": {
+            "type": "object",
+            "required": ["status"],
+            "properties": { "status": { "const": "missing" } }
+          },
+          "then": { "$ref": "#/$defs/MissingFieldResult" }
+        },
+        {
+          "if": {
+            "type": "object",
+            "required": ["status"],
+            "properties": { "status": { "const": "parse_error" } }
+          },
+          "then": { "$ref": "#/$defs/ParseErrorFieldResult" }
+        }
+      ]
+    },
+    "ExpectedNoMatch": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["matched"],
+      "properties": {
+        "matched": { "const": false }
+      }
+    },
+    "ExpectedMatch": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["matched", "fields"],
+      "properties": {
+        "matched": { "const": true },
+        "fields": {
+          "type": "object",
+          "propertyNames": {
+            "$ref": "https://schemas.bind.dev/v1/common.schema.json#/$defs/FieldName"
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/FieldResult"
+          }
+        }
+      }
+    },
+    "ExpectedResult": {
+      "type": "object",
+      "required": ["matched"],
+      "properties": {
+        "matched": { "type": "boolean" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "type": "object",
+            "required": ["matched"],
+            "properties": { "matched": { "const": false } }
+          },
+          "then": { "$ref": "#/$defs/ExpectedNoMatch" }
+        },
+        {
+          "if": {
+            "type": "object",
+            "required": ["matched"],
+            "properties": { "matched": { "const": true } }
+          },
+          "then": { "$ref": "#/$defs/ExpectedMatch" }
+        }
+      ]
+    },
+    "GoldenVector": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "description",
+        "tags",
+        "sql",
+        "spec",
+        "input",
+        "expected"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^vec_[a-z0-9_]+$",
+          "description": "Globally unique deterministic vector identifier."
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1
+        },
+        "tags": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9:_.-]*$"
+          }
+        },
+        "sql": {
+          "$ref": "#/$defs/SqlExpectation"
+        },
+        "context": {
+          "$ref": "#/$defs/ExecutionContext"
+        },
+        "spec": {
+          "$ref": "https://schemas.bind.dev/v1/parser-spec.schema.json"
+        },
+        "input": {
+          "$ref": "#/$defs/VectorInput"
+        },
+        "expected": {
+          "$ref": "#/$defs/ExpectedResult"
+        }
+      }
+    }
+  }
+}

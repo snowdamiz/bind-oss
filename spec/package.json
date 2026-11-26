@@ -7,7 +7,10 @@
   "type": "module",
   "scripts": {
     "validate": "node scripts/validate.mjs",
-    "test": "node --test test/schemas.test.mjs"
+    "validate:vectors": "node scripts/validate-vectors.mjs",
+    "build:vectors": "node scripts/build-vectors.mjs",
+    "check:vectors": "node scripts/build-vectors.mjs --check",
+    "test": "node --test test/schemas.test.mjs test/vectors.test.mjs"
   },
   "devDependencies": {
     "ajv": "^8.17.1",

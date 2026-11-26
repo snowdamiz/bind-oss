@@ -1,6 +1,6 @@
 # Bind Parser Specification (`spec/`)
 
-JSON Schema (Draft 2020-12) definitions and verification fixtures for Bind's declarative parser artifact (`ParserSpec`) and event registry entry (`EventType`).
+JSON Schema (Draft 2020-12) definitions, verification fixtures, and deterministic golden conformance vectors for Bind's declarative parser artifact (`ParserSpec`) and event registry entry (`EventType`).
 
 ## Schemas
 
@@ -10,11 +10,17 @@ JSON Schema (Draft 2020-12) definitions and verification fixtures for Bind's dec
 | [`schemas/parser-spec.schema.json`](./schemas/parser-spec.schema.json) | `https://schemas.bind.dev/v1/parser-spec.schema.json` | Declarative, versioned `ParserSpec` covering `text`, `object` (with optional `message` sub-pattern), and `args` matchers, field bindings, transforms, provenance, and positive test cases. |
 | [`schemas/event-type.schema.json`](./schemas/event-type.schema.json) | `https://schemas.bind.dev/v1/event-type.schema.json` | Typed `EventType` registry schema with ClickHouse storage slot type-compatibility checks and template membership. |
 
+## Golden Conformance Vectors (`vectors/`)
+
+See [`vectors/README.md`](./vectors/README.md) for the full conformance vector format, §17 canonical result encodings (decimal int64 strings, 64-bit IEEE-754 float hex, integer epoch milliseconds, UTF-8 byte strings), SQL refusal tags (`sql:refuse` / `sql:refuse:json_hole`), and documented semantics.
+
 ## Verification
 
 ```bash
 npm --prefix spec install --ignore-scripts
 npm --prefix spec test
+npm --prefix spec run validate:vectors
+npm --prefix spec run check:vectors
 ```
 
 Validate individual YAML or JSON files with the CLI:
