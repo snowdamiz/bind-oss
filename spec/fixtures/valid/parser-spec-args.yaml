@@ -1,0 +1,47 @@
+spec_version: 1
+template: tpl_01JD8Q5ARGS
+event: order.paid
+version: 1
+status: active
+origin: agent
+source:
+  kind: sdk_template
+  repo: github.com/acme/shop
+  path: src/orders/checkout.ts
+  line: 142
+  logger: bind.log
+match:
+  kind: args
+  strings:
+    - ""
+    - " paid "
+    - " in "
+    - "ms"
+fields:
+  - id: fld_01JD8Q2M9A
+    name: order_id
+    from: { arg: 0 }
+    type: string
+    semantic: id.order
+    entity: order
+    pii: none
+  - id: fld_01JD8Q2M9B
+    name: amount_usd
+    from: { arg: 1 }
+    type: float
+    semantic: money
+    unit: USD
+    transforms:
+      - { op: scale, div: 100 }
+  - id: fld_01JD8Q2M9C
+    name: duration_ms
+    from: { arg: 2 }
+    type: int
+    semantic: duration
+    unit: ms
+tests:
+  - args: ["ord_8f2a", 1999, 212]
+    expect:
+      order_id: "ord_8f2a"
+      amount_usd: 19.99
+      duration_ms: 212

@@ -1,0 +1,533 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.bind.dev/v1/common.schema.json",
+  "title": "Bind Common Spec Definitions",
+  "description": "Shared identifier formats, closed catalogs, text match segments, transforms, and ClickHouse storage slot definitions for Bind parser specifications and event type schemas.",
+  "$defs": {
+    "EventTypeId": {
+      "type": "string",
+      "pattern": "^evt_[0-9A-Za-z]{4,64}$",
+      "description": "Stable registry identifier for an EventType (e.g. evt_01JD8Q2KZZ)."
+    },
+    "FieldId": {
+      "type": "string",
+      "pattern": "^fld_[0-9A-Za-z]{4,64}$",
+      "description": "Stable registry identifier for a Field (e.g. fld_01JD8Q2M9A)."
+    },
+    "TemplateId": {
+      "type": "string",
+      "pattern": "^tpl_[0-9A-Za-z]{4,64}$",
+      "description": "Stable registry identifier for a Template (e.g. tpl_01JD8Q2M4K)."
+    },
+    "EntityId": {
+      "type": "string",
+      "pattern": "^ent_[0-9A-Za-z]{4,64}$",
+      "description": "Stable registry identifier for an Entity (e.g. ent_01JD8Q2M1Z)."
+    },
+    "EventName": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)*$",
+      "description": "Dot-separated lowercase event type name (e.g. order.paid)."
+    },
+    "FieldName": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*$",
+      "description": "Snake-case field identifier (e.g. order_id, amount_usd)."
+    },
+    "HoleName": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*$",
+      "description": "Snake-case hole name referenced by field bindings."
+    },
+    "EntityName": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*$",
+      "description": "Lowercase entity name (e.g. order, user, account)."
+    },
+    "KeyPath": {
+      "type": "string",
+      "pattern": "^[^.\\s]+(\\.[^.\\s]+)*$",
+      "description": "Dot-separated JSON object key path with non-empty segments (e.g. msg, order.id, req.headers.user-agent)."
+    },
+    "CommitSha": {
+      "type": "string",
+      "pattern": "^[0-9a-fA-F]{7,40}$",
+      "description": "Abbreviated or full hexadecimal Git commit SHA."
+    },
+    "FieldType": {
+      "type": "string",
+      "enum": [
+        "string",
+        "int",
+        "float",
+        "bool",
+        "timestamp",
+        "enum",
+        "json"
+      ],
+      "description": "Closed catalog of Bind field data types."
+    },
+    "FieldSemantic": {
+      "description": "Closed catalog of Bind field semantics, plus parameterized id.<entity> and unknown.",
+      "oneOf": [
+        {
+          "type": "string",
+          "enum": [
+            "money",
+            "duration",
+            "count",
+            "bytes",
+            "ratio",
+            "http.status",
+            "http.method",
+            "url.path",
+            "error.type",
+            "error.message",
+            "email",
+            "ip",
+            "user_agent",
+            "geo.country",
+            "version",
+            "flag",
+            "text",
+            "unknown"
+          ]
+        },
+        {
+          "type": "string",
+          "pattern": "^id\\.[a-z][a-z0-9_]*$",
+          "description": "Entity identifier semantic of the form id.<entity> (e.g. id.order, id.user)."
+        }
+      ]
+    },
+    "PiiClass": {
+      "type": "string",
+      "enum": [
+        "none",
+        "pseudonymous_id",
+        "email",
+        "phone",
+        "ip",
+        "name",
+        "address",
+        "secret",
+        "free_text"
+      ],
+      "default": "none",
+      "description": "Closed catalog of PII classifications controlling Stage 3 field redaction defaults."
+    },
+    "HoleClass": {
+      "type": "string",
+      "enum": [
+        "word",
+        "int",
+        "float",
+        "uuid",
+        "hex",
+        "ip",
+        "time",
+        "quoted",
+        "json",
+        "until",
+        "rest"
+      ],
+      "default": "word",
+      "description": "Closed catalog of linear-time hole lexer classes. No free-form regular expressions are permitted."
+    },
+    "MatchKind": {
+      "type": "string",
+      "enum": [
+        "text",
+        "object",
+        "args"
+      ],
+      "description": "Matcher kind: text (segment scanner), object (JSON key-path shape), or args (SDK template arguments)."
+    },
+    "SpecStatus": {
+      "type": "string",
+      "enum": [
+        "provisional",
+        "active",
+        "retired"
+      ],
+      "description": "Lifecycle status of a ParserSpec version."
+    },
+    "SpecOrigin": {
+      "type": "string",
+      "enum": [
+        "agent",
+        "user"
+      ],
+      "description": "Whether this ParserSpec version was authored by the structuring agent or by a developer."
+    },
+    "SourceKind": {
+      "type": "string",
+      "enum": [
+        "callsite",
+        "sdk_template",
+        "mined"
+      ],
+      "description": "Provenance of the template matched by this ParserSpec."
+    },
+    "LiteralSegment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["lit"],
+      "properties": {
+        "lit": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Exact non-empty literal text matched in sequence."
+        }
+      }
+    },
+    "HoleSegment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["hole"],
+      "properties": {
+        "hole": {
+          "$ref": "#/$defs/HoleName"
+        },
+        "class": {
+          "$ref": "#/$defs/HoleClass"
+        }
+      }
+    },
+    "TextSegment": {
+      "type": "object",
+      "description": "Either a literal text segment or a named typed hole.",
+      "properties": {
+        "lit": {},
+        "hole": {}
+      },
+      "oneOf": [
+        { "type": "object", "required": ["lit"], "properties": { "lit": {} } },
+        { "type": "object", "required": ["hole"], "properties": { "hole": {} } }
+      ],
+      "allOf": [
+        {
+          "if": { "type": "object", "required": ["lit"], "properties": { "lit": {} } },
+          "then": { "$ref": "#/$defs/LiteralSegment" }
+        },
+        {
+          "if": { "type": "object", "required": ["hole"], "properties": { "hole": {} } },
+          "then": { "$ref": "#/$defs/HoleSegment" }
+        }
+      ]
+    },
+    "TextSegments": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/TextSegment" },
+      "description": "Ordered list of literal segments and typed holes for a text matcher."
+    },
+    "TimeUnit": {
+      "type": "string",
+      "enum": ["ns", "us", "ms", "s", "m", "h", "d"],
+      "description": "Closed list of time units supported by the unit transform."
+    },
+    "ByteUnit": {
+      "type": "string",
+      "enum": ["B", "KB", "MB", "GB", "TB", "KiB", "MiB", "GiB", "TiB"],
+      "description": "Closed list of byte units supported by the unit transform."
+    },
+    "TransformOp": {
+      "type": "string",
+      "enum": [
+        "cast",
+        "scale",
+        "unit",
+        "parse_time",
+        "lower",
+        "enum_map",
+        "hash",
+        "mask",
+        "drop"
+      ],
+      "description": "Closed catalog of declarative field transforms."
+    },
+    "CastTransform": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["op", "to"],
+      "properties": {
+        "op": { "const": "cast" },
+        "to": {
+          "type": "string",
+          "enum": ["string", "int", "float", "bool", "json"],
+          "description": "Target type for explicit cast."
+        }
+      }
+    },
+    "ScaleTransform": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["op"],
+      "description": "Single IEEE 754 double multiplication or division by a non-zero integer (never a fraction, never both mul and div).",
+      "properties": {
+        "op": { "const": "scale" },
+        "mul": {
+          "type": "integer",
+          "not": { "const": 0 },
+          "description": "Non-zero integer multiplier."
+        },
+        "div": {
+          "type": "integer",
+          "not": { "const": 0 },
+          "description": "Non-zero integer divisor."
+        }
+      },
+      "oneOf": [
+        {
+          "title": "Scale by integer multiplier",
+          "type": "object",
+          "required": ["mul"],
+          "properties": { "mul": {} }
+        },
+        {
+          "title": "Scale by integer divisor",
+          "type": "object",
+          "required": ["div"],
+          "properties": { "div": {} }
+        }
+      ]
+    },
+    "UnitTransform": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["op", "from", "to"],
+      "description": "Converts between units within the same dimension (time-to-time or bytes-to-bytes).",
+      "properties": {
+        "op": { "const": "unit" },
+        "from": {
+          "anyOf": [
+            { "$ref": "#/$defs/TimeUnit" },
+            { "$ref": "#/$defs/ByteUnit" }
+          ]
+        },
+        "to": {
+          "anyOf": [
+            { "$ref": "#/$defs/TimeUnit" },
+            { "$ref": "#/$defs/ByteUnit" }
+          ]
+        }
+      },
+      "oneOf": [
+        {
+          "title": "Time unit conversion",
+          "type": "object",
+          "properties": {
+            "from": { "$ref": "#/$defs/TimeUnit" },
+            "to": { "$ref": "#/$defs/TimeUnit" }
+          }
+        },
+        {
+          "title": "Byte unit conversion",
+          "type": "object",
+          "properties": {
+            "from": { "$ref": "#/$defs/ByteUnit" },
+            "to": { "$ref": "#/$defs/ByteUnit" }
+          }
+        }
+      ]
+    },
+    "ParseTimeTransform": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["op"],
+      "properties": {
+        "op": { "const": "parse_time" },
+        "format": {
+          "type": "string",
+          "enum": [
+            "auto",
+            "iso8601",
+            "rfc3339",
+            "rfc2822",
+            "syslog",
+            "apache",
+            "unix_s",
+            "unix_ms",
+            "unix_us",
+            "unix_ns"
+          ],
+          "default": "auto",
+          "description": "Timestamp parsing format. Defaults to auto (ISO 8601, syslog, Apache)."
+        }
+      }
+    },
+    "LowerTransform": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["op"],
+      "properties": {
+        "op": { "const": "lower" }
+      }
+    },
+    "EnumMapTransform": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["op", "map"],
+      "properties": {
+        "op": { "const": "enum_map" },
+        "map": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": "Mapping from raw extracted values to canonical enum labels."
+        },
+        "default": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Optional fallback enum value when the input is absent from map."
+        }
+      }
+    },
+    "HashTransform": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["op"],
+      "description": "Keyed HMAC pseudonymization producing a <kind:tag> replacement token.",
+      "properties": {
+        "op": { "const": "hash" },
+        "kind": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "description": "Optional replacement token kind prefix (e.g. email, phone, user)."
+        }
+      }
+    },
+    "MaskTransform": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["op"],
+      "description": "Replaces a sensitive value with a non-reversible mask token or masked IP prefix.",
+      "properties": {
+        "op": { "const": "mask" },
+        "mode": {
+          "type": "string",
+          "enum": ["token", "ip_prefix"],
+          "default": "token",
+          "description": "Masking mode: token replacement (<kind>) or IP prefix truncation (/24 IPv4, /48 IPv6)."
+        },
+        "kind": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "description": "Optional mask token kind (e.g. name, address, secret)."
+        }
+      }
+    },
+    "DropTransform": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["op"],
+      "description": "Drops the field value so it is not stored in events.",
+      "properties": {
+        "op": { "const": "drop" }
+      }
+    },
+    "Transform": {
+      "type": "object",
+      "required": ["op"],
+      "properties": {
+        "op": { "$ref": "#/$defs/TransformOp" }
+      },
+      "allOf": [
+        {
+          "if": { "type": "object", "required": ["op"], "properties": { "op": { "const": "cast" } } },
+          "then": { "$ref": "#/$defs/CastTransform" }
+        },
+        {
+          "if": { "type": "object", "required": ["op"], "properties": { "op": { "const": "scale" } } },
+          "then": { "$ref": "#/$defs/ScaleTransform" }
+        },
+        {
+          "if": { "type": "object", "required": ["op"], "properties": { "op": { "const": "unit" } } },
+          "then": { "$ref": "#/$defs/UnitTransform" }
+        },
+        {
+          "if": { "type": "object", "required": ["op"], "properties": { "op": { "const": "parse_time" } } },
+          "then": { "$ref": "#/$defs/ParseTimeTransform" }
+        },
+        {
+          "if": { "type": "object", "required": ["op"], "properties": { "op": { "const": "lower" } } },
+          "then": { "$ref": "#/$defs/LowerTransform" }
+        },
+        {
+          "if": { "type": "object", "required": ["op"], "properties": { "op": { "const": "enum_map" } } },
+          "then": { "$ref": "#/$defs/EnumMapTransform" }
+        },
+        {
+          "if": { "type": "object", "required": ["op"], "properties": { "op": { "const": "hash" } } },
+          "then": { "$ref": "#/$defs/HashTransform" }
+        },
+        {
+          "if": { "type": "object", "required": ["op"], "properties": { "op": { "const": "mask" } } },
+          "then": { "$ref": "#/$defs/MaskTransform" }
+        },
+        {
+          "if": { "type": "object", "required": ["op"], "properties": { "op": { "const": "drop" } } },
+          "then": { "$ref": "#/$defs/DropTransform" }
+        }
+      ]
+    },
+    "StringSlot": {
+      "type": "string",
+      "enum": [
+        "s01", "s02", "s03", "s04", "s05", "s06", "s07", "s08",
+        "s09", "s10", "s11", "s12", "s13", "s14", "s15", "s16",
+        "s17", "s18", "s19", "s20", "s21", "s22", "s23", "s24"
+      ]
+    },
+    "IntSlot": {
+      "type": "string",
+      "enum": [
+        "i01", "i02", "i03", "i04", "i05", "i06",
+        "i07", "i08", "i09", "i10", "i11", "i12"
+      ]
+    },
+    "FloatSlot": {
+      "type": "string",
+      "enum": [
+        "f01", "f02", "f03", "f04", "f05", "f06",
+        "f07", "f08", "f09", "f10", "f11", "f12"
+      ]
+    },
+    "BoolSlot": {
+      "type": "string",
+      "enum": ["b01", "b02", "b03", "b04"]
+    },
+    "TimestampSlot": {
+      "type": "string",
+      "enum": ["t01", "t02", "t03", "t04"]
+    },
+    "EntityColumnSlot": {
+      "type": "string",
+      "enum": ["actor", "account"]
+    },
+    "OverflowSlot": {
+      "type": "string",
+      "const": "extra"
+    },
+    "StorageSlot": {
+      "type": "string",
+      "description": "ClickHouse events table storage slot column.",
+      "enum": [
+        "actor", "account", "extra",
+        "s01", "s02", "s03", "s04", "s05", "s06", "s07", "s08",
+        "s09", "s10", "s11", "s12", "s13", "s14", "s15", "s16",
+        "s17", "s18", "s19", "s20", "s21", "s22", "s23", "s24",
+        "i01", "i02", "i03", "i04", "i05", "i06",
+        "i07", "i08", "i09", "i10", "i11", "i12",
+        "f01", "f02", "f03", "f04", "f05", "f06",
+        "f07", "f08", "f09", "f10", "f11", "f12",
+        "b01", "b02", "b03", "b04",
+        "t01", "t02", "t03", "t04"
+      ]
+    }
+  }
+}

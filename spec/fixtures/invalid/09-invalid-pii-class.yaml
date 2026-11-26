@@ -1,0 +1,24 @@
+spec_version: 1
+template: tpl_01JD8Q2M4K
+event: user.verified
+version: 1
+status: active
+origin: agent
+source:
+  kind: mined
+match:
+  kind: text
+  segments:
+    - lit: "ssn="
+    - hole: tax_id
+      class: word
+fields:
+  - id: fld_01JD8Q2M9E
+    name: tax_id
+    from: { hole: tax_id }
+    type: string
+    semantic: unknown
+    pii: ssn
+tests:
+  - line: "ssn=123-45-6789"
+    expect: { tax_id: null }

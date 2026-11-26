@@ -1,0 +1,20 @@
+spec_version: 1
+template: tpl_01JD8Q5ARGS
+event: order.paid
+version: 1
+status: active
+origin: agent
+source:
+  kind: sdk_template
+match:
+  kind: args
+  strings: ["order ", " paid"]
+fields:
+  - id: fld_01JD8Q2M9A
+    name: order_id
+    from: { hole: order_id }
+    type: string
+    semantic: id.order
+tests:
+  - args: ["ord_8f2a"]
+    expect: { order_id: "ord_8f2a" }

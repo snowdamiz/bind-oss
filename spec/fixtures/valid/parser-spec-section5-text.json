@@ -1,0 +1,85 @@
+{
+  "spec_version": 1,
+  "template": "tpl_01JD8Q2M4K",
+  "event": "order.paid",
+  "version": 3,
+  "status": "active",
+  "origin": "agent",
+  "source": {
+    "kind": "callsite",
+    "repo": "github.com/acme/shop",
+    "path": "src/orders/checkout.ts",
+    "line": 142,
+    "symbol": "completeCheckout",
+    "logger": "pino.info",
+    "valid_from_commit": "9f3c2ab"
+  },
+  "match": {
+    "kind": "text",
+    "segments": [
+      { "lit": "order " },
+      { "hole": "order_id", "class": "word" },
+      { "lit": " paid " },
+      { "hole": "amount", "class": "int" },
+      { "lit": " in " },
+      { "hole": "elapsed", "class": "int" },
+      { "lit": "ms" }
+    ]
+  },
+  "fields": [
+    {
+      "id": "fld_01JD8Q2M9A",
+      "name": "order_id",
+      "from": { "hole": "order_id" },
+      "type": "string",
+      "semantic": "id.order",
+      "entity": "order",
+      "pii": "none",
+      "confidence": 0.97,
+      "evidence": {
+        "expr": "order.id",
+        "path": "src/orders/checkout.ts",
+        "line": 142
+      }
+    },
+    {
+      "id": "fld_01JD8Q2M9B",
+      "name": "amount_usd",
+      "from": { "hole": "amount" },
+      "type": "float",
+      "semantic": "money",
+      "unit": "USD",
+      "transforms": [{ "op": "scale", "div": 100 }],
+      "confidence": 0.88,
+      "evidence": {
+        "expr": "cents",
+        "path": "src/orders/checkout.ts",
+        "line": 139
+      }
+    },
+    {
+      "id": "fld_01JD8Q2M9C",
+      "name": "duration_ms",
+      "from": { "hole": "elapsed" },
+      "type": "int",
+      "semantic": "duration",
+      "unit": "ms",
+      "confidence": 0.99,
+      "evidence": {
+        "expr": "ms",
+        "path": "src/orders/checkout.ts",
+        "line": 142
+      }
+    }
+  ],
+  "tests": [
+    {
+      "line": "order ord_8f2a paid 1999 in 212ms",
+      "expect": {
+        "order_id": "ord_8f2a",
+        "amount_usd": 19.99,
+        "duration_ms": 212
+      }
+    }
+  ]
+}

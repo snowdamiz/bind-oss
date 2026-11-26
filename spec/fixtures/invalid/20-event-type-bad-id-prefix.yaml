@@ -1,0 +1,7 @@
+event: order.paid
+id: bad_01JD8Q2KZZ
+description: EventType id missing evt_ prefix.
+schema_version: 1
+fields:
+  - { id: fld_01JD8Q2M9A, name: order_id, type: string, semantic: id.order, slot: s01 }
+templates: [tpl_01JD8Q2M4K]

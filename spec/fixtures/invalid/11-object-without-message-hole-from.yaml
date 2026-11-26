@@ -1,0 +1,21 @@
+spec_version: 1
+template: tpl_01JD8Q4OBJ2
+event: payment.failed
+version: 1
+status: active
+origin: agent
+source:
+  kind: mined
+match:
+  kind: object
+  shape:
+    - error.code
+fields:
+  - id: fld_01JD8Q4P01
+    name: error_type
+    from: { hole: code }
+    type: string
+    semantic: error.type
+tests:
+  - object: { error: { code: "declined" } }
+    expect: { error_type: "declined" }
