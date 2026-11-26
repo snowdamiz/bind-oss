@@ -1,0 +1,24 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  noop:
+    name: Smoke check
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify repository scaffold
+        run: |
+          test -s LICENSE
+          test -s README.md
+          for dir in sdk-node sdk-swift cli spec runtime-ts examples; do
+            test -d "$dir"
+          done
+          echo "bind-oss CI no-op smoke check passed"
