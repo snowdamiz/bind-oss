@@ -1,0 +1,646 @@
+import {
+  field,
+  match,
+  noMatch,
+  okFloat,
+  okFloatHex,
+  okInt,
+  okStr,
+  parseErr,
+  textInput,
+  textSpec,
+  vec,
+} from "../lib/vector-builders.mjs";
+
+export function buildSuite01() {
+  const vectors = [];
+
+  // Shared canonical single-hole specs
+  const wordSpec = textSpec({
+    template: "tpl_01HOLEWORD1",
+    event: "test.hole.word",
+    segments: [{ lit: "tok=" }, { hole: "val", class: "word" }],
+    fields: [field({ id: "fld_01WORD0001", name: "val", from: { hole: "val" }, type: "string", semantic: "text" })],
+    sampleLine: "tok=ord_8f2a",
+    sampleExpect: { val: "ord_8f2a" },
+  });
+
+  const wordDefaultSpec = textSpec({
+    template: "tpl_01HOLEWORD2",
+    event: "test.hole.word_default",
+    segments: [{ lit: "tok=" }, { hole: "val" }],
+    fields: [field({ id: "fld_01WORD0002", name: "val", from: { hole: "val" }, type: "string", semantic: "text" })],
+    sampleLine: "tok=abc_123",
+    sampleExpect: { val: "abc_123" },
+  });
+
+  const wordMidSpec = textSpec({
+    template: "tpl_01HOLEWORD3",
+    event: "test.hole.word_mid",
+    segments: [{ lit: "GET " }, { hole: "path", class: "word" }, { lit: " HTTP/1.1" }],
+    fields: [field({ id: "fld_01WORD0003", name: "path", from: { hole: "path" }, type: "string", semantic: "url.path" })],
+    sampleLine: "GET /v1/orders HTTP/1.1",
+    sampleExpect: { path: "/v1/orders" },
+  });
+
+  const wordLeadSpec = textSpec({
+    template: "tpl_01HOLEWORD4",
+    event: "test.hole.word_lead",
+    segments: [{ hole: "svc", class: "word" }, { lit: " started" }],
+    fields: [field({ id: "fld_01WORD0004", name: "svc", from: { hole: "svc" }, type: "string", semantic: "text" })],
+    sampleLine: "checkout-api started",
+    sampleExpect: { svc: "checkout-api" },
+  });
+
+  const wordSoloSpec = textSpec({
+    template: "tpl_01HOLEWORD5",
+    event: "test.hole.word_solo",
+    segments: [{ hole: "token", class: "word" }],
+    fields: [field({ id: "fld_01WORD0005", name: "token", from: { hole: "token" }, type: "string", semantic: "text" })],
+    sampleLine: "ready",
+    sampleExpect: { token: "ready" },
+  });
+
+  const wordTabSpec = textSpec({
+    template: "tpl_01HOLEWORD6",
+    event: "test.hole.word_tab",
+    segments: [{ hole: "a", class: "word" }, { lit: "\t" }, { hole: "b", class: "word" }],
+    fields: [
+      field({ id: "fld_01WORD0006", name: "a", from: { hole: "a" }, type: "string", semantic: "text" }),
+      field({ id: "fld_01WORD0007", name: "b", from: { hole: "b" }, type: "string", semantic: "text" }),
+    ],
+    sampleLine: "left\tright",
+    sampleExpect: { a: "left", b: "right" },
+  });
+
+  // ---- WORD (18 vectors) ----
+  const longWord = "w".repeat(4096);
+  vectors.push(
+    vec({
+      id: "vec_hole_word_basic_001",
+      description: "word hole matches basic alphanumeric token with underscore",
+      tags: ["hole:word", "type:string"],
+      spec: wordSpec,
+      input: textInput("tok=ord_8f2a"),
+      expected: match({ val: okStr("ord_8f2a") }),
+    }),
+    vec({
+      id: "vec_hole_word_default_class_002",
+      description: "omitted hole class defaults to word",
+      tags: ["hole:word", "hole:default_class", "type:string"],
+      spec: wordDefaultSpec,
+      input: textInput("tok=svc-01.prod"),
+      expected: match({ val: okStr("svc-01.prod") }),
+    }),
+    vec({
+      id: "vec_hole_word_url_punctuation_003",
+      description: "word hole consumes punctuation, slashes, and query params",
+      tags: ["hole:word", "type:string"],
+      spec: wordMidSpec,
+      input: textInput("GET /v1/orders/42?expand=items&currency=USD HTTP/1.1"),
+      expected: match({ path: okStr("/v1/orders/42?expand=items&currency=USD") }),
+    }),
+    vec({
+      id: "vec_hole_word_semver_004",
+      description: "word hole consumes semver with prerelease and build metadata",
+      tags: ["hole:word", "type:string"],
+      spec: wordSpec,
+      input: textInput("tok=v2.4.1-rc.1+build.99"),
+      expected: match({ val: okStr("v2.4.1-rc.1+build.99") }),
+    }),
+    vec({
+      id: "vec_hole_word_leading_005",
+      description: "leading word hole before literal suffix",
+      tags: ["hole:word", "type:string"],
+      spec: wordLeadSpec,
+      input: textInput("billing-worker started"),
+      expected: match({ svc: okStr("billing-worker") }),
+    }),
+    vec({
+      id: "vec_hole_word_solo_006",
+      description: "solo word hole matches single-token line",
+      tags: ["hole:word", "type:string"],
+      spec: wordSoloSpec,
+      input: textInput("ok"),
+      expected: match({ token: okStr("ok") }),
+    }),
+    vec({
+      id: "vec_hole_word_tab_separator_007",
+      description: "word hole stops at ASCII tab delimiter",
+      tags: ["hole:word", "whitespace"],
+      spec: wordTabSpec,
+      input: textInput("alpha\tbeta"),
+      expected: match({ a: okStr("alpha"), b: okStr("beta") }),
+    }),
+    vec({
+      id: "vec_hole_word_single_char_008",
+      description: "word hole matches single non-space character",
+      tags: ["hole:word", "boundary:min_length"],
+      spec: wordSpec,
+      input: textInput("tok=x"),
+      expected: match({ val: okStr("x") }),
+    }),
+    vec({
+      id: "vec_hole_word_long_4096_009",
+      description: "word hole matches 4096-byte single token",
+      tags: ["hole:word", "boundary:long"],
+      spec: wordSpec,
+      input: textInput(`tok=${longWord}`),
+      expected: match({ val: okStr(longWord) }),
+    }),
+    vec({
+      id: "vec_hole_word_reject_empty_010",
+      description: "word hole rejects empty value at end of line",
+      tags: ["hole:word", "no_match", "boundary:empty"],
+      spec: wordSpec,
+      input: textInput("tok="),
+      expected: noMatch(),
+    }),
+    vec({
+      id: "vec_hole_word_reject_empty_mid_011",
+      description: "word hole rejects empty token between spaces",
+      tags: ["hole:word", "no_match", "boundary:empty"],
+      spec: wordMidSpec,
+      input: textInput("GET  HTTP/1.1"),
+      expected: noMatch(),
+    }),
+    vec({
+      id: "vec_hole_word_reject_embedded_space_012",
+      description: "word hole stops at space causing trailing text mismatch",
+      tags: ["hole:word", "no_match"],
+      spec: wordSpec,
+      input: textInput("tok=hello world"),
+      expected: noMatch(),
+    }),
+    vec({
+      id: "vec_hole_word_reject_trailing_space_013",
+      description: "word hole does not consume trailing ASCII space",
+      tags: ["hole:word", "no_match"],
+      spec: wordSpec,
+      input: textInput("tok=abc "),
+      expected: noMatch(),
+    }),
+    vec({
+      id: "vec_hole_word_reject_case_sensitive_lit_014",
+      description: "literal prefix before word hole is case-sensitive",
+      tags: ["hole:word", "no_match"],
+      spec: wordSpec,
+      input: textInput("TOK=ord_8f2a"),
+      expected: noMatch(),
+    }),
+    vec({
+      id: "vec_hole_word_reject_empty_line_015",
+      description: "solo word hole rejects empty input line",
+      tags: ["hole:word", "no_match", "boundary:empty"],
+      spec: wordSoloSpec,
+      input: textInput(""),
+      expected: noMatch(),
+    }),
+    vec({
+      id: "vec_hole_word_reject_whitespace_only_016",
+      description: "solo word hole rejects whitespace-only line",
+      tags: ["hole:word", "no_match"],
+      spec: wordSoloSpec,
+      input: textInput("   "),
+      expected: noMatch(),
+    }),
+    vec({
+      id: "vec_hole_word_greedy_stops_only_at_ws_017",
+      description: "word hole is greedy up to ASCII whitespace and does not backtrack before non-space literal",
+      tags: ["hole:word", "no_match", "ambiguity:word_greedy_nonspace_lit"],
+      spec: textSpec({
+        template: "tpl_01HOLEWORD7",
+        event: "test.hole.word_greedy",
+        segments: [{ lit: "user=" }, { hole: "u", class: "word" }, { lit: ":ok" }],
+        fields: [field({ id: "fld_01WORD0008", name: "u", from: { hole: "u" }, type: "string", semantic: "text" })],
+        sampleLine: "user=alice:ok",
+        sampleExpect: { u: "alice" },
+      }),
+      // Note: sampleLine above would fail greedy word; fix spec below!
+      input: textInput("user=alice:ok"),
+      expected: noMatch(),
+    }),
+    vec({
+      id: "vec_hole_word_embedded_quotes_and_braces_018",
+      description: "word hole consumes quotes and braces when no ASCII whitespace is present",
+      tags: ["hole:word", "type:string"],
+      spec: wordSpec,
+      input: textInput('tok={"a":"b"}'),
+      expected: match({ val: okStr('{"a":"b"}') }),
+    })
+  );
+
+  // Replace vec_hole_word_greedy_stops_only_at_ws_017 with a valid-test spec where literal starts with space!
+  vectors[16] = vec({
+    id: "vec_hole_word_reject_missing_suffix_017",
+    description: "word hole followed by space-delimited literal fails when suffix is missing",
+    tags: ["hole:word", "no_match"],
+    spec: wordMidSpec,
+    input: textInput("GET /v1/orders"),
+    expected: noMatch(),
+  });
+
+  // ---- INT (22 vectors) ----
+  const intSpec = textSpec({
+    template: "tpl_01HOLEINT01",
+    event: "test.hole.int",
+    segments: [{ lit: "n=" }, { hole: "n", class: "int" }],
+    fields: [field({ id: "fld_01INT00001", name: "n", from: { hole: "n" }, type: "int", semantic: "count" })],
+    sampleLine: "n=42",
+    sampleExpect: { n: 42 },
+  });
+
+  const intSuffixSpec = textSpec({
+    template: "tpl_01HOLEINT02",
+    event: "test.hole.int_suffix",
+    segments: [{ lit: "elapsed=" }, { hole: "ms", class: "int" }, { lit: "ms" }],
+    fields: [field({ id: "fld_01INT00002", name: "ms", from: { hole: "ms" }, type: "int", semantic: "duration", unit: "ms" })],
+    sampleLine: "elapsed=212ms",
+    sampleExpect: { ms: 212 },
+  });
+
+  const intAsStrSpec = textSpec({
+    template: "tpl_01HOLEINT03",
+    event: "test.hole.int_str",
+    segments: [{ lit: "code=" }, { hole: "code", class: "int" }],
+    fields: [field({ id: "fld_01INT00003", name: "code", from: { hole: "code" }, type: "string", semantic: "text" })],
+    sampleLine: "code=007",
+    sampleExpect: { code: "007" },
+  });
+
+  const intAsFloatSpec = textSpec({
+    template: "tpl_01HOLEINT04",
+    event: "test.hole.int_float",
+    segments: [{ lit: "qty=" }, { hole: "qty", class: "int" }],
+    fields: [field({ id: "fld_01INT00004", name: "qty", from: { hole: "qty" }, type: "float", semantic: "count" })],
+    sampleLine: "qty=42",
+    sampleExpect: { qty: 42 },
+  });
+
+  vectors.push(
+    vec({
+      id: "vec_hole_int_zero_001",
+      description: "int hole matches zero",
+      tags: ["hole:int", "type:int", "boundary:zero"],
+      spec: intSpec,
+      input: textInput("n=0"),
+      expected: match({ n: okInt("0") }),
+    }),
+    vec({
+      id: "vec_hole_int_positive_002",
+      description: "int hole matches positive integer",
+      tags: ["hole:int", "type:int"],
+      spec: intSpec,
+      input: textInput("n=1999"),
+      expected: match({ n: okInt("1999") }),
+    }),
+    vec({
+      id: "vec_hole_int_negative_003",
+      description: "int hole matches negative integer",
+      tags: ["hole:int", "type:int", "boundary:negative"],
+      spec: intSpec,
+      input: textInput("n=-42"),
+      expected: match({ n: okInt("-42") }),
+    }),
+    vec({
+      id: "vec_hole_int_explicit_plus_004",
+      description: "int hole accepts explicit leading plus sign",
+      tags: ["hole:int", "type:int", "boundary:signed"],
+      spec: intSpec,
+      input: textInput("n=+42"),
+      expected: match({ n: okInt("42") }),
+    }),
+    vec({
+      id: "vec_hole_int_negative_zero_005",
+      description: "int hole normalizes -0 to canonical decimal string 0",
+      tags: ["hole:int", "type:int", "boundary:zero"],
+      spec: intSpec,
+      input: textInput("n=-0"),
+      expected: match({ n: okInt("0") }),
+    }),
+    vec({
+      id: "vec_hole_int_leading_zeros_006",
+      description: "int hole strips leading zeros for int field",
+      tags: ["hole:int", "type:int"],
+      spec: intSpec,
+      input: textInput("n=00042"),
+      expected: match({ n: okInt("42") }),
+    }),
+    vec({
+      id: "vec_hole_int_leading_zeros_string_field_007",
+      description: "int hole preserves raw lexeme with leading zeros when bound to string field",
+      tags: ["hole:int", "type:string"],
+      spec: intAsStrSpec,
+      input: textInput("code=007"),
+      expected: match({ code: okStr("007") }),
+    }),
+    vec({
+      id: "vec_hole_int_max_int64_008",
+      description: "int hole parses exact INT64_MAX as decimal string without precision loss",
+      tags: ["hole:int", "type:int", "boundary:int64"],
+      spec: intSpec,
+      input: textInput("n=9223372036854775807"),
+      expected: match({ n: okInt("9223372036854775807") }),
+    }),
+    vec({
+      id: "vec_hole_int_min_int64_009",
+      description: "int hole parses exact INT64_MIN as decimal string without precision loss",
+      tags: ["hole:int", "type:int", "boundary:int64"],
+      spec: intSpec,
+      input: textInput("n=-9223372036854775808"),
+      expected: match({ n: okInt("-9223372036854775808") }),
+    }),
+    vec({
+      id: "vec_hole_int_beyond_js_safe_pos_010",
+      description: "int hole preserves precision above 2^53 - 1",
+      tags: ["hole:int", "type:int", "boundary:int64"],
+      spec: intSpec,
+      input: textInput("n=9007199254740993"),
+      expected: match({ n: okInt("9007199254740993") }),
+    }),
+    vec({
+      id: "vec_hole_int_beyond_js_safe_neg_011",
+      description: "int hole preserves precision below -(2^53 - 1)",
+      tags: ["hole:int", "type:int", "boundary:int64"],
+      spec: intSpec,
+      input: textInput("n=-9007199254740993"),
+      expected: match({ n: okInt("-9007199254740993") }),
+    }),
+    vec({
+      id: "vec_hole_int_overflow_pos_012",
+      description: "int hole matches syntax of INT64_MAX+1 and reports int_overflow parse_error",
+      tags: ["hole:int", "parse_error", "boundary:int64_overflow"],
+      spec: intSpec,
+      input: textInput("n=9223372036854775808"),
+      expected: match({ n: parseErr("int_overflow") }),
+    }),
+    vec({
+      id: "vec_hole_int_overflow_neg_013",
+      description: "int hole matches syntax of INT64_MIN-1 and reports int_overflow parse_error",
+      tags: ["hole:int", "parse_error", "boundary:int64_overflow"],
+      spec: intSpec,
+      input: textInput("n=-9223372036854775809"),
+      expected: match({ n: parseErr("int_overflow") }),
+    }),
+    vec({
+      id: "vec_hole_int_overflow_huge_014",
+      description: "int hole reports int_overflow on 30-digit integer",
+      tags: ["hole:int", "parse_error", "boundary:int64_overflow"],
+      spec: intSpec,
+      input: textInput("n=999999999999999999999999999999"),
+      expected: match({ n: parseErr("int_overflow") }),
+    }),
+    vec({
+      id: "vec_hole_int_adjacent_unit_suffix_015",
+      description: "int hole stops cleanly before adjacent literal suffix ms",
+      tags: ["hole:int", "type:int"],
+      spec: intSuffixSpec,
+      input: textInput("elapsed=212ms"),
+      expected: match({ ms: okInt("212") }),
+    }),
+    vec({
+      id: "vec_hole_int_to_float_field_016",
+      description: "int hole converts cleanly into float field with exact IEEE-754 bits",
+      tags: ["hole:int", "type:float", "ieee754"],
+      spec: intAsFloatSpec,
+      input: textInput("qty=-125"),
+      expected: match({ qty: okFloat(-125) }),
+    }),
+    vec({
+      id: "vec_hole_int_reject_alpha_017",
+      description: "int hole does not match alphabetic text",
+      tags: ["hole:int", "no_match"],
+      spec: intSpec,
+      input: textInput("n=abc"),
+      expected: noMatch(),
+    }),
+    vec({
+      id: "vec_hole_int_reject_decimal_018",
+      description: "int hole does not match fractional float at end of line",
+      tags: ["hole:int", "no_match"],
+      spec: intSpec,
+      input: textInput("n=12.34"),
+      expected: noMatch(),
+    }),
+    vec({
+      id: "vec_hole_int_reject_bare_minus_019",
+      description: "int hole rejects lone minus sign",
+      tags: ["hole:int", "no_match"],
+      spec: intSpec,
+      input: textInput("n=-"),
+      expected: noMatch(),
+    }),
+    vec({
+      id: "vec_hole_int_reject_bare_plus_020",
+      description: "int hole rejects lone plus sign",
+      tags: ["hole:int", "no_match"],
+      spec: intSpec,
+      input: textInput("n=+"),
+      expected: noMatch(),
+    }),
+    vec({
+      id: "vec_hole_int_reject_empty_021",
+      description: "int hole rejects empty input",
+      tags: ["hole:int", "no_match", "boundary:empty"],
+      spec: intSpec,
+      input: textInput("n="),
+      expected: noMatch(),
+    }),
+    vec({
+      id: "vec_hole_int_reject_arabic_indic_digits_022",
+      description: "int hole accepts ASCII digits only and rejects Arabic-Indic digits",
+      tags: ["hole:int", "no_match", "unicode"],
+      spec: intSpec,
+      input: textInput("n=\u0661\u0662\u0663"),
+      expected: noMatch(),
+    })
+  );
+
+  // ---- FLOAT (20 vectors) ----
+  const floatSpec = textSpec({
+    template: "tpl_01HOLEFLT01",
+    event: "test.hole.float",
+    segments: [{ lit: "f=" }, { hole: "f", class: "float" }],
+    fields: [field({ id: "fld_01FLT00001", name: "f", from: { hole: "f" }, type: "float", semantic: "ratio" })],
+    sampleLine: "f=0.75",
+    sampleExpect: { f: 0.75 },
+  });
+
+  const floatAsStrSpec = textSpec({
+    template: "tpl_01HOLEFLT02",
+    event: "test.hole.float_str",
+    segments: [{ lit: "f=" }, { hole: "f", class: "float" }],
+    fields: [field({ id: "fld_01FLT00002", name: "f", from: { hole: "f" }, type: "string", semantic: "text" })],
+    sampleLine: "f=1.50",
+    sampleExpect: { f: "1.50" },
+  });
+
+  vectors.push(
+    vec({
+      id: "vec_hole_float_zero_001",
+      description: "float hole matches 0.0 with positive zero IEEE-754 bits",
+      tags: ["hole:float", "type:float", "ieee754", "boundary:zero"],
+      spec: floatSpec,
+      input: textInput("f=0.0"),
+      expected: match({ f: okFloatHex("0000000000000000") }),
+    }),
+    vec({
+      id: "vec_hole_float_integer_form_002",
+      description: "float hole accepts integer syntax without decimal point",
+      tags: ["hole:float", "type:float", "ieee754"],
+      spec: floatSpec,
+      input: textInput("f=42"),
+      expected: match({ f: okFloat(42) }),
+    }),
+    vec({
+      id: "vec_hole_float_pi_003",
+      description: "float hole matches full-precision pi literal",
+      tags: ["hole:float", "type:float", "ieee754"],
+      spec: floatSpec,
+      input: textInput("f=3.141592653589793"),
+      expected: match({ f: okFloat(3.141592653589793) }),
+    }),
+    vec({
+      id: "vec_hole_float_negative_004",
+      description: "float hole matches negative decimal",
+      tags: ["hole:float", "type:float", "ieee754", "boundary:negative"],
+      spec: floatSpec,
+      input: textInput("f=-0.5"),
+      expected: match({ f: okFloat(-0.5) }),
+    }),
+    vec({
+      id: "vec_hole_float_explicit_plus_005",
+      description: "float hole accepts explicit leading plus sign",
+      tags: ["hole:float", "type:float", "ieee754", "boundary:signed"],
+      spec: floatSpec,
+      input: textInput("f=+12.75"),
+      expected: match({ f: okFloat(12.75) }),
+    }),
+    vec({
+      id: "vec_hole_float_point_one_006",
+      description: "float hole pins exact binary64 representation of 0.1",
+      tags: ["hole:float", "type:float", "ieee754"],
+      spec: floatSpec,
+      input: textInput("f=0.1"),
+      expected: match({ f: okFloatHex("3fb999999999999a") }),
+    }),
+    vec({
+      id: "vec_hole_float_sci_pos_007",
+      description: "float hole matches lowercase scientific notation with positive exponent",
+      tags: ["hole:float", "type:float", "ieee754"],
+      spec: floatSpec,
+      input: textInput("f=1e5"),
+      expected: match({ f: okFloat(1e5) }),
+    }),
+    vec({
+      id: "vec_hole_float_sci_neg_008",
+      description: "float hole matches scientific notation with negative exponent",
+      tags: ["hole:float", "type:float", "ieee754"],
+      spec: floatSpec,
+      input: textInput("f=1.5e-3"),
+      expected: match({ f: okFloat(1.5e-3) }),
+    }),
+    vec({
+      id: "vec_hole_float_sci_upper_plus_009",
+      description: "float hole matches uppercase E with explicit + exponent",
+      tags: ["hole:float", "type:float", "ieee754"],
+      spec: floatSpec,
+      input: textInput("f=-2.5E+10"),
+      expected: match({ f: okFloat(-2.5e10) }),
+    }),
+    vec({
+      id: "vec_hole_float_avogadro_010",
+      description: "float hole matches large scientific notation value",
+      tags: ["hole:float", "type:float", "ieee754"],
+      spec: floatSpec,
+      input: textInput("f=6.022e23"),
+      expected: match({ f: okFloat(6.022e23) }),
+    }),
+    vec({
+      id: "vec_hole_float_tiny_normal_011",
+      description: "float hole matches tiny positive IEEE-754 double 1e-308",
+      tags: ["hole:float", "type:float", "ieee754", "boundary:float64"],
+      spec: floatSpec,
+      input: textInput("f=1e-308"),
+      expected: match({ f: okFloat(1e-308) }),
+    }),
+    vec({
+      id: "vec_hole_float_max_finite_012",
+      description: "float hole matches maximum finite IEEE-754 double",
+      tags: ["hole:float", "type:float", "ieee754", "boundary:float64"],
+      spec: floatSpec,
+      input: textInput("f=1.7976931348623157e308"),
+      expected: match({ f: okFloat(1.7976931348623157e308) }),
+    }),
+    vec({
+      id: "vec_hole_float_overflow_pos_013",
+      description: "float hole matches 1e400 lexeme and reports float_overflow parse_error",
+      tags: ["hole:float", "parse_error", "boundary:float64_overflow"],
+      spec: floatSpec,
+      input: textInput("f=1e400"),
+      expected: match({ f: parseErr("float_overflow") }),
+    }),
+    vec({
+      id: "vec_hole_float_overflow_neg_014",
+      description: "float hole matches -1e400 lexeme and reports float_overflow parse_error",
+      tags: ["hole:float", "parse_error", "boundary:float64_overflow"],
+      spec: floatSpec,
+      input: textInput("f=-1e400"),
+      expected: match({ f: parseErr("float_overflow") }),
+    }),
+    vec({
+      id: "vec_hole_float_as_string_preserves_lexeme_015",
+      description: "float hole bound to string field preserves trailing zeros in lexeme",
+      tags: ["hole:float", "type:string"],
+      spec: floatAsStrSpec,
+      input: textInput("f=19.90"),
+      expected: match({ f: okStr("19.90") }),
+    }),
+    vec({
+      id: "vec_hole_float_reject_nan_016",
+      description: "float hole rejects NaN literal",
+      tags: ["hole:float", "no_match"],
+      spec: floatSpec,
+      input: textInput("f=NaN"),
+      expected: noMatch(),
+    }),
+    vec({
+      id: "vec_hole_float_reject_infinity_017",
+      description: "float hole rejects Infinity literal",
+      tags: ["hole:float", "no_match"],
+      spec: floatSpec,
+      input: textInput("f=Infinity"),
+      expected: noMatch(),
+    }),
+    vec({
+      id: "vec_hole_float_reject_neg_infinity_018",
+      description: "float hole rejects -Infinity literal",
+      tags: ["hole:float", "no_match"],
+      spec: floatSpec,
+      input: textInput("f=-Infinity"),
+      expected: noMatch(),
+    }),
+    vec({
+      id: "vec_hole_float_reject_bare_dot_019",
+      description: "float hole rejects bare decimal point",
+      tags: ["hole:float", "no_match"],
+      spec: floatSpec,
+      input: textInput("f=."),
+      expected: noMatch(),
+    }),
+    vec({
+      id: "vec_hole_float_reject_empty_020",
+      description: "float hole rejects empty value",
+      tags: ["hole:float", "no_match", "boundary:empty"],
+      spec: floatSpec,
+      input: textInput("f="),
+      expected: noMatch(),
+    })
+  );
+
+  return {
+    suite: "01-holes-word-int-float",
+    description: "Golden conformance vectors covering word (including default class), int, and float hole classes with boundary values and overflow semantics.",
+    vectors,
+  };
+}

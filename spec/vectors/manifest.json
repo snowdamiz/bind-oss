@@ -1,0 +1,79 @@
+{
+  "schema_version": 1,
+  "description": "Deterministic golden conformance vector manifest for Bind ParserSpec runtimes (Mesh, TypeScript, ClickHouse SQL, Swift) per §5, §14, and §17.",
+  "default_context": {
+    "hmac_keys": {
+      "edge": "bind-conformance-edge-key-v1",
+      "server": "bind-conformance-server-key-v1"
+    },
+    "reference_ts_ms": 1795701600000
+  },
+  "total_vectors": 422,
+  "sql_supported_count": 395,
+  "sql_refused_count": 27,
+  "suites": [
+    {
+      "suite": "01-holes-word-int-float",
+      "file": "suites/01-holes-word-int-float.json",
+      "description": "Golden conformance vectors covering word (including default class), int, and float hole classes with boundary values and overflow semantics.",
+      "count": 60,
+      "sql_supported_count": 60,
+      "sql_refused_count": 0,
+      "sha256": "8de0ff86dd1920b1769cfa9df8503b0c294ce97c67a88e2b871091a7e159c077"
+    },
+    {
+      "suite": "02-holes-uuid-hex-ip-time",
+      "file": "suites/02-holes-uuid-hex-ip-time.json",
+      "description": "Golden conformance vectors covering uuid, hex, ip (IPv4 and IPv6), and time (ISO 8601, Apache, syslog) hole classes.",
+      "count": 60,
+      "sql_supported_count": 60,
+      "sql_refused_count": 0,
+      "sha256": "6cf6a5ece08b81cbf5a4b1cee4a940ae4169741cba77a468f3cabcaab8c2b73c"
+    },
+    {
+      "suite": "03-holes-quoted-json-until-rest",
+      "file": "suites/03-holes-quoted-json-until-rest.json",
+      "description": "Golden conformance vectors covering quoted, json (with SQL refusal tags), until (before all literal kinds), and rest hole classes.",
+      "count": 65,
+      "sql_supported_count": 45,
+      "sql_refused_count": 20,
+      "sha256": "61be700843bcec02a481e0770f838e78ef9b27ebd66c93c8f5d2dd8de0989965"
+    },
+    {
+      "suite": "04-transforms-core",
+      "file": "suites/04-transforms-core.json",
+      "description": "Golden conformance vectors covering cast, scale (IEEE-754 single-op bit patterns), unit (all time and byte units), parse_time (all 10 formats), lower, and enum_map transforms.",
+      "count": 86,
+      "sql_supported_count": 86,
+      "sql_refused_count": 0,
+      "sha256": "6b5f74cf56f0631bc3c67739c141ef234cf4b02d7a1787681d9127267f7e760f"
+    },
+    {
+      "suite": "05-transforms-privacy-and-redaction",
+      "file": "suites/05-transforms-privacy-and-redaction.json",
+      "description": "Golden conformance vectors covering hash, mask (token and ip_prefix), drop, and Stage 2/3 redaction tokens across all 11 hole classes and field types (§5, §14).",
+      "count": 51,
+      "sql_supported_count": 49,
+      "sql_refused_count": 2,
+      "sha256": "4491ba3d3fe3d3ffb94108fa8594ff3cc77cedb056d2898e7a820d2de9ca3085"
+    },
+    {
+      "suite": "06-matchers-object-and-args",
+      "file": "suites/06-matchers-object-and-args.json",
+      "description": "Golden conformance vectors covering object (pure, nested, optional paths, message sub-patterns, SQL-refused message json holes) and args matchers.",
+      "count": 55,
+      "sql_supported_count": 53,
+      "sql_refused_count": 2,
+      "sha256": "1dbd73aec79611cc0b1faa38ded31c9cf2e4944c6ae72abd234784d1a8641a8a"
+    },
+    {
+      "suite": "07-boundaries-unicode-adjacent-large",
+      "file": "suites/07-boundaries-unicode-adjacent-large.json",
+      "description": "Golden conformance vectors covering §5 canonical example, adjacent holes, UTF-8 non-ASCII cases (U+00A0, U+3000, combining marks, emoji), 64 KiB boundary records, and multi-field isolation.",
+      "count": 45,
+      "sql_supported_count": 42,
+      "sql_refused_count": 3,
+      "sha256": "94f53c152f92b30cfe9ffe991fc35b810088cc8836db87fb0380ad7da3580785"
+    }
+  ]
+}

@@ -1,0 +1,3715 @@
+{
+  "schema_version": 1,
+  "suite": "05-transforms-privacy-and-redaction",
+  "description": "Golden conformance vectors covering hash, mask (token and ip_prefix), drop, and Stage 2/3 redaction tokens across all 11 hole classes and field types (§5, §14).",
+  "context": {
+    "hmac_keys": {
+      "edge": "bind-conformance-edge-key-v1",
+      "server": "bind-conformance-server-key-v1"
+    },
+    "reference_ts_ms": 1795701600000
+  },
+  "vectors": [
+    {
+      "id": "vec_tr_hash_email_001",
+      "description": "hash transform computes keyed nested HMAC-SHA256 pseudonym token",
+      "tags": [
+        "transform:hash",
+        "ambiguity:hmac_inner_encoding",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_05HASH001",
+        "event": "test.transform.hash",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "email="
+            },
+            {
+              "hole": "e",
+              "class": "word"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_05HASH0001",
+            "name": "email",
+            "from": {
+              "hole": "e"
+            },
+            "type": "string",
+            "semantic": "email",
+            "pii": "email",
+            "transforms": [
+              {
+                "op": "hash",
+                "kind": "email"
+              }
+            ]
+          }
+        ],
+        "tests": [
+          {
+            "line": "email=alice@example.com",
+            "expect": {
+              "email": "<email:21fef8bcaef44b62>"
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "email=alice@example.com"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "email": {
+            "status": "ok",
+            "type": "string",
+            "value": "<email:21fef8bcaef44b62>"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_tr_hash_lower_chained_002",
+      "description": "lower + hash produces identical pseudonym tag for mixed-case email",
+      "tags": [
+        "transform:lower",
+        "transform:hash",
+        "transform:chain",
+        "ambiguity:hmac_inner_encoding",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_05HASH002",
+        "event": "test.transform.lower_hash",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "email="
+            },
+            {
+              "hole": "e",
+              "class": "word"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_05HASH0002",
+            "name": "email",
+            "from": {
+              "hole": "e"
+            },
+            "type": "string",
+            "semantic": "email",
+            "pii": "email",
+            "transforms": [
+              {
+                "op": "lower"
+              },
+              {
+                "op": "hash",
+                "kind": "email"
+              }
+            ]
+          }
+        ],
+        "tests": [
+          {
+            "line": "email=Alice@Example.COM",
+            "expect": {
+              "email": "<email:21fef8bcaef44b62>"
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "email=Alice@Example.COM"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "email": {
+            "status": "ok",
+            "type": "string",
+            "value": "<email:21fef8bcaef44b62>"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_tr_hash_phone_003",
+      "description": "hash transform with kind:phone tags E.164 phone number",
+      "tags": [
+        "transform:hash",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_05HASH003",
+        "event": "test.transform.hash_phone",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "phone="
+            },
+            {
+              "hole": "p",
+              "class": "word"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_05HASH0003",
+            "name": "phone",
+            "from": {
+              "hole": "p"
+            },
+            "type": "string",
+            "semantic": "unknown",
+            "pii": "phone",
+            "transforms": [
+              {
+                "op": "hash",
+                "kind": "phone"
+              }
+            ]
+          }
+        ],
+        "tests": [
+          {
+            "line": "phone=+14155550199",
+            "expect": {
+              "phone": "<phone:cb878b2d5f3950d5>"
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "phone=+14155550199"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "phone": {
+            "status": "ok",
+            "type": "string",
+            "value": "<phone:cb878b2d5f3950d5>"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_tr_hash_omitted_kind_uses_pii_004",
+      "description": "hash transform without explicit kind uses field pii class as token kind",
+      "tags": [
+        "transform:hash",
+        "ambiguity:hash_default_kind",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_05HASH004",
+        "event": "test.transform.hash_default_pii",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "email="
+            },
+            {
+              "hole": "e",
+              "class": "word"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_05HASH0004",
+            "name": "email",
+            "from": {
+              "hole": "e"
+            },
+            "type": "string",
+            "semantic": "email",
+            "pii": "email",
+            "transforms": [
+              {
+                "op": "hash"
+              }
+            ]
+          }
+        ],
+        "tests": [
+          {
+            "line": "email=bob@example.com",
+            "expect": {
+              "email": "<email:aa81a05bc4248f9a>"
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "email=bob@example.com"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "email": {
+            "status": "ok",
+            "type": "string",
+            "value": "<email:aa81a05bc4248f9a>"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_tr_hash_omitted_kind_pii_none_005",
+      "description": "hash transform without kind on pii:none falls back to <hash:tag>",
+      "tags": [
+        "transform:hash",
+        "ambiguity:hash_default_kind",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_05HASH005",
+        "event": "test.transform.hash_default_none",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "uid="
+            },
+            {
+              "hole": "u",
+              "class": "word"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_05HASH0005",
+            "name": "uid",
+            "from": {
+              "hole": "u"
+            },
+            "type": "string",
+            "semantic": "id.user",
+            "pii": "none",
+            "transforms": [
+              {
+                "op": "hash"
+              }
+            ]
+          }
+        ],
+        "tests": [
+          {
+            "line": "uid=usr_123",
+            "expect": {
+              "uid": "<hash:f79591462798bfb5>"
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "uid=usr_123"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "uid": {
+            "status": "ok",
+            "type": "string",
+            "value": "<hash:f79591462798bfb5>"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_tr_hash_custom_project_keys_006",
+      "description": "hash transform tag changes deterministically with project HMAC keys",
+      "tags": [
+        "transform:hash",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_05HASH006",
+        "event": "test.transform.hash_custom_key",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "email="
+            },
+            {
+              "hole": "e",
+              "class": "word"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_05HASH0006",
+            "name": "email",
+            "from": {
+              "hole": "e"
+            },
+            "type": "string",
+            "semantic": "email",
+            "pii": "email",
+            "transforms": [
+              {
+                "op": "hash",
+                "kind": "email"
+              }
+            ]
+          }
+        ],
+        "tests": [
+          {
+            "line": "email=alice@example.com",
+            "expect": {
+              "email": "<email:689d591b0b51f7d1>"
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "email=alice@example.com"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "email": {
+            "status": "ok",
+            "type": "string",
+            "value": "<email:689d591b0b51f7d1>"
+          }
+        }
+      },
+      "context": {
+        "hmac_keys": {
+          "edge": "alt-edge-key-99",
+          "server": "alt-server-key-99"
+        }
+      }
+    },
+    {
+      "id": "vec_tr_hash_already_tokenized_passthrough_007",
+      "description": "hash transform leaves pre-existing pseudonym token unchanged (no double hashing, §14)",
+      "tags": [
+        "transform:hash",
+        "redaction:pseudonym",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_05HASH001",
+        "event": "test.transform.hash",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "email="
+            },
+            {
+              "hole": "e",
+              "class": "word"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_05HASH0001",
+            "name": "email",
+            "from": {
+              "hole": "e"
+            },
+            "type": "string",
+            "semantic": "email",
+            "pii": "email",
+            "transforms": [
+              {
+                "op": "hash",
+                "kind": "email"
+              }
+            ]
+          }
+        ],
+        "tests": [
+          {
+            "line": "email=alice@example.com",
+            "expect": {
+              "email": "<email:21fef8bcaef44b62>"
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "email=<email:9f2c41d07a3b55e1>"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "email": {
+            "status": "ok",
+            "type": "string",
+            "value": "<email:9f2c41d07a3b55e1>"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_tr_hash_pre_masked_token_stays_redacted_008",
+      "description": "pre-existing mask token <card> short-circuits hash transform and stays redacted",
+      "tags": [
+        "transform:hash",
+        "redaction:mask",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_05HASH001",
+        "event": "test.transform.hash",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "email="
+            },
+            {
+              "hole": "e",
+              "class": "word"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_05HASH0001",
+            "name": "email",
+            "from": {
+              "hole": "e"
+            },
+            "type": "string",
+            "semantic": "email",
+            "pii": "email",
+            "transforms": [
+              {
+                "op": "hash",
+                "kind": "email"
+              }
+            ]
+          }
+        ],
+        "tests": [
+          {
+            "line": "email=alice@example.com",
+            "expect": {
+              "email": "<email:21fef8bcaef44b62>"
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "email=<card>"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "email": {
+            "status": "redacted",
+            "token": "<card>"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_tr_mask_token_name_001",
+      "description": "mask mode:token kind:name yields redacted status with <name> marker",
+      "tags": [
+        "transform:mask",
+        "mask:token",
+        "redacted",
+        "ambiguity:mask_token_storage",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_05MASK001",
+        "event": "test.transform.mask_token",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "name="
+            },
+            {
+              "hole": "n",
+              "class": "quoted"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_05MASK0001",
+            "name": "customer_name",
+            "from": {
+              "hole": "n"
+            },
+            "type": "string",
+            "semantic": "unknown",
+            "pii": "name",
+            "transforms": [
+              {
+                "op": "mask",
+                "mode": "token",
+                "kind": "name"
+              }
+            ]
+          }
+        ],
+        "tests": [
+          {
+            "line": "name=\"Alice Smith\"",
+            "expect": {
+              "customer_name": null
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "name=\"Alice Smith\""
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "customer_name": {
+            "status": "redacted",
+            "token": "<name>"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_tr_mask_default_mode_address_002",
+      "description": "mask with omitted mode defaults to token mode",
+      "tags": [
+        "transform:mask",
+        "mask:token",
+        "redacted",
+        "ambiguity:mask_token_storage",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_05MASK002",
+        "event": "test.transform.mask_default_mode",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "addr="
+            },
+            {
+              "hole": "a",
+              "class": "quoted"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_05MASK0002",
+            "name": "address",
+            "from": {
+              "hole": "a"
+            },
+            "type": "string",
+            "semantic": "unknown",
+            "pii": "address",
+            "transforms": [
+              {
+                "op": "mask",
+                "kind": "address"
+              }
+            ]
+          }
+        ],
+        "tests": [
+          {
+            "line": "addr=\"123 Main St\"",
+            "expect": {
+              "address": null
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "addr=\"742 Evergreen Terrace\""
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "address": {
+            "status": "redacted",
+            "token": "<address>"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_tr_mask_default_kind_003",
+      "description": "mask with omitted mode and kind yields <redacted> marker",
+      "tags": [
+        "transform:mask",
+        "mask:token",
+        "redacted",
+        "ambiguity:mask_token_storage",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_05MASK003",
+        "event": "test.transform.mask_default_kind",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "v="
+            },
+            {
+              "hole": "v",
+              "class": "word"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_05MASK0003",
+            "name": "v",
+            "from": {
+              "hole": "v"
+            },
+            "type": "string",
+            "semantic": "unknown",
+            "transforms": [
+              {
+                "op": "mask"
+              }
+            ]
+          }
+        ],
+        "tests": [
+          {
+            "line": "v=sensitive",
+            "expect": {
+              "v": null
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "v=secret_value"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "v": {
+            "status": "redacted",
+            "token": "<redacted>"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_tr_mask_ip_prefix_v4_doc_004",
+      "description": "mask mode:ip_prefix truncates IPv4 to /24 prefix",
+      "tags": [
+        "transform:mask",
+        "mask:ip_prefix",
+        "ip:v4",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_05MASK004",
+        "event": "test.transform.mask_ip",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "ip="
+            },
+            {
+              "hole": "ip",
+              "class": "ip"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_05MASK0004",
+            "name": "client_ip",
+            "from": {
+              "hole": "ip"
+            },
+            "type": "string",
+            "semantic": "ip",
+            "pii": "ip",
+            "transforms": [
+              {
+                "op": "mask",
+                "mode": "ip_prefix"
+              }
+            ]
+          }
+        ],
+        "tests": [
+          {
+            "line": "ip=203.0.113.42",
+            "expect": {
+              "client_ip": "203.0.113.0/24"
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "ip=203.0.113.42"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "client_ip": {
+            "status": "ok",
+            "type": "string",
+            "value": "203.0.113.0/24"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_tr_mask_ip_prefix_v4_255_005",
+      "description": "mask mode:ip_prefix zeroes last octet of 10.20.30.255",
+      "tags": [
+        "transform:mask",
+        "mask:ip_prefix",
+        "ip:v4",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_05MASK004",
+        "event": "test.transform.mask_ip",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "ip="
+            },
+            {
+              "hole": "ip",
+              "class": "ip"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_05MASK0004",
+            "name": "client_ip",
+            "from": {
+              "hole": "ip"
+            },
+            "type": "string",
+            "semantic": "ip",
+            "pii": "ip",
+            "transforms": [
+              {
+                "op": "mask",
+                "mode": "ip_prefix"
+              }
+            ]
+          }
+        ],
+        "tests": [
+          {
+            "line": "ip=203.0.113.42",
+            "expect": {
+              "client_ip": "203.0.113.0/24"
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "ip=10.20.30.255"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "client_ip": {
+            "status": "ok",
+            "type": "string",
+            "value": "10.20.30.0/24"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_tr_mask_ip_prefix_v4_zero_006",
+      "description": "mask mode:ip_prefix masks 0.0.0.1 to 0.0.0.0/24",
+      "tags": [
+        "transform:mask",
+        "mask:ip_prefix",
+        "ip:v4",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_05MASK004",
+        "event": "test.transform.mask_ip",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "ip="
+            },
+            {
+              "hole": "ip",
+              "class": "ip"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_05MASK0004",
+            "name": "client_ip",
+            "from": {
+              "hole": "ip"
+            },
+            "type": "string",
+            "semantic": "ip",
+            "pii": "ip",
+            "transforms": [
+              {
+                "op": "mask",
+                "mode": "ip_prefix"
+              }
+            ]
+          }
+        ],
+        "tests": [
+          {
+            "line": "ip=203.0.113.42",
+            "expect": {
+              "client_ip": "203.0.113.0/24"
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "ip=0.0.0.1"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "client_ip": {
+            "status": "ok",
+            "type": "string",
+            "value": "0.0.0.0/24"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_tr_mask_ip_prefix_v6_full_007",
+      "description": "mask mode:ip_prefix truncates full IPv6 to canonical RFC 5952 /48",
+      "tags": [
+        "transform:mask",
+        "mask:ip_prefix",
+        "ip:v6",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_05MASK004",
+        "event": "test.transform.mask_ip",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "ip="
+            },
+            {
+              "hole": "ip",
+              "class": "ip"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_05MASK0004",
+            "name": "client_ip",
+            "from": {
+              "hole": "ip"
+            },
+            "type": "string",
+            "semantic": "ip",
+            "pii": "ip",
+            "transforms": [
+              {
+                "op": "mask",
+                "mode": "ip_prefix"
+              }
+            ]
+          }
+        ],
+        "tests": [
+          {
+            "line": "ip=203.0.113.42",
+            "expect": {
+              "client_ip": "203.0.113.0/24"
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "ip=2001:0db8:85a3:0000:0000:8a2e:0370:7334"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "client_ip": {
+            "status": "ok",
+            "type": "string",
+            "value": "2001:db8:85a3::/48"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_tr_mask_ip_prefix_v6_compressed_008",
+      "description": "mask mode:ip_prefix truncates compressed IPv6 2001:db8::1 to 2001:db8::/48",
+      "tags": [
+        "transform:mask",
+        "mask:ip_prefix",
+        "ip:v6",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_05MASK004",
+        "event": "test.transform.mask_ip",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "ip="
+            },
+            {
+              "hole": "ip",
+              "class": "ip"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_05MASK0004",
+            "name": "client_ip",
+            "from": {
+              "hole": "ip"
+            },
+            "type": "string",
+            "semantic": "ip",
+            "pii": "ip",
+            "transforms": [
+              {
+                "op": "mask",
+                "mode": "ip_prefix"
+              }
+            ]
+          }
+        ],
+        "tests": [
+          {
+            "line": "ip=203.0.113.42",
+            "expect": {
+              "client_ip": "203.0.113.0/24"
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "ip=2001:db8::1"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "client_ip": {
+            "status": "ok",
+            "type": "string",
+            "value": "2001:db8::/48"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_tr_mask_ip_prefix_v6_loopback_009",
+      "description": "mask mode:ip_prefix truncates ::1 to ::/48",
+      "tags": [
+        "transform:mask",
+        "mask:ip_prefix",
+        "ip:v6",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_05MASK004",
+        "event": "test.transform.mask_ip",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "ip="
+            },
+            {
+              "hole": "ip",
+              "class": "ip"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_05MASK0004",
+            "name": "client_ip",
+            "from": {
+              "hole": "ip"
+            },
+            "type": "string",
+            "semantic": "ip",
+            "pii": "ip",
+            "transforms": [
+              {
+                "op": "mask",
+                "mode": "ip_prefix"
+              }
+            ]
+          }
+        ],
+        "tests": [
+          {
+            "line": "ip=203.0.113.42",
+            "expect": {
+              "client_ip": "203.0.113.0/24"
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "ip=::1"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "client_ip": {
+            "status": "ok",
+            "type": "string",
+            "value": "::/48"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_tr_mask_ip_prefix_v6_link_local_010",
+      "description": "mask mode:ip_prefix truncates fe80::1234:5678 to fe80::/48",
+      "tags": [
+        "transform:mask",
+        "mask:ip_prefix",
+        "ip:v6",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_05MASK004",
+        "event": "test.transform.mask_ip",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "ip="
+            },
+            {
+              "hole": "ip",
+              "class": "ip"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_05MASK0004",
+            "name": "client_ip",
+            "from": {
+              "hole": "ip"
+            },
+            "type": "string",
+            "semantic": "ip",
+            "pii": "ip",
+            "transforms": [
+              {
+                "op": "mask",
+                "mode": "ip_prefix"
+              }
+            ]
+          }
+        ],
+        "tests": [
+          {
+            "line": "ip=203.0.113.42",
+            "expect": {
+              "client_ip": "203.0.113.0/24"
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "ip=fe80::1234:5678"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "client_ip": {
+            "status": "ok",
+            "type": "string",
+            "value": "fe80::/48"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_tr_mask_ip_prefix_invalid_ip_011",
+      "description": "mask mode:ip_prefix reports invalid_ip parse_error on non-IP word",
+      "tags": [
+        "transform:mask",
+        "mask:ip_prefix",
+        "parse_error",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_05MASK005",
+        "event": "test.transform.mask_ip_word",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "ip="
+            },
+            {
+              "hole": "ip",
+              "class": "word"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_05MASK0005",
+            "name": "client_ip",
+            "from": {
+              "hole": "ip"
+            },
+            "type": "string",
+            "semantic": "ip",
+            "pii": "ip",
+            "transforms": [
+              {
+                "op": "mask",
+                "mode": "ip_prefix"
+              }
+            ]
+          }
+        ],
+        "tests": [
+          {
+            "line": "ip=10.20.30.40",
+            "expect": {
+              "client_ip": "10.20.30.0/24"
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "ip=not-an-ip"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "client_ip": {
+            "status": "parse_error",
+            "code": "invalid_ip"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_tr_mask_ip_prefix_pre_masked_token_012",
+      "description": "pre-masked token <ip> short-circuits ip_prefix mask and remains redacted",
+      "tags": [
+        "transform:mask",
+        "mask:ip_prefix",
+        "redaction:mask",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_05MASK004",
+        "event": "test.transform.mask_ip",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "ip="
+            },
+            {
+              "hole": "ip",
+              "class": "ip"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_05MASK0004",
+            "name": "client_ip",
+            "from": {
+              "hole": "ip"
+            },
+            "type": "string",
+            "semantic": "ip",
+            "pii": "ip",
+            "transforms": [
+              {
+                "op": "mask",
+                "mode": "ip_prefix"
+              }
+            ]
+          }
+        ],
+        "tests": [
+          {
+            "line": "ip=203.0.113.42",
+            "expect": {
+              "client_ip": "203.0.113.0/24"
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "ip=<ip>"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "client_ip": {
+            "status": "redacted",
+            "token": "<ip>"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_tr_drop_text_001",
+      "description": "drop transform discards secret text field value",
+      "tags": [
+        "transform:drop",
+        "dropped",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_05DROP001",
+        "event": "test.transform.drop",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "secret="
+            },
+            {
+              "hole": "s",
+              "class": "word"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_05DROP0001",
+            "name": "secret",
+            "from": {
+              "hole": "s"
+            },
+            "type": "string",
+            "semantic": "unknown",
+            "pii": "secret",
+            "transforms": [
+              {
+                "op": "drop"
+              }
+            ]
+          }
+        ],
+        "tests": [
+          {
+            "line": "secret=ghp_0123456789abcdef",
+            "expect": {
+              "secret": null
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "secret=ghp_0123456789abcdef"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "secret": {
+            "status": "dropped"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_tr_drop_object_002",
+      "description": "drop transform discards free_text object field value",
+      "tags": [
+        "transform:drop",
+        "dropped",
+        "match:object"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_05DROP002",
+        "event": "test.transform.drop_obj",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "object",
+          "shape": [
+            "note"
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_05DROP0002",
+            "name": "note",
+            "from": {
+              "path": "note"
+            },
+            "type": "string",
+            "semantic": "unknown",
+            "pii": "free_text",
+            "transforms": [
+              {
+                "op": "drop"
+              }
+            ]
+          }
+        ],
+        "tests": [
+          {
+            "object": {
+              "note": "customer typed notes"
+            },
+            "expect": {
+              "note": null
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "object",
+        "object": {
+          "note": "customer typed notes"
+        }
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "note": {
+            "status": "dropped"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_tr_drop_args_003",
+      "description": "drop transform discards args field value",
+      "tags": [
+        "transform:drop",
+        "dropped",
+        "match:args"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_05DROP003",
+        "event": "test.transform.drop_args",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "sdk_template"
+        },
+        "match": {
+          "kind": "args",
+          "strings": [
+            "token=",
+            ""
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_05DROP0003",
+            "name": "token",
+            "from": {
+              "arg": 0
+            },
+            "type": "string",
+            "semantic": "unknown",
+            "pii": "secret",
+            "transforms": [
+              {
+                "op": "drop"
+              }
+            ]
+          }
+        ],
+        "tests": [
+          {
+            "args": [
+              "tok_live_abc"
+            ],
+            "expect": {
+              "token": null
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "args",
+        "strings": [
+          "token=",
+          ""
+        ],
+        "args": [
+          "tok_live_abc"
+        ]
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "token": {
+            "status": "dropped"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_tr_drop_after_lower_004",
+      "description": "drop at end of transform chain yields dropped status",
+      "tags": [
+        "transform:drop",
+        "transform:lower",
+        "transform:chain",
+        "dropped",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_05DROP004",
+        "event": "test.transform.drop_chain",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "pw="
+            },
+            {
+              "hole": "pw",
+              "class": "word"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_05DROP0004",
+            "name": "pw",
+            "from": {
+              "hole": "pw"
+            },
+            "type": "string",
+            "semantic": "unknown",
+            "pii": "secret",
+            "transforms": [
+              {
+                "op": "lower"
+              },
+              {
+                "op": "drop"
+              }
+            ]
+          }
+        ],
+        "tests": [
+          {
+            "line": "pw=Secret123",
+            "expect": {
+              "pw": null
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "pw=Secret123"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "pw": {
+            "status": "dropped"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_redact_mask_in_word_001",
+      "description": "mask token <card> matches word hole and produces redacted marker (§5)",
+      "tags": [
+        "hole:word",
+        "redaction:mask",
+        "redacted",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_05REDM001",
+        "event": "test.redaction.mask_hole",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "v="
+            },
+            {
+              "hole": "v",
+              "class": "word"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_05REDM001",
+            "name": "v",
+            "from": {
+              "hole": "v"
+            },
+            "type": "string",
+            "semantic": "unknown"
+          }
+        ],
+        "tests": [
+          {
+            "line": "v=abc",
+            "expect": {
+              "v": "abc"
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "v=<card>"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "v": {
+            "status": "redacted",
+            "token": "<card>"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_redact_mask_in_int_002",
+      "description": "mask token <card> matches int hole and produces redacted marker (§5)",
+      "tags": [
+        "hole:int",
+        "redaction:mask",
+        "redacted",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_05REDM002",
+        "event": "test.redaction.mask_hole",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "v="
+            },
+            {
+              "hole": "v",
+              "class": "int"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_05REDM002",
+            "name": "v",
+            "from": {
+              "hole": "v"
+            },
+            "type": "int",
+            "semantic": "unknown"
+          }
+        ],
+        "tests": [
+          {
+            "line": "v=42",
+            "expect": {
+              "v": 42
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "v=<card>"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "v": {
+            "status": "redacted",
+            "token": "<card>"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_redact_mask_in_float_003",
+      "description": "mask token <secret:jwt> matches float hole and produces redacted marker (§5)",
+      "tags": [
+        "hole:float",
+        "redaction:mask",
+        "redacted",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_05REDM003",
+        "event": "test.redaction.mask_hole",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "v="
+            },
+            {
+              "hole": "v",
+              "class": "float"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_05REDM003",
+            "name": "v",
+            "from": {
+              "hole": "v"
+            },
+            "type": "float",
+            "semantic": "unknown"
+          }
+        ],
+        "tests": [
+          {
+            "line": "v=1.5",
+            "expect": {
+              "v": 1.5
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "v=<secret:jwt>"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "v": {
+            "status": "redacted",
+            "token": "<secret:jwt>"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_redact_mask_in_uuid_004",
+      "description": "mask token <secret:kv> matches uuid hole and produces redacted marker (§5)",
+      "tags": [
+        "hole:uuid",
+        "redaction:mask",
+        "redacted",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_05REDM004",
+        "event": "test.redaction.mask_hole",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "v="
+            },
+            {
+              "hole": "v",
+              "class": "uuid"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_05REDM004",
+            "name": "v",
+            "from": {
+              "hole": "v"
+            },
+            "type": "string",
+            "semantic": "unknown"
+          }
+        ],
+        "tests": [
+          {
+            "line": "v=550e8400-e29b-41d4-a716-446655440000",
+            "expect": {
+              "v": "550e8400-e29b-41d4-a716-446655440000"
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "v=<secret:kv>"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "v": {
+            "status": "redacted",
+            "token": "<secret:kv>"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_redact_mask_in_hex_005",
+      "description": "mask token <secret:jwt> matches hex hole and produces redacted marker (§5)",
+      "tags": [
+        "hole:hex",
+        "redaction:mask",
+        "redacted",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_05REDM005",
+        "event": "test.redaction.mask_hole",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "v="
+            },
+            {
+              "hole": "v",
+              "class": "hex"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_05REDM005",
+            "name": "v",
+            "from": {
+              "hole": "v"
+            },
+            "type": "string",
+            "semantic": "unknown"
+          }
+        ],
+        "tests": [
+          {
+            "line": "v=deadbeef",
+            "expect": {
+              "v": "deadbeef"
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "v=<secret:jwt>"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "v": {
+            "status": "redacted",
+            "token": "<secret:jwt>"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_redact_mask_in_ip_006",
+      "description": "mask token <card> matches ip hole and produces redacted marker (§5)",
+      "tags": [
+        "hole:ip",
+        "redaction:mask",
+        "redacted",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_05REDM006",
+        "event": "test.redaction.mask_hole",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "v="
+            },
+            {
+              "hole": "v",
+              "class": "ip"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_05REDM006",
+            "name": "v",
+            "from": {
+              "hole": "v"
+            },
+            "type": "string",
+            "semantic": "unknown"
+          }
+        ],
+        "tests": [
+          {
+            "line": "v=203.0.113.42",
+            "expect": {
+              "v": "203.0.113.42"
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "v=<card>"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "v": {
+            "status": "redacted",
+            "token": "<card>"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_redact_mask_in_time_007",
+      "description": "mask token <us_ssn> matches time hole and produces redacted marker (§5)",
+      "tags": [
+        "hole:time",
+        "redaction:mask",
+        "redacted",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_05REDM007",
+        "event": "test.redaction.mask_hole",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "v="
+            },
+            {
+              "hole": "v",
+              "class": "time"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_05REDM007",
+            "name": "v",
+            "from": {
+              "hole": "v"
+            },
+            "type": "string",
+            "semantic": "unknown"
+          }
+        ],
+        "tests": [
+          {
+            "line": "v=2026-11-26T14:00:00Z",
+            "expect": {
+              "v": "2026-11-26T14:00:00Z"
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "v=<us_ssn>"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "v": {
+            "status": "redacted",
+            "token": "<us_ssn>"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_redact_mask_in_quoted_008",
+      "description": "mask token <name> matches quoted hole and produces redacted marker (§5)",
+      "tags": [
+        "hole:quoted",
+        "redaction:mask",
+        "redacted",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_05REDM008",
+        "event": "test.redaction.mask_hole",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "v="
+            },
+            {
+              "hole": "v",
+              "class": "quoted"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_05REDM008",
+            "name": "v",
+            "from": {
+              "hole": "v"
+            },
+            "type": "string",
+            "semantic": "unknown"
+          }
+        ],
+        "tests": [
+          {
+            "line": "v=\"hello\"",
+            "expect": {
+              "v": "hello"
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "v=<name>"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "v": {
+            "status": "redacted",
+            "token": "<name>"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_redact_mask_in_json_009",
+      "description": "mask token <secret:kv> matches json hole and produces redacted marker (§5)",
+      "tags": [
+        "hole:json",
+        "redaction:mask",
+        "redacted",
+        "match:text",
+        "sql:refuse",
+        "sql:refuse:json_hole"
+      ],
+      "sql": {
+        "supported": false,
+        "refusal_code": "unsupported_json_hole",
+        "reason": "Specs containing a json hole cannot be compiled to ClickHouse RE2 extractGroups because RE2 cannot match balanced brackets (§5, T2.1.5)."
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_05REDM009",
+        "event": "test.redaction.mask_hole",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "v="
+            },
+            {
+              "hole": "v",
+              "class": "json"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_05REDM009",
+            "name": "v",
+            "from": {
+              "hole": "v"
+            },
+            "type": "json",
+            "semantic": "unknown"
+          }
+        ],
+        "tests": [
+          {
+            "line": "v={\"a\":1}",
+            "expect": {
+              "v": {
+                "a": 1
+              }
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "v=<secret:kv>"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "v": {
+            "status": "redacted",
+            "token": "<secret:kv>"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_redact_mask_in_until_010",
+      "description": "mask token <card> matches until hole and produces redacted marker (§5)",
+      "tags": [
+        "hole:until",
+        "redaction:mask",
+        "redacted",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_05REDM010",
+        "event": "test.redaction.mask_hole",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "v="
+            },
+            {
+              "hole": "v",
+              "class": "until"
+            },
+            {
+              "lit": ";"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_05REDM010",
+            "name": "v",
+            "from": {
+              "hole": "v"
+            },
+            "type": "string",
+            "semantic": "unknown"
+          }
+        ],
+        "tests": [
+          {
+            "line": "v=abc;",
+            "expect": {
+              "v": "abc"
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "v=<card>;"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "v": {
+            "status": "redacted",
+            "token": "<card>"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_redact_mask_in_rest_011",
+      "description": "mask token <secret:jwt> matches rest hole and produces redacted marker (§5)",
+      "tags": [
+        "hole:rest",
+        "redaction:mask",
+        "redacted",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_05REDM011",
+        "event": "test.redaction.mask_hole",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "v="
+            },
+            {
+              "hole": "v",
+              "class": "rest"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_05REDM011",
+            "name": "v",
+            "from": {
+              "hole": "v"
+            },
+            "type": "string",
+            "semantic": "unknown"
+          }
+        ],
+        "tests": [
+          {
+            "line": "v=abc",
+            "expect": {
+              "v": "abc"
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "v=<secret:jwt>"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "v": {
+            "status": "redacted",
+            "token": "<secret:jwt>"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_redact_pseudonym_string_word_001",
+      "description": "pseudonym token matches word hole and is stored as value of string field (§5)",
+      "tags": [
+        "hole:word",
+        "redaction:pseudonym",
+        "type:string",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_05REDS001",
+        "event": "test.redaction.pseudo_str",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "v="
+            },
+            {
+              "hole": "v",
+              "class": "word"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_05REDS001",
+            "name": "v",
+            "from": {
+              "hole": "v"
+            },
+            "type": "string",
+            "semantic": "unknown"
+          }
+        ],
+        "tests": [
+          {
+            "line": "v=alice",
+            "expect": {
+              "v": "alice"
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "v=<email:9f2c41d07a3b55e1>"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "v": {
+            "status": "ok",
+            "type": "string",
+            "value": "<email:9f2c41d07a3b55e1>"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_redact_pseudonym_string_quoted_002",
+      "description": "pseudonym token matches quoted hole and is stored as value of string field (§5)",
+      "tags": [
+        "hole:quoted",
+        "redaction:pseudonym",
+        "type:string",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_05REDS002",
+        "event": "test.redaction.pseudo_str",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "v="
+            },
+            {
+              "hole": "v",
+              "class": "quoted"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_05REDS002",
+            "name": "v",
+            "from": {
+              "hole": "v"
+            },
+            "type": "string",
+            "semantic": "unknown"
+          }
+        ],
+        "tests": [
+          {
+            "line": "v=\"alice\"",
+            "expect": {
+              "v": "alice"
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "v=<email:9f2c41d07a3b55e1>"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "v": {
+            "status": "ok",
+            "type": "string",
+            "value": "<email:9f2c41d07a3b55e1>"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_redact_pseudonym_string_uuid_003",
+      "description": "pseudonym token matches uuid hole and is stored as value of string field (§5)",
+      "tags": [
+        "hole:uuid",
+        "redaction:pseudonym",
+        "type:string",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_05REDS003",
+        "event": "test.redaction.pseudo_str",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "v="
+            },
+            {
+              "hole": "v",
+              "class": "uuid"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_05REDS003",
+            "name": "v",
+            "from": {
+              "hole": "v"
+            },
+            "type": "string",
+            "semantic": "unknown"
+          }
+        ],
+        "tests": [
+          {
+            "line": "v=550e8400-e29b-41d4-a716-446655440000",
+            "expect": {
+              "v": "550e8400-e29b-41d4-a716-446655440000"
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "v=<email:9f2c41d07a3b55e1>"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "v": {
+            "status": "ok",
+            "type": "string",
+            "value": "<email:9f2c41d07a3b55e1>"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_redact_pseudonym_string_ip_004",
+      "description": "pseudonym token matches ip hole and is stored as value of string field (§5)",
+      "tags": [
+        "hole:ip",
+        "redaction:pseudonym",
+        "type:string",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_05REDS004",
+        "event": "test.redaction.pseudo_str",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "v="
+            },
+            {
+              "hole": "v",
+              "class": "ip"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_05REDS004",
+            "name": "v",
+            "from": {
+              "hole": "v"
+            },
+            "type": "string",
+            "semantic": "unknown"
+          }
+        ],
+        "tests": [
+          {
+            "line": "v=203.0.113.42",
+            "expect": {
+              "v": "203.0.113.42"
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "v=<email:9f2c41d07a3b55e1>"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "v": {
+            "status": "ok",
+            "type": "string",
+            "value": "<email:9f2c41d07a3b55e1>"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_redact_pseudonym_string_until_005",
+      "description": "pseudonym token matches until hole and is stored as value of string field (§5)",
+      "tags": [
+        "hole:until",
+        "redaction:pseudonym",
+        "type:string",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_05REDS005",
+        "event": "test.redaction.pseudo_str",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "v="
+            },
+            {
+              "hole": "v",
+              "class": "until"
+            },
+            {
+              "lit": ";"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_05REDS005",
+            "name": "v",
+            "from": {
+              "hole": "v"
+            },
+            "type": "string",
+            "semantic": "unknown"
+          }
+        ],
+        "tests": [
+          {
+            "line": "v=alice;",
+            "expect": {
+              "v": "alice"
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "v=<email:9f2c41d07a3b55e1>;"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "v": {
+            "status": "ok",
+            "type": "string",
+            "value": "<email:9f2c41d07a3b55e1>"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_redact_pseudonym_string_rest_006",
+      "description": "pseudonym token matches rest hole and is stored as value of string field (§5)",
+      "tags": [
+        "hole:rest",
+        "redaction:pseudonym",
+        "type:string",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_05REDS006",
+        "event": "test.redaction.pseudo_str",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "v="
+            },
+            {
+              "hole": "v",
+              "class": "rest"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_05REDS006",
+            "name": "v",
+            "from": {
+              "hole": "v"
+            },
+            "type": "string",
+            "semantic": "unknown"
+          }
+        ],
+        "tests": [
+          {
+            "line": "v=alice",
+            "expect": {
+              "v": "alice"
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "v=<email:9f2c41d07a3b55e1>"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "v": {
+            "status": "ok",
+            "type": "string",
+            "value": "<email:9f2c41d07a3b55e1>"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_redact_pseudonym_nonstring_int_001",
+      "description": "pseudonym token in non-string (int) field is treated as a mask (§5)",
+      "tags": [
+        "hole:int",
+        "type:int",
+        "redaction:pseudonym_as_mask",
+        "redacted",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_05REDN001",
+        "event": "test.redaction.pseudo_nonstring",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "v="
+            },
+            {
+              "hole": "v",
+              "class": "int"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_05REDN001",
+            "name": "v",
+            "from": {
+              "hole": "v"
+            },
+            "type": "int",
+            "semantic": "unknown"
+          }
+        ],
+        "tests": [
+          {
+            "line": "v=42",
+            "expect": {
+              "v": 42
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "v=<email:9f2c41d07a3b55e1>"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "v": {
+            "status": "redacted",
+            "token": "<email:9f2c41d07a3b55e1>"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_redact_pseudonym_nonstring_float_002",
+      "description": "pseudonym token in non-string (float) field is treated as a mask (§5)",
+      "tags": [
+        "hole:float",
+        "type:float",
+        "redaction:pseudonym_as_mask",
+        "redacted",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_05REDN002",
+        "event": "test.redaction.pseudo_nonstring",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "v="
+            },
+            {
+              "hole": "v",
+              "class": "float"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_05REDN002",
+            "name": "v",
+            "from": {
+              "hole": "v"
+            },
+            "type": "float",
+            "semantic": "unknown"
+          }
+        ],
+        "tests": [
+          {
+            "line": "v=3.5",
+            "expect": {
+              "v": 3.5
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "v=<email:9f2c41d07a3b55e1>"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "v": {
+            "status": "redacted",
+            "token": "<email:9f2c41d07a3b55e1>"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_redact_pseudonym_nonstring_bool_003",
+      "description": "pseudonym token in non-string (bool) field is treated as a mask (§5)",
+      "tags": [
+        "hole:word",
+        "type:bool",
+        "redaction:pseudonym_as_mask",
+        "redacted",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_05REDN003",
+        "event": "test.redaction.pseudo_nonstring",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "v="
+            },
+            {
+              "hole": "v",
+              "class": "word"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_05REDN003",
+            "name": "v",
+            "from": {
+              "hole": "v"
+            },
+            "type": "bool",
+            "semantic": "unknown",
+            "transforms": [
+              {
+                "op": "cast",
+                "to": "bool"
+              }
+            ]
+          }
+        ],
+        "tests": [
+          {
+            "line": "v=true",
+            "expect": {
+              "v": true
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "v=<email:9f2c41d07a3b55e1>"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "v": {
+            "status": "redacted",
+            "token": "<email:9f2c41d07a3b55e1>"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_redact_pseudonym_nonstring_timestamp_004",
+      "description": "pseudonym token in non-string (timestamp) field is treated as a mask (§5)",
+      "tags": [
+        "hole:time",
+        "type:timestamp",
+        "redaction:pseudonym_as_mask",
+        "redacted",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_05REDN004",
+        "event": "test.redaction.pseudo_nonstring",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "v="
+            },
+            {
+              "hole": "v",
+              "class": "time"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_05REDN004",
+            "name": "v",
+            "from": {
+              "hole": "v"
+            },
+            "type": "timestamp",
+            "semantic": "unknown",
+            "transforms": [
+              {
+                "op": "parse_time"
+              }
+            ]
+          }
+        ],
+        "tests": [
+          {
+            "line": "v=2026-11-26T14:00:00Z",
+            "expect": {
+              "v": 1795701600000
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "v=<email:9f2c41d07a3b55e1>"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "v": {
+            "status": "redacted",
+            "token": "<email:9f2c41d07a3b55e1>"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_redact_pseudonym_nonstring_enum_005",
+      "description": "pseudonym token in non-string (enum) field is treated as a mask (§5)",
+      "tags": [
+        "hole:word",
+        "type:enum",
+        "redaction:pseudonym_as_mask",
+        "redacted",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_05REDN005",
+        "event": "test.redaction.pseudo_nonstring",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "v="
+            },
+            {
+              "hole": "v",
+              "class": "word"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_05REDN005",
+            "name": "v",
+            "from": {
+              "hole": "v"
+            },
+            "type": "enum",
+            "semantic": "unknown",
+            "transforms": [
+              {
+                "op": "enum_map",
+                "map": {
+                  "get": "GET"
+                }
+              }
+            ]
+          }
+        ],
+        "tests": [
+          {
+            "line": "v=get",
+            "expect": {
+              "v": "GET"
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "v=<email:9f2c41d07a3b55e1>"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "v": {
+            "status": "redacted",
+            "token": "<email:9f2c41d07a3b55e1>"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_redact_pseudonym_nonstring_json_006",
+      "description": "pseudonym token in non-string (json) field is treated as a mask (§5)",
+      "tags": [
+        "hole:json",
+        "type:json",
+        "redaction:pseudonym_as_mask",
+        "redacted",
+        "match:text",
+        "sql:refuse",
+        "sql:refuse:json_hole"
+      ],
+      "sql": {
+        "supported": false,
+        "refusal_code": "unsupported_json_hole",
+        "reason": "Specs containing a json hole cannot be compiled to ClickHouse RE2 extractGroups because RE2 cannot match balanced brackets (§5, T2.1.5)."
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_05REDN006",
+        "event": "test.redaction.pseudo_nonstring",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "v="
+            },
+            {
+              "hole": "v",
+              "class": "json"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_05REDN006",
+            "name": "v",
+            "from": {
+              "hole": "v"
+            },
+            "type": "json",
+            "semantic": "unknown"
+          }
+        ],
+        "tests": [
+          {
+            "line": "v={\"a\":1}",
+            "expect": {
+              "v": {
+                "a": 1
+              }
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "v=<email:9f2c41d07a3b55e1>"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "v": {
+            "status": "redacted",
+            "token": "<email:9f2c41d07a3b55e1>"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_redact_mask_short_circuits_scale_001",
+      "description": "mask token in int hole short-circuits scale transform without parse_error",
+      "tags": [
+        "hole:int",
+        "transform:scale",
+        "redaction:mask",
+        "redacted",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_05REDSC1",
+        "event": "test.redaction.scale",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "amt="
+            },
+            {
+              "hole": "a",
+              "class": "int"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_05REDSC1",
+            "name": "usd",
+            "from": {
+              "hole": "a"
+            },
+            "type": "float",
+            "semantic": "unknown",
+            "transforms": [
+              {
+                "op": "scale",
+                "div": 100
+              }
+            ]
+          }
+        ],
+        "tests": [
+          {
+            "line": "amt=1999",
+            "expect": {
+              "usd": 19.99
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "amt=<card>"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "usd": {
+            "status": "redacted",
+            "token": "<card>"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_redact_reject_angle_with_space_002",
+      "description": "angle brackets containing whitespace are NOT a redaction token and fail int hole",
+      "tags": [
+        "hole:int",
+        "redaction:negative",
+        "no_match",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_05REDSC1",
+        "event": "test.redaction.scale",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "amt="
+            },
+            {
+              "hole": "a",
+              "class": "int"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_05REDSC1",
+            "name": "usd",
+            "from": {
+              "hole": "a"
+            },
+            "type": "float",
+            "semantic": "unknown",
+            "transforms": [
+              {
+                "op": "scale",
+                "div": 100
+              }
+            ]
+          }
+        ],
+        "tests": [
+          {
+            "line": "amt=1999",
+            "expect": {
+              "usd": 19.99
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "amt=<not a token>"
+      },
+      "expected": {
+        "matched": false
+      }
+    },
+    {
+      "id": "vec_redact_reject_empty_angle_003",
+      "description": "empty angle brackets <> are NOT a redaction token and fail int hole",
+      "tags": [
+        "hole:int",
+        "redaction:negative",
+        "no_match",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_05REDSC1",
+        "event": "test.redaction.scale",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "amt="
+            },
+            {
+              "hole": "a",
+              "class": "int"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_05REDSC1",
+            "name": "usd",
+            "from": {
+              "hole": "a"
+            },
+            "type": "float",
+            "semantic": "unknown",
+            "transforms": [
+              {
+                "op": "scale",
+                "div": 100
+              }
+            ]
+          }
+        ],
+        "tests": [
+          {
+            "line": "amt=1999",
+            "expect": {
+              "usd": 19.99
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "amt=<>"
+      },
+      "expected": {
+        "matched": false
+      }
+    },
+    {
+      "id": "vec_redact_reject_uppercase_kind_004",
+      "description": "uppercase <CARD> is NOT a valid lowercase redaction token and fails int hole",
+      "tags": [
+        "hole:int",
+        "redaction:negative",
+        "no_match",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_05REDSC1",
+        "event": "test.redaction.scale",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "amt="
+            },
+            {
+              "hole": "a",
+              "class": "int"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_05REDSC1",
+            "name": "usd",
+            "from": {
+              "hole": "a"
+            },
+            "type": "float",
+            "semantic": "unknown",
+            "transforms": [
+              {
+                "op": "scale",
+                "div": 100
+              }
+            ]
+          }
+        ],
+        "tests": [
+          {
+            "line": "amt=1999",
+            "expect": {
+              "usd": 19.99
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "amt=<CARD>"
+      },
+      "expected": {
+        "matched": false
+      }
+    }
+  ]
+}
