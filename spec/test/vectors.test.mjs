@@ -180,7 +180,12 @@ describe("Golden vector coverage matrix", () => {
     assert.ok(s.tags.has("ambiguity:pii_default_transform_placement"), "Missing pii_default_transform_placement tag");
     assert.ok(s.tags.has("ambiguity:offsetless_time"), "Missing offsetless_time tag");
     assert.ok(s.tags.has("ambiguity:unix_s_exact_decimal"), "Missing unix_s_exact_decimal tag");
+    assert.ok(s.tags.has("ambiguity:quoted_token_classification"), "Missing quoted_token_classification tag");
+    assert.ok(s.tags.has("ambiguity:hosted_inner_edge_token"), "Missing hosted_inner_edge_token tag");
+    assert.ok(s.tags.has("ambiguity:generated_tag_identity"), "Missing generated_tag_identity tag");
+    assert.ok(s.tags.has("time:compact_offset"), "Missing compact_offset tag");
     assert.ok(s.tags.has("redaction:neutral"), "Missing neutral unknown angle-bracket vectors");
+    assert.ok(s.tags.has("redaction:inner_edge"), "Missing inner_edge redaction vectors");
     assert.ok(s.tags.has("unicode:nbsp"), "Missing U+00A0 vectors");
     assert.ok(s.tags.has("unicode:ideographic_space"), "Missing U+3000 vectors");
     assert.ok(s.tags.has("unicode:combining"), "Missing combining-mark vectors");
@@ -368,6 +373,241 @@ describe("Negative validation checks: malformed vectors and semantic regressions
     };
     assert.ok(
       validateVectorSuiteDocument(badAdj, validator).some((e) => e.includes("reference evaluator mismatch"))
+    );
+  });
+
+  it("enforces quoted capture token classification after unescaping across mask, pseudonym, drop/mask, and neutral text", () => {
+    const quotedMaskStr = suite05.vectors.find((v) => v.id === "vec_redact_quoted_mask_string_001");
+    const quotedMaskInt = suite05.vectors.find((v) => v.id === "vec_redact_quoted_mask_int_002");
+    const quotedPseudoDrop = suite05.vectors.find(
+      (v) => v.id === "vec_redact_quoted_pseudonym_short_circuits_drop_003"
+    );
+    const quotedPseudoMask = suite05.vectors.find(
+      (v) => v.id === "vec_redact_quoted_pseudonym_short_circuits_mask_004"
+    );
+    const quotedEscaped = suite05.vectors.find(
+      (v) => v.id === "vec_redact_quoted_escaped_token_unescaped_006"
+    );
+    assert.ok(quotedMaskStr && quotedMaskInt && quotedPseudoDrop && quotedPseudoMask && quotedEscaped);
+
+    const badMaskStr = singleVectorSuite(suite05, quotedMaskStr);
+    badMaskStr.vectors[0].expected.fields.user = { status: "ok", type: "string", value: "<card>" };
+    assert.ok(
+      validateVectorSuiteDocument(badMaskStr, validator).some((e) =>
+        e.includes("reference evaluator mismatch")
+      )
+    );
+
+    const badMaskInt = singleVectorSuite(suite05, quotedMaskInt);
+    badMaskInt.vectors[0].expected.fields.user = { status: "parse_error", code: "cast_failed" };
+    assert.ok(
+      validateVectorSuiteDocument(badMaskInt, validator).some((e) =>
+        e.includes("reference evaluator mismatch")
+      )
+    );
+
+    const badPseudoDrop = singleVectorSuite(suite05, quotedPseudoDrop);
+    badPseudoDrop.vectors[0].expected.fields.user = { status: "dropped" };
+    assert.ok(
+      validateVectorSuiteDocument(badPseudoDrop, validator).some((e) =>
+        e.includes("reference evaluator mismatch")
+      )
+    );
+
+    const badPseudoMask = singleVectorSuite(suite05, quotedPseudoMask);
+    badPseudoMask.vectors[0].expected.fields.user = { status: "redacted", token: "<email>" };
+    assert.ok(
+      validateVectorSuiteDocument(badPseudoMask, validator).some((e) =>
+        e.includes("reference evaluator mismatch")
+      )
+    );
+
+    const badEscaped = singleVectorSuite(suite05, quotedEscaped);
+    badEscaped.vectors[0].expected.fields.user = {
+      status: "ok",
+      type: "string",
+      value: '<secret:a"b>',
+    };
+    assert.ok(
+      validateVectorSuiteDocument(badEscaped, validator).some((e) =>
+        e.includes("reference evaluator mismatch")
+      )
+    );
+  });
+
+  it("rejects exposing inner edge 64-hex digest in value or redacted token detail during hosted conformance", () => {
+    const innerRaw = suite05.vectors.find((v) => v.id === "vec_redact_inner_edge_string_raw_001");
+    const innerHash = suite05.vectors.find((v) => v.id === "vec_redact_inner_edge_string_with_hash_002");
+    const innerNonStr = suite05.vectors.find((v) => v.id === "vec_redact_inner_edge_nonstring_int_003");
+    assert.ok(innerRaw && innerHash && innerNonStr);
+
+    const innerToken =
+      "<email:~0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef>";
+
+    const leakedVal = singleVectorSuite(suite05, innerRaw);
+    leakedVal.vectors[0].expected.fields.email = { status: "ok", type: "string", value: innerToken };
+    assert.ok(
+      validateVectorSuiteDocument(leakedVal, validator).some((e) =>
+        e.includes("reference evaluator mismatch")
+      )
+    );
+
+    const leakedDetail = singleVectorSuite(suite05, innerNonStr);
+    leakedDetail.vectors[0].expected.fields.usd = { status: "redacted", token: innerToken };
+    assert.ok(
+      validateVectorSuiteDocument(leakedDetail, validator).some((e) =>
+        e.includes("reference evaluator mismatch")
+      )
+    );
+
+    const leakedHash = singleVectorSuite(suite05, innerHash);
+    leakedHash.vectors[0].expected.fields.email = { status: "redacted", token: "<email>" };
+    assert.ok(
+      validateVectorSuiteDocument(leakedHash, validator).some((e) =>
+        e.includes("reference evaluator mismatch")
+      )
+    );
+  });
+
+  it("carries newly generated tag identity across custom labels, repeated hash, and non-string fields while keeping later drop/mask", () => {
+    const repeatCustom = suite05.vectors.find((v) => v.id === "vec_tr_hash_custom_label_repeated_hash_009");
+    const chainCustom = suite05.vectors.find(
+      (v) => v.id === "vec_tr_hash_custom_label_cast_lower_repeated_hash_010"
+    );
+    const nonStrInt = suite05.vectors.find(
+      (v) => v.id === "vec_tr_hash_custom_label_nonstring_int_redacted_011"
+    );
+    const nonStrEnum = suite05.vectors.find(
+      (v) => v.id === "vec_tr_hash_custom_label_nonstring_enum_after_lower_redacted_012"
+    );
+    const hashDrop = suite05.vectors.find((v) => v.id === "vec_tr_hash_followed_by_explicit_drop_013");
+    const hashMask = suite05.vectors.find((v) => v.id === "vec_tr_hash_followed_by_explicit_mask_014");
+    assert.ok(repeatCustom && chainCustom && nonStrInt && nonStrEnum && hashDrop && hashMask);
+
+    const badDoubleHash = singleVectorSuite(suite05, repeatCustom);
+    badDoubleHash.vectors[0].expected.fields.email = {
+      status: "ok",
+      type: "string",
+      value: "<email:0000000000000000>",
+    };
+    assert.ok(
+      validateVectorSuiteDocument(badDoubleHash, validator).some((e) =>
+        e.includes("reference evaluator mismatch")
+      )
+    );
+
+    const badNonStrEnum = singleVectorSuite(suite05, nonStrEnum);
+    badNonStrEnum.vectors[0].expected.fields.role = {
+      status: "ok",
+      type: "enum",
+      value: nonStrEnum.expected.fields.role.token,
+    };
+    assert.ok(
+      validateVectorSuiteDocument(badNonStrEnum, validator).some((e) =>
+        e.includes("reference evaluator mismatch")
+      )
+    );
+
+    const badNonStrInt = singleVectorSuite(suite05, nonStrInt);
+    badNonStrInt.vectors[0].expected.fields.uid = { status: "parse_error", code: "type_mismatch" };
+    assert.ok(
+      validateVectorSuiteDocument(badNonStrInt, validator).some((e) =>
+        e.includes("reference evaluator mismatch")
+      )
+    );
+
+    const badHashDrop = singleVectorSuite(suite05, hashDrop);
+    badHashDrop.vectors[0].expected.fields.email = {
+      status: "ok",
+      type: "string",
+      value: repeatCustom.expected.fields.email.value,
+    };
+    assert.ok(
+      validateVectorSuiteDocument(badHashDrop, validator).some((e) =>
+        e.includes("reference evaluator mismatch")
+      )
+    );
+
+    const badHashMask = singleVectorSuite(suite05, hashMask);
+    badHashMask.vectors[0].expected.fields.email = {
+      status: "ok",
+      type: "string",
+      value: repeatCustom.expected.fields.email.value,
+    };
+    assert.ok(
+      validateVectorSuiteDocument(badHashMask, validator).some((e) =>
+        e.includes("reference evaluator mismatch")
+      )
+    );
+  });
+
+  it("preserves original decimal lexemes through float holes to direct unix_s and handles bounded zero-padded exponents", () => {
+    const floatExact = suite04.vectors.find(
+      (v) => v.id === "vec_tr_parse_time_unix_s_float_hole_exact_decimal_023"
+    );
+    const posExp = suite04.vectors.find(
+      (v) => v.id === "vec_tr_parse_time_unix_s_float_hole_zero_padded_pos_exp_024"
+    );
+    const negExp = suite04.vectors.find(
+      (v) => v.id === "vec_tr_parse_time_unix_s_float_hole_zero_padded_neg_exp_025"
+    );
+    const zeroExp = suite04.vectors.find(
+      (v) => v.id === "vec_tr_parse_time_unix_s_float_hole_zero_padded_zero_exp_026"
+    );
+    assert.ok(floatExact && posExp && negExp && zeroExp);
+
+    const roundedFloat = singleVectorSuite(suite04, floatExact);
+    roundedFloat.vectors[0].expected.fields.ts.value = 1795701600124;
+    assert.ok(
+      validateVectorSuiteDocument(roundedFloat, validator).some((e) =>
+        e.includes("reference evaluator mismatch")
+      )
+    );
+
+    const badPosExp = singleVectorSuite(suite04, posExp);
+    badPosExp.vectors[0].expected.fields.ts = { status: "parse_error", code: "invalid_time" };
+    assert.ok(
+      validateVectorSuiteDocument(badPosExp, validator).some((e) =>
+        e.includes("reference evaluator mismatch")
+      )
+    );
+
+    const badNegExp = singleVectorSuite(suite04, negExp);
+    badNegExp.vectors[0].expected.fields.ts.value = 0;
+    assert.ok(
+      validateVectorSuiteDocument(badNegExp, validator).some((e) =>
+        e.includes("reference evaluator mismatch")
+      )
+    );
+  });
+
+  it("pins tokens before overlapping ':' literals and compact ±HHMM ISO offsets", () => {
+    const colonPseudo = suite05.vectors.find(
+      (v) => v.id === "vec_redact_token_before_colon_literal_pseudonym_001"
+    );
+    const colonMask = suite05.vectors.find(
+      (v) => v.id === "vec_redact_token_before_colon_literal_mask_002"
+    );
+    const compactHole = suite02.vectors.find((v) => v.id === "vec_hole_time_iso_compact_offset_021");
+    const compactParse = suite04.vectors.find(
+      (v) => v.id === "vec_tr_parse_time_iso8601_compact_offset_022"
+    );
+    assert.ok(colonPseudo && colonMask && compactHole && compactParse);
+
+    const badColon = singleVectorSuite(suite05, colonPseudo);
+    badColon.vectors[0].expected = { matched: false };
+    assert.ok(
+      validateVectorSuiteDocument(badColon, validator).some((e) =>
+        e.includes("reference evaluator mismatch")
+      )
+    );
+
+    const badCompact = singleVectorSuite(suite04, compactParse);
+    badCompact.vectors[0].expected.fields.ts = { status: "parse_error", code: "invalid_time" };
+    assert.ok(
+      validateVectorSuiteDocument(badCompact, validator).some((e) =>
+        e.includes("reference evaluator mismatch")
+      )
     );
   });
 });

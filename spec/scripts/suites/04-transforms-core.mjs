@@ -759,6 +759,106 @@ export function buildSuite04() {
       spec: ptSpec("iso8601", "0021", "2026-11-26T14:00:00Z", T_BASE),
       input: textInput("ts=2026-11-26T14:00:00"),
       expected: match({ ts: parseErr("invalid_time") }),
+    }),
+    vec({
+      id: "vec_tr_parse_time_iso8601_compact_offset_022",
+      description: "parse_time format:iso8601 adjusts compact -0500 offset to UTC epoch ms",
+      tags: ["transform:parse_time", "parse_time:iso8601", "type:timestamp", "time:compact_offset"],
+      spec: ptSpec("iso8601", "0022", "2026-11-26T09:00:00-0500", T_BASE),
+      input: textInput("ts=2026-11-26T09:00:00-0500"),
+      expected: match({ ts: okTs(T_BASE) }),
+    }),
+    vec({
+      id: "vec_tr_parse_time_unix_s_float_hole_exact_decimal_023",
+      description: "float hole feeding direct parse_time(unix_s) preserves original decimal lexeme 1795701600.12399999 without binary64 rounding",
+      tags: ["hole:float", "transform:parse_time", "parse_time:unix_s", "type:timestamp", "ambiguity:unix_s_exact_decimal", "ambiguity:subms_truncation"],
+      spec: textSpec({
+        template: "tpl_04PT0023",
+        event: "test.transform.parse_time",
+        segments: [{ lit: "ts=" }, { hole: "ts", class: "float" }],
+        fields: [
+          field({
+            id: "fld_04PT0023",
+            name: "ts",
+            from: { hole: "ts" },
+            type: "timestamp",
+            transforms: [{ op: "parse_time", format: "unix_s" }],
+          }),
+        ],
+        sampleLine: "ts=1795701600.12399999",
+        sampleExpect: { ts: T_BASE + 123 },
+      }),
+      input: textInput("ts=1795701600.12399999"),
+      expected: match({ ts: okTs(T_BASE + 123) }),
+    }),
+    vec({
+      id: "vec_tr_parse_time_unix_s_float_hole_zero_padded_pos_exp_024",
+      description: "float hole feeding direct parse_time(unix_s) handles bounded zero-padded positive exponent 1e+000000002",
+      tags: ["hole:float", "transform:parse_time", "parse_time:unix_s", "type:timestamp", "ambiguity:unix_s_exact_decimal"],
+      spec: textSpec({
+        template: "tpl_04PT0024",
+        event: "test.transform.parse_time",
+        segments: [{ lit: "ts=" }, { hole: "ts", class: "float" }],
+        fields: [
+          field({
+            id: "fld_04PT0024",
+            name: "ts",
+            from: { hole: "ts" },
+            type: "timestamp",
+            transforms: [{ op: "parse_time", format: "unix_s" }],
+          }),
+        ],
+        sampleLine: "ts=1e+000000002",
+        sampleExpect: { ts: 100000 },
+      }),
+      input: textInput("ts=1e+000000002"),
+      expected: match({ ts: okTs(100000) }),
+    }),
+    vec({
+      id: "vec_tr_parse_time_unix_s_float_hole_zero_padded_neg_exp_025",
+      description: "float hole feeding direct parse_time(unix_s) handles bounded zero-padded negative exponent 1e-000000002",
+      tags: ["hole:float", "transform:parse_time", "parse_time:unix_s", "type:timestamp", "ambiguity:unix_s_exact_decimal"],
+      spec: textSpec({
+        template: "tpl_04PT0025",
+        event: "test.transform.parse_time",
+        segments: [{ lit: "ts=" }, { hole: "ts", class: "float" }],
+        fields: [
+          field({
+            id: "fld_04PT0025",
+            name: "ts",
+            from: { hole: "ts" },
+            type: "timestamp",
+            transforms: [{ op: "parse_time", format: "unix_s" }],
+          }),
+        ],
+        sampleLine: "ts=1e-000000002",
+        sampleExpect: { ts: 10 },
+      }),
+      input: textInput("ts=1e-000000002"),
+      expected: match({ ts: okTs(10) }),
+    }),
+    vec({
+      id: "vec_tr_parse_time_unix_s_float_hole_zero_padded_zero_exp_026",
+      description: "float hole feeding direct parse_time(unix_s) handles bounded zero-padded zero exponent 1.25e000000000",
+      tags: ["hole:float", "transform:parse_time", "parse_time:unix_s", "type:timestamp", "ambiguity:unix_s_exact_decimal"],
+      spec: textSpec({
+        template: "tpl_04PT0026",
+        event: "test.transform.parse_time",
+        segments: [{ lit: "ts=" }, { hole: "ts", class: "float" }],
+        fields: [
+          field({
+            id: "fld_04PT0026",
+            name: "ts",
+            from: { hole: "ts" },
+            type: "timestamp",
+            transforms: [{ op: "parse_time", format: "unix_s" }],
+          }),
+        ],
+        sampleLine: "ts=1.25e000000000",
+        sampleExpect: { ts: 1250 },
+      }),
+      input: textInput("ts=1.25e000000000"),
+      expected: match({ ts: okTs(1250) }),
     })
   );
 
