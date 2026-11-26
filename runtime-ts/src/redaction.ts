@@ -201,6 +201,35 @@ export function parseRedactionTokenString(str: string): RedactionTokenInfo | nul
 }
 
 /**
+ * Checks whether an entire string matches the edge inner pseudonym shape
+ * `<[a-z][a-z0-9_]*:~[0-9a-f]{64}>` for any valid schema kind (including custom kinds).
+ */
+export function isInnerEdgeTokenString(str: string): boolean {
+  // Minimum: "<a:~" (4) + 64 hex + ">" (1) = 69
+  if (str.length < 69 || str.charCodeAt(0) !== 0x3c || str.charCodeAt(str.length - 1) !== 0x3e) {
+    return false;
+  }
+  const colonIdx = str.length - 66;
+  if (str.charCodeAt(colonIdx) !== 0x3a || str.charCodeAt(colonIdx + 1) !== 0x7e) {
+    return false;
+  }
+  if (!isAsciiLowerAlpha(str.charCodeAt(1))) {
+    return false;
+  }
+  for (let i = 2; i < colonIdx; i++) {
+    if (!isRedactionIdentChar(str.charCodeAt(i))) {
+      return false;
+    }
+  }
+  for (let i = colonIdx + 2; i < str.length - 1; i++) {
+    if (!isAsciiLowerHex(str.charCodeAt(i))) {
+      return false;
+    }
+  }
+  return true;
+}
+
+/**
  * Rewrites non-overlapping UTF-8 byte spans in a log body string (for stage 3 body rewriting).
  */
 export function rewriteBodySpans(

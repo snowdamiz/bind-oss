@@ -326,8 +326,20 @@ export interface HashKeys {
   readonly serverKey?: Uint8Array | string;
 }
 
+/**
+ * Execution authority controlling edge inner-pseudonym (<kind:~64hex>) handling:
+ * - `"hosted"` (default): canonical hosted conformance; requires both `edgeKey` and `serverKey`
+ *   for `hash` and redacts unexpected incoming `<kind:~64hex>` tokens as `<redacted>`.
+ * - `"edge"`: explicit edge-SDK authority allowing `hash` with `edgeKey`-only to emit `<kind:~64hex>`.
+ * - `"gateway"`: explicit gateway authority allowing incoming `<kind:~64hex>` tokens on string fields
+ *   with a `hash` transform and `serverKey` to upgrade to final `<kind:16hex>`.
+ */
+export type HashAuthorityMode = "hosted" | "edge" | "gateway";
+
 export interface RuntimeOptions {
   readonly hashKeys?: HashKeys;
+  /** Explicit hash authority mode. Defaults to `"hosted"`. */
+  readonly hashMode?: HashAuthorityMode;
   /** Deterministic reference year for yearless syslog timestamps. Takes precedence over `referenceTsMs`. */
   readonly referenceYear?: number;
   /** UTC epoch milliseconds used as the record reference timestamp for yearless formats (e.g. RFC 3164 syslog). */
@@ -526,7 +538,7 @@ export type VectorFieldResult =
   | { readonly status: "ok"; readonly type: "int"; readonly value: string }
   | { readonly status: "ok"; readonly type: "float"; readonly value: string }
   | { readonly status: "ok"; readonly type: "bool"; readonly value: boolean }
-  | { readonly status: "ok"; readonly type: "timestamp"; readonly value: number }
+  | { readonly status: "ok"; readonly type: "timestamp"; readonly value: number | bigint }
   | { readonly status: "ok"; readonly type: "json"; readonly value: JsonValue }
   | { readonly status: "redacted"; readonly token: string }
   | { readonly status: "dropped" }

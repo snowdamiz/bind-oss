@@ -7,7 +7,11 @@
 
 import type { HoleClass, RedactionTokenInfo } from "./types.js";
 import { scanIp } from "./ip.js";
-import { parseRedactionTokenBytes, scanRedactionToken } from "./redaction.js";
+import {
+  parseRedactionTokenBytes,
+  parseRedactionTokenString,
+  scanRedactionToken,
+} from "./redaction.js";
 import { scanTimeHole } from "./time.js";
 import {
   bytesEqualAt,
@@ -698,6 +702,12 @@ export function scanHole(
   }
 
   const raw = decodeUtf8(bytes, start, matchEnd);
-  const text = holeClass === "quoted" ? unescapeQuoted(raw) : raw;
-  return { end: matchEnd, raw, text };
+  if (holeClass === "quoted") {
+    const text = unescapeQuoted(raw);
+    const redaction = parseRedactionTokenString(text);
+    return redaction !== null
+      ? { end: matchEnd, raw, text, redaction }
+      : { end: matchEnd, raw, text };
+  }
+  return { end: matchEnd, raw, text: raw };
 }

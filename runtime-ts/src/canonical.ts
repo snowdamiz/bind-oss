@@ -25,6 +25,80 @@ import type {
 } from "./types.js";
 import { encodeUtf8, float64ToHex, hasOwn, toLowerHex } from "./utf8.js";
 
+const MAX_SAFE_INT_BIG = BigInt(Number.MAX_SAFE_INTEGER);
+const MIN_SAFE_INT_BIG = BigInt(Number.MIN_SAFE_INTEGER);
+
+function toSafeVectorTimestamp(big: bigint): number | bigint {
+  if (big >= MIN_SAFE_INT_BIG && big <= MAX_SAFE_INT_BIG) {
+    return Number(big);
+  }
+  return big;
+}
+
+function serializeVectorJsonValue(
+  value: unknown,
+  pretty: boolean,
+  depth: number,
+): string | undefined {
+  if (value === null) return "null";
+  switch (typeof value) {
+    case "boolean":
+      return value ? "true" : "false";
+    case "bigint":
+      return value.toString(10);
+    case "number":
+      return Number.isFinite(value) ? JSON.stringify(value) : "null";
+    case "string":
+      return JSON.stringify(value);
+    case "undefined":
+    case "function":
+    case "symbol":
+      return undefined;
+  }
+  if (Array.isArray(value)) {
+    if (value.length === 0) return "[]";
+    const childIndent = pretty ? "  ".repeat(depth + 1) : "";
+    const closeIndent = pretty ? "  ".repeat(depth) : "";
+    const items: string[] = [];
+    for (let i = 0; i < value.length; i++) {
+      const serialized = serializeVectorJsonValue(value[i], pretty, depth + 1);
+      items.push(serialized === undefined ? "null" : serialized);
+    }
+    if (!pretty) {
+      return "[" + items.join(",") + "]";
+    }
+    return "[\n" + items.map((item) => childIndent + item).join(",\n") + "\n" + closeIndent + "]";
+  }
+  const obj = value as Record<string, unknown>;
+  const keys = Object.keys(obj);
+  const pairs: string[] = [];
+  const childIndent = pretty ? "  ".repeat(depth + 1) : "";
+  const closeIndent = pretty ? "  ".repeat(depth) : "";
+  for (let i = 0; i < keys.length; i++) {
+    const k = keys[i]!;
+    const serialized = serializeVectorJsonValue(obj[k], pretty, depth + 1);
+    if (serialized === undefined) continue;
+    pairs.push(
+      pretty
+        ? childIndent + JSON.stringify(k) + ": " + serialized
+        : JSON.stringify(k) + ":" + serialized,
+    );
+  }
+  if (pairs.length === 0) return "{}";
+  if (!pretty) {
+    return "{" + pairs.join(",") + "}";
+  }
+  return "{\n" + pairs.join(",\n") + "\n" + closeIndent + "}";
+}
+
+/**
+ * Serializes vector JSON values without Node 21+ `JSON.rawJSON`, emitting `bigint`
+ * timestamps as exact unquoted RFC 8259 JSON integer literals for Node 20 compatibility.
+ */
+export function stringifyVectorJson(value: unknown, pretty = false): string {
+  return serializeVectorJsonValue(value, pretty, 0) ?? "null";
+}
+
 /**
  * Deterministically serializes a JSON value with lexicographically sorted object keys.
  */
@@ -124,7 +198,7 @@ export function toVectorFieldResult(field: ExtractedField): VectorFieldResult {
         case "timestamp": {
           const big =
             field.int64 !== undefined ? field.int64 : BigInt(field.value as number | bigint);
-          return { status: "ok", type: "timestamp", value: Number(big) };
+          return { status: "ok", type: "timestamp", value: toSafeVectorTimestamp(big) };
         }
         case "json":
           return { status: "ok", type: "json", value: field.value as JsonValue };
@@ -214,8 +288,24 @@ function compareVectorField(
           return null;
         }
         case "timestamp": {
-          const expTs = (exp as { value: number }).value;
-          if (actual.value !== expTs) {
+          const expTs = (exp as { value: number | bigint }).value;
+          const actBig =
+            typeof actual.value === "bigint"
+              ? actual.value
+              : typeof actual.value === "number" &&
+                  Number.isFinite(actual.value) &&
+                  Number.isInteger(actual.value)
+                ? BigInt(actual.value)
+                : null;
+          const expBig =
+            typeof expTs === "bigint"
+              ? expTs
+              : typeof expTs === "number" &&
+                  Number.isFinite(expTs) &&
+                  Number.isInteger(expTs)
+                ? BigInt(expTs)
+                : null;
+          if (actBig === null || expBig === null || actBig !== expBig) {
             return `field "${name}": timestamp mismatch (actual=${String(actual.value)}, expected=${String(expTs)})`;
           }
           return null;

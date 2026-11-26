@@ -29,6 +29,7 @@ export type {
   FieldFrom,
   FieldType,
   FieldValue,
+  HashAuthorityMode,
   HashKeys,
   HashTransform,
   HoleCapture,
@@ -111,6 +112,7 @@ export {
   type HoleScanResult,
 } from "./scanners.js";
 export {
+  isInnerEdgeTokenString,
   KNOWN_MASK_TOKEN_KINDS,
   parseRedactionTokenBytes,
   parseRedactionTokenString,
@@ -158,6 +160,7 @@ export {
   compareCanonicalResults,
   compareVectorResults,
   mapErrorCodeToVectorCode,
+  stringifyVectorJson,
   toCanonicalFieldResult,
   toCanonicalResult,
   toVectorFieldResult,

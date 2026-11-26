@@ -512,12 +512,19 @@ function parseExactDecimalSecondsToMs(str: string): bigint | null {
       pos++;
     }
     if (pos === expStart) return null;
-    const expDigits = str.slice(expStart, pos);
-    if (expDigits.length > 8) {
-      return expSign < 0 ? 0n : null;
+    let expNz = expStart;
+    while (expNz < pos && str.charCodeAt(expNz) === 0x30 /* '0' */) {
+      expNz++;
     }
-    exp = expSign * Number(expDigits);
-    if (!Number.isSafeInteger(exp)) return null;
+    const expDigits = str.slice(expNz, pos);
+    if (expDigits.length === 0) {
+      exp = 0;
+    } else if (expDigits.length > 8) {
+      return expSign < 0 ? 0n : null;
+    } else {
+      exp = expSign * Number(expDigits);
+      if (!Number.isSafeInteger(exp)) return null;
+    }
   }
 
   if (pos !== str.length) return null;

@@ -163,21 +163,46 @@ describe("section 5 & 14 redaction tokens and span rewriting", () => {
       tests: [{ line: "", expect: {} }],
     };
 
-    // Edge mode (k_edge only) emits inner token
-    const edgeRes = parseRecord(spec, `u=${rawEmail}`, { hashKeys: { edgeKey } });
+    // Default hosted mode fails closed when serverKey is absent (never leaks inner token)
+    const hostedMissingServer = parseRecord(spec, `u=${rawEmail}`, { hashKeys: { edgeKey } });
+    expect(hostedMissingServer.matched).toBe(true);
+    if (!hostedMissingServer.matched) return;
+    expect(hostedMissingServer.fields["u"]).toMatchObject({
+      status: "error",
+      code: "MISSING_HASH_KEY",
+    });
+
+    // Default hosted mode redacts unexpected incoming <kind:~64hex> as generic <redacted>
+    const hostedUnexpectedInner = parseRecord(spec, `u=<email:~${innerHex}>`, {
+      hashKeys: { edgeKey, serverKey },
+    });
+    expect(hostedUnexpectedInner.matched).toBe(true);
+    if (!hostedUnexpectedInner.matched) return;
+    expect(hostedUnexpectedInner.fields["u"]).toMatchObject({
+      status: "redacted",
+      value: null,
+      token: "<redacted>",
+    });
+
+    // Explicit edge authority (hashMode: "edge" + k_edge) emits inner token
+    const edgeRes = parseRecord(spec, `u=${rawEmail}`, {
+      hashMode: "edge",
+      hashKeys: { edgeKey },
+    });
     expect(edgeRes.matched).toBe(true);
     if (!edgeRes.matched) return;
     expect(edgeRes.fields["u"]!.value).toBe(`<email:~${innerHex}>`);
 
-    // Gateway upgrade (inner token + k_server) yields exact hosted tag
+    // Explicit gateway authority (hashMode: "gateway" + k_server) upgrades inner token to hosted tag
     const upgraded = parseRecord(spec, `u=<email:~${innerHex}>`, {
+      hashMode: "gateway",
       hashKeys: { serverKey },
     });
     expect(upgraded.matched).toBe(true);
     if (!upgraded.matched) return;
     expect(upgraded.fields["u"]!.value).toBe(`<email:${expectedTag}>`);
 
-    // Hosted path (raw + k_edge + k_server) yields identical tag
+    // Default hosted path (raw + k_edge + k_server) yields identical tag
     const hosted = parseRecord(spec, `u=${rawEmail}`, {
       hashKeys: { edgeKey, serverKey },
     });

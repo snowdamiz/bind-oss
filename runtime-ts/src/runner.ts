@@ -25,6 +25,7 @@ import {
   checkFieldExpectations,
   compareCanonicalResults,
   compareVectorResults,
+  stringifyVectorJson,
   toCanonicalResult,
   toVectorResult,
   type ExpectedFieldSpec,
@@ -392,6 +393,204 @@ function isParserSpecObject(val: unknown): val is ParserSpec {
  * Parses a JSON or NDJSON fixture/vector payload (including `spec/vectors/vector.schema.json`
  * suites) into normalized `VectorCase[]`.
  */
+function isJsonWhitespace(code: number): boolean {
+  return code === 0x20 || code === 0x09 || code === 0x0a || code === 0x0d;
+}
+
+function isJsonNumberChar(code: number): boolean {
+  return (
+    (code >= 0x30 && code <= 0x39) ||
+    code === 0x2d ||
+    code === 0x2b ||
+    code === 0x2e ||
+    code === 0x65 ||
+    code === 0x45
+  );
+}
+
+function setJsonProp(obj: Record<string, unknown>, key: string, val: unknown): void {
+  if (key === "__proto__") {
+    Object.defineProperty(obj, key, {
+      value: val,
+      writable: true,
+      enumerable: true,
+      configurable: true,
+    });
+  } else {
+    obj[key] = val;
+  }
+}
+
+/**
+ * Parses a JSON fixture string while preserving non-safe Int64 JSON integer literals
+ * inside `expected.fields.<name>` / `expect.fields.<name>` timestamp objects as exact
+ * `bigint` values. Pure ES2022 (Node 20 compatible, no `JSON.parse` `context.source`).
+ */
+function parseJsonPreservingUnsafeTimestampInts(raw: string): unknown {
+  const fast: unknown = JSON.parse(raw);
+  if (!raw.includes("timestamp") && !raw.includes("\\u")) {
+    return fast;
+  }
+
+  const len = raw.length;
+  let pos = 0;
+
+  function skipWs(): void {
+    while (pos < len && isJsonWhitespace(raw.charCodeAt(pos))) {
+      pos++;
+    }
+  }
+
+  function parseString(): string {
+    const start = pos;
+    pos++; // opening quote
+    while (pos < len) {
+      const ch = raw.charCodeAt(pos);
+      if (ch === 0x5c) {
+        pos += 2;
+        continue;
+      }
+      if (ch === 0x22) {
+        pos++;
+        return JSON.parse(raw.slice(start, pos)) as string;
+      }
+      pos++;
+    }
+    throw new SyntaxError("Unterminated JSON string");
+  }
+
+  function parseNumberWithRaw(): { readonly value: number; readonly rawInt?: string } {
+    const start = pos;
+    let isPureInt = true;
+    if (pos < len && raw.charCodeAt(pos) === 0x2d) {
+      pos++;
+    }
+    while (pos < len && isJsonNumberChar(raw.charCodeAt(pos))) {
+      const ch = raw.charCodeAt(pos);
+      if (ch < 0x30 || ch > 0x39) {
+        isPureInt = false;
+      }
+      pos++;
+    }
+    const lexeme = raw.slice(start, pos);
+    const num = Number(lexeme);
+    if (isPureInt && !Number.isSafeInteger(num)) {
+      return { value: num, rawInt: lexeme };
+    }
+    return { value: num };
+  }
+
+  function parseArray(expectDepth: number): unknown[] {
+    pos++; // opening bracket
+    skipWs();
+    const arr: unknown[] = [];
+    if (pos < len && raw.charCodeAt(pos) === 0x5d) {
+      pos++;
+      return arr;
+    }
+    const childDepth = expectDepth === 0 ? 0 : -1;
+    while (pos < len) {
+      arr.push(parseValue(childDepth).value);
+      skipWs();
+      if (pos < len && raw.charCodeAt(pos) === 0x2c) {
+        pos++;
+        skipWs();
+        continue;
+      }
+      if (pos < len && raw.charCodeAt(pos) === 0x5d) {
+        pos++;
+        return arr;
+      }
+      throw new SyntaxError(`Unexpected token in JSON array at ${pos}`);
+    }
+    throw new SyntaxError("Unterminated JSON array");
+  }
+
+  function parseObject(expectDepth: number): Record<string, unknown> {
+    pos++; // opening brace
+    skipWs();
+    const obj: Record<string, unknown> = {};
+    if (pos < len && raw.charCodeAt(pos) === 0x7d) {
+      pos++;
+      return obj;
+    }
+    let rawValueInt: string | undefined;
+    while (pos < len) {
+      const key = parseString();
+      skipWs();
+      if (pos >= len || raw.charCodeAt(pos) !== 0x3a) {
+        throw new SyntaxError(`Expected colon in JSON object at ${pos}`);
+      }
+      pos++; // colon
+      skipWs();
+      let nextDepth = -1;
+      if (expectDepth === 0) {
+        if (key === "expected" || key === "expect") {
+          nextDepth = 1;
+        } else if (key === "vectors" || key === "cases") {
+          nextDepth = 0;
+        }
+      } else if (expectDepth === 1) {
+        nextDepth = key === "fields" ? 2 : -1;
+      } else if (expectDepth === 2) {
+        nextDepth = 3;
+      }
+      const valRes = parseValue(nextDepth);
+      setJsonProp(obj, key, valRes.value);
+      if (expectDepth === 3 && key === "value") {
+        rawValueInt = valRes.rawInt;
+      }
+      skipWs();
+      if (pos < len && raw.charCodeAt(pos) === 0x2c) {
+        pos++;
+        skipWs();
+        continue;
+      }
+      if (pos < len && raw.charCodeAt(pos) === 0x7d) {
+        pos++;
+        if (
+          expectDepth === 3 &&
+          rawValueInt !== undefined &&
+          obj["status"] === "ok" &&
+          obj["type"] === "timestamp" &&
+          Object.keys(obj).length === 3
+        ) {
+          setJsonProp(obj, "value", BigInt(rawValueInt));
+        }
+        return obj;
+      }
+      throw new SyntaxError(`Unexpected token in JSON object at ${pos}`);
+    }
+    throw new SyntaxError("Unterminated JSON object");
+  }
+
+  function parseValue(expectDepth: number): { readonly value: unknown; readonly rawInt?: string } {
+    skipWs();
+    if (pos >= len) {
+      throw new SyntaxError("Unexpected end of JSON input");
+    }
+    const ch = raw.charCodeAt(pos);
+    if (ch === 0x7b) return { value: parseObject(expectDepth) };
+    if (ch === 0x5b) return { value: parseArray(expectDepth) };
+    if (ch === 0x22) return { value: parseString() };
+    if (ch === 0x74) {
+      pos += 4;
+      return { value: true };
+    }
+    if (ch === 0x66) {
+      pos += 5;
+      return { value: false };
+    }
+    if (ch === 0x6e) {
+      pos += 4;
+      return { value: null };
+    }
+    return parseNumberWithRaw();
+  }
+
+  return parseValue(0).value;
+}
+
 export function parseFixturePayload(rawText: string, sourceName = "fixture"): VectorCase[] {
   const trimmed = rawText.trim();
   if (trimmed.length === 0) {
@@ -400,7 +599,7 @@ export function parseFixturePayload(rawText: string, sourceName = "fixture"): Ve
 
   // Try standard JSON first
   try {
-    const parsed: unknown = JSON.parse(trimmed);
+    const parsed: unknown = parseJsonPreservingUnsafeTimestampInts(trimmed);
     if (Array.isArray(parsed)) {
       return parsed.map((item, idx) => normalizeVectorCase(item, idx, sourceName));
     }
@@ -441,7 +640,7 @@ export function parseFixturePayload(rawText: string, sourceName = "fixture"): Ve
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i]!.trim();
       if (line.length === 0) continue;
-      const item: unknown = JSON.parse(line);
+      const item: unknown = parseJsonPreservingUnsafeTimestampInts(line);
       if (isParserSpecObject(item)) {
         cases.push(...expandParserSpecToCases(item, `${sourceName}:L${i + 1}`));
       } else {
@@ -460,6 +659,7 @@ function mergeOptions(
   if (override === undefined) return base;
   const edgeKey = override.hashKeys?.edgeKey ?? base.hashKeys?.edgeKey;
   const serverKey = override.hashKeys?.serverKey ?? base.hashKeys?.serverKey;
+  const hashMode = override.hashMode ?? base.hashMode;
   const referenceYear = override.referenceYear ?? base.referenceYear;
   const referenceTsMs = override.referenceTsMs ?? base.referenceTsMs;
   return {
@@ -471,6 +671,7 @@ function mergeOptions(
           },
         }
       : {}),
+    ...(hashMode !== undefined ? { hashMode } : {}),
     ...(referenceYear !== undefined ? { referenceYear } : {}),
     ...(referenceTsMs !== undefined ? { referenceTsMs } : {}),
   };
@@ -599,7 +800,10 @@ export function formatVectorResults(
 ): string {
   const flat = entries.map((e) => ({ id: e.id, ...e.result }));
   if (format === "ndjson") {
-    return flat.map((r) => JSON.stringify(r)).join("\n") + (flat.length > 0 ? "\n" : "");
+    return (
+      flat.map((r) => stringifyVectorJson(r, false)).join("\n") +
+      (flat.length > 0 ? "\n" : "")
+    );
   }
-  return JSON.stringify(flat, null, 2) + "\n";
+  return stringifyVectorJson(flat, true) + "\n";
 }

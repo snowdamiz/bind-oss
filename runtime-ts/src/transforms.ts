@@ -26,7 +26,7 @@ import {
   computeOuterPseudonymTag,
 } from "./hmac.js";
 import { maskIpPrefix } from "./ip.js";
-import { parseRedactionTokenString } from "./redaction.js";
+import { isInnerEdgeTokenString, parseRedactionTokenString } from "./redaction.js";
 import { isValidJsonValueBytes, scanFloatBytes, scanIntBytes } from "./scanners.js";
 import { parseTimeValue, resolveReferenceYear } from "./time.js";
 import {
@@ -242,38 +242,42 @@ function handleIncomingRedactionToken(
     return { status: "redacted", token: token.raw };
   }
 
-  // Section 5: "A pseudonym token in a hole whose field is not a string is treated as a mask."
+  // Unexpected inner edge token (<kind:~64hex>): never leak the 64-hex digest in values or token detail.
+  // Upgrade to final <kind:16hex> ONLY under explicit gateway authority on a string field with hash + serverKey.
+  if (token.category === "inner_pseudonym") {
+    const mode = options.hashMode ?? "hosted";
+    if (mode === "gateway" && field.type === "string") {
+      const transforms = field.transforms ?? [];
+      for (let i = 0; i < transforms.length; i++) {
+        const tx = transforms[i]!;
+        if (tx.op === "hash") {
+          const serverKey = options.hashKeys?.serverKey;
+          if (serverKey !== undefined && token.innerHex !== undefined) {
+            const innerBytes = fromHex(token.innerHex);
+            if (innerBytes !== null && innerBytes.length === 32) {
+              const tag = computeOuterPseudonymTag(serverKey, innerBytes);
+              const kind = tx.kind ?? token.kind;
+              return {
+                status: "ok",
+                value: `<${kind}:${tag}>`,
+                pseudonymized: true,
+              };
+            }
+          }
+          break;
+        }
+      }
+    }
+    return { status: "redacted", token: "<redacted>" };
+  }
+
+  // A final pseudonym token in a field that is not a string is treated as a mask.
   if (field.type !== "string") {
     return { status: "redacted", token: token.raw };
   }
 
-  // Pre-scrubbed pseudonym tokens on string fields short-circuit declared transforms
+  // Pre-scrubbed final pseudonym tokens on string fields short-circuit declared transforms
   // (including drop, mask, lower, and hash) so already-tokenized values are preserved unchanged.
-  // Edge inner pseudonym tokens (<kind:~64hex>) still upgrade to hosted <kind:16hex>
-  // when a hash transform and serverKey are present.
-  if (token.category === "inner_pseudonym") {
-    const transforms = field.transforms ?? [];
-    for (let i = 0; i < transforms.length; i++) {
-      const tx = transforms[i]!;
-      if (tx.op === "hash") {
-        const serverKey = options.hashKeys?.serverKey;
-        if (serverKey !== undefined && token.innerHex !== undefined) {
-          const innerBytes = fromHex(token.innerHex);
-          if (innerBytes !== null && innerBytes.length === 32) {
-            const tag = computeOuterPseudonymTag(serverKey, innerBytes);
-            const kind = tx.kind ?? token.kind;
-            return {
-              status: "ok",
-              value: `<${kind}:${tag}>`,
-              pseudonymized: true,
-            };
-          }
-        }
-        break;
-      }
-    }
-  }
-
   return {
     status: "ok",
     value: token.raw,
@@ -296,8 +300,7 @@ function applySingleTransform(
     case "mask": {
       const mode = tx.mode ?? "token";
       if (mode === "token") {
-        const kind =
-          tx.kind ?? (field.pii && field.pii !== "none" ? field.pii : "redacted");
+        const kind = tx.kind ?? "redacted";
         return { terminal: { status: "redacted", token: `<${kind}>` } };
       }
       if (mode === "ip_prefix") {
@@ -359,24 +362,39 @@ function applySingleTransform(
           terminal: err("EXPECTED_STRING", `hash transform requires a string, got ${val.kind}`),
         };
       }
-      // Do not double-hash an existing replacement token
+      const mode = options.hashMode ?? "hosted";
+
+      // Preserve an already-generated pseudonym tag identity through repeat hash transforms,
+      // including custom schema-valid kind prefixes outside the closed detector catalog.
+      if (val.kind === "string" && val.pseudonymized) {
+        if (isInnerEdgeTokenString(val.value)) {
+          if (mode === "edge") {
+            return { next: val };
+          }
+          return { terminal: { status: "redacted", token: "<redacted>" } };
+        }
+        return { next: val };
+      }
+
+      // Do not double-hash a known replacement token string produced earlier in the pipeline
       const existing = parseRedactionTokenString(val.value);
       if (existing !== null) {
         if (existing.category === "pseudonym") {
           return { next: { kind: "string", value: existing.raw, pseudonymized: true } };
         }
         if (existing.category === "inner_pseudonym") {
-          const serverKey = options.hashKeys?.serverKey;
-          if (serverKey === undefined || existing.innerHex === undefined) {
-            return { next: { kind: "string", value: existing.raw, pseudonymized: true } };
+          if (mode === "gateway") {
+            const serverKey = options.hashKeys?.serverKey;
+            if (serverKey !== undefined && existing.innerHex !== undefined) {
+              const innerBytes = fromHex(existing.innerHex);
+              if (innerBytes !== null && innerBytes.length === 32) {
+                const tag = computeOuterPseudonymTag(serverKey, innerBytes);
+                const kind = tx.kind ?? existing.kind;
+                return { next: { kind: "string", value: `<${kind}:${tag}>`, pseudonymized: true } };
+              }
+            }
           }
-          const innerBytes = fromHex(existing.innerHex);
-          if (innerBytes === null || innerBytes.length !== 32) {
-            return { terminal: err("INVALID_TRANSFORM", "Malformed inner pseudonym token") };
-          }
-          const tag = computeOuterPseudonymTag(serverKey, innerBytes);
-          const kind = tx.kind ?? existing.kind;
-          return { next: { kind: "string", value: `<${kind}:${tag}>`, pseudonymized: true } };
+          return { terminal: { status: "redacted", token: "<redacted>" } };
         }
         return { terminal: { status: "redacted", token: existing.raw } };
       }
@@ -386,25 +404,34 @@ function applySingleTransform(
       const edgeKey = options.hashKeys?.edgeKey;
       const serverKey = options.hashKeys?.serverKey;
 
+      if (mode === "edge") {
+        if (edgeKey !== undefined) {
+          const inner = computeInnerPseudonymBytes(edgeKey, val.value);
+          return {
+            next: {
+              kind: "string",
+              value: `<${kind}:~${toLowerHex(inner)}>`,
+              pseudonymized: true,
+            },
+          };
+        }
+        return {
+          terminal: err(
+            "MISSING_HASH_KEY",
+            "hash transform failed closed: edgeKey must be provided for edge mode",
+          ),
+        };
+      }
+
       if (edgeKey !== undefined && serverKey !== undefined) {
         const tag = computeHostedPseudonymTag(edgeKey, serverKey, val.value);
         return { next: { kind: "string", value: `<${kind}:${tag}>`, pseudonymized: true } };
       }
-      if (edgeKey !== undefined) {
-        const inner = computeInnerPseudonymBytes(edgeKey, val.value);
-        return {
-          next: {
-            kind: "string",
-            value: `<${kind}:~${toLowerHex(inner)}>`,
-            pseudonymized: true,
-          },
-        };
-      }
-      // Section 14 fail-closed rule: never pass raw data through when hash keys are absent
+      // Fail-closed rule: never pass raw data through or emit inner edge tokens in hosted mode
       return {
         terminal: err(
           "MISSING_HASH_KEY",
-          "hash transform failed closed: edgeKey (and serverKey for hosted mode) must be provided",
+          "hash transform failed closed: both edgeKey and serverKey must be provided in hosted mode",
         ),
       };
     }
@@ -717,6 +744,21 @@ function finalizeFieldType(
   options: RuntimeOptions,
   isHoleNoTransforms: boolean,
 ): TransformOutcome {
+  // Generated pseudonym tags keep their identity on string targets and redact on non-string targets.
+  // Inner edge tokens (<kind:~64hex>) are only emitted under explicit edge authority on string targets.
+  if (val.kind === "string" && val.pseudonymized) {
+    if (isInnerEdgeTokenString(val.value)) {
+      if ((options.hashMode ?? "hosted") === "edge" && targetType === "string") {
+        return { status: "ok", value: val.value, pseudonymized: true };
+      }
+      return { status: "redacted", token: "<redacted>" };
+    }
+    if (targetType === "string") {
+      return { status: "ok", value: val.value, pseudonymized: true };
+    }
+    return { status: "redacted", token: val.value };
+  }
+
   switch (targetType) {
     case "string": {
       if (!isStringLike(val)) {
