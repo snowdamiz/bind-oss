@@ -155,7 +155,9 @@ export type TransportErrorCode =
   | "timeout"
   | "compression_error"
   | "retries_exhausted"
-  | "shutdown_timeout";
+  | "shutdown_timeout"
+  | "capture_error"
+  | "callsite_error";
 
 export interface TransportError {
   readonly code: TransportErrorCode;
@@ -202,6 +204,122 @@ export type FetchLike = (
 ) => Promise<FetchResponseLike>;
 
 export type SleepFn = (ms: number, signal?: AbortSignal) => Promise<void>;
+
+export interface RawStackFrame {
+  readonly fileName: string;
+  /** 1-based line number in the executed file. */
+  readonly lineNumber: number;
+  /** 1-based column number in the executed file. */
+  readonly columnNumber: number;
+  /** Enclosing function or method name, if available. */
+  readonly functionName?: string;
+}
+
+export interface SourceMapLookupResult {
+  readonly file: string;
+  /** 1-based line number in the mapped source file. */
+  readonly line: number;
+  /** 1-based column number in the mapped source file, if available. */
+  readonly column?: number;
+}
+
+export interface CallSiteResolverOptions {
+  /** Enable call-site capture. Defaults to `true`. */
+  enabled?: boolean;
+  /**
+   * Number of initial stack samples per distinct shape key (for structured events)
+   * before settling the cache. Tagged templates cache once per `TemplateStringsArray` call site.
+   * Defaults to `3`. Setting `0` disables capture.
+   */
+  sampleLimit?: number;
+  /** Maximum shape-key cache entries retained in memory. Defaults to `2048`. */
+  maxShapeCacheEntries?: number;
+  /** Maximum parsed source-map files retained in memory. Defaults to `256`. */
+  maxSourceMapCacheEntries?: number;
+  /** Non-throwing diagnostic callback for call-site or source-map failures. */
+  onError?: (error: TransportError) => void;
+  /** Optional stack frame capture override (for deterministic unit tests). */
+  captureFrame?: (
+    skipAbove: (...args: never[]) => unknown,
+  ) => RawStackFrame | undefined;
+  /** Optional source-map resolution override (for deterministic unit tests). */
+  resolveSourceMap?: (frame: RawStackFrame) => SourceMapLookupResult | undefined;
+}
+
+export interface CallSiteCacheStats {
+  readonly stackCaptures: number;
+  readonly templateHits: number;
+  readonly templateMisses: number;
+  readonly shapeHits: number;
+  readonly shapeMisses: number;
+  readonly shapeCacheSize: number;
+  readonly sourceMapCacheSize: number;
+}
+
+export type StructuredFields = Readonly<Record<string, unknown>>;
+
+export interface StructuredBody {
+  readonly event: string;
+  readonly fields: JsonObject;
+}
+
+export interface LogCallOptions {
+  ts?: TimestampInput;
+  attrs?: RecordAttrs;
+  trace_id?: string;
+  span_id?: string;
+  callsite?: CallSite;
+}
+
+export interface LoggerContext {
+  readonly attrs?: RecordAttrs;
+  readonly trace_id?: string;
+  readonly span_id?: string;
+  readonly fields?: StructuredFields;
+}
+
+export interface LoggerOptions {
+  /** Call-site capture and source-map caching options. */
+  callsite?: CallSiteResolverOptions;
+  /** Non-throwing error callback for capture/serialization/callsite diagnostics. */
+  onError?: (error: TransportError) => void;
+  /** Default context bound to all records emitted by this logger. */
+  context?: LoggerContext;
+}
+
+export interface LogMethod {
+  /**
+   * Tagged-template capture: records literal parts and typed interpolated values
+   * separately in `tpl`, renders a searchable `body` string, and caches the
+   * source-mapped call site once per call site.
+   */
+  (strings: TemplateStringsArray, ...values: readonly unknown[]): boolean;
+
+  /**
+   * Structured event capture: records the event name and typed fields in `body`,
+   * emits `tpl` with the event name literal, and caches the source-mapped call site
+   * by shape key.
+   */
+  (
+    event: string,
+    fields?: StructuredFields,
+    options?: LogCallOptions,
+  ): boolean;
+}
+
+export interface Logger {
+  readonly trace: LogMethod;
+  readonly debug: LogMethod;
+  readonly info: LogMethod;
+  readonly warn: LogMethod;
+  readonly error: LogMethod;
+  readonly fatal: LogMethod;
+  /**
+   * Creates a derived logger sharing the same sink and call-site cache with
+   * additional bound `attrs`, `trace_id`, `span_id`, and/or default structured `fields`.
+   */
+  child(context: LoggerContext): Logger;
+}
 
 export interface TransportOptions {
   /** Ingest key sent via `Authorization: Bearer <key>`. Defaults to `process.env.BIND_KEY`. */
@@ -258,7 +376,10 @@ export interface TransportOptions {
   envSource?: Record<string, string | undefined>;
 }
 
-export type BindInitOptions = TransportOptions;
+export interface BindInitOptions extends TransportOptions {
+  /** Call-site capture and source-map caching options for `log.*` APIs. */
+  callsite?: CallSiteResolverOptions;
+}
 
 /**
  * Minimal sink contract shared by the core transport and higher-level SDK layers

@@ -28,8 +28,8 @@
     "build": "npm run clean && npm run build:esm && npm run build:cjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test:compile": "tsc -p tsconfig.test.json",
-    "test:esm": "node --input-type=module -e \"import * as mod from './dist/esm/index.js'; if (typeof mod.createTransport !== 'function' || typeof mod.init !== 'function' || typeof mod.Severity !== 'object') { throw new Error('ESM exports check failed'); }\"",
-    "test:cjs": "node -e \"const mod = require('./dist/cjs/index.js'); if (typeof mod.createTransport !== 'function' || typeof mod.init !== 'function' || typeof mod.Severity !== 'object') { throw new Error('CJS exports check failed'); }\"",
+    "test:esm": "node --input-type=module -e \"import * as mod from './dist/esm/index.js'; if (typeof mod.createTransport !== 'function' || typeof mod.init !== 'function' || typeof mod.Severity !== 'object' || typeof mod.log !== 'object' || typeof mod.log.info !== 'function' || typeof mod.createLogger !== 'function' || typeof mod.CallSiteResolver !== 'function') { throw new Error('ESM exports check failed'); }\"",
+    "test:cjs": "node -e \"const mod = require('./dist/cjs/index.js'); if (typeof mod.createTransport !== 'function' || typeof mod.init !== 'function' || typeof mod.Severity !== 'object' || typeof mod.log !== 'object' || typeof mod.log.info !== 'function' || typeof mod.createLogger !== 'function' || typeof mod.CallSiteResolver !== 'function') { throw new Error('CJS exports check failed'); }\"",
     "test": "npm run build && npm run test:compile && node --test .test-dist/test/*.test.js && npm run test:esm && npm run test:cjs"
   },
   "devDependencies": {

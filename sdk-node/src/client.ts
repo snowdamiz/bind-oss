@@ -1,22 +1,36 @@
+import type { CallSiteResolver } from "./callsite.js";
+import { BindLoggerCore, createBoundLogger } from "./logger.js";
 import { BatchTransport } from "./transport.js";
 import type {
   BatchIdentity,
   BindInitOptions,
+  CallSiteCacheStats,
+  Logger,
   LogRecordInput,
   RecordSink,
   TransportStats,
 } from "./types.js";
 
 /**
- * Thin Bind Node client owning a single `BatchTransport` instance.
- * Higher-level capture APIs (T1.6.2 `log`, T1.6.3 `console`/pino/winston)
- * write into this `RecordSink`.
+ * Thin Bind Node client owning a single `BatchTransport` instance and its
+ * paired capture `Logger` (`client.log`).
  */
 export class BindClient implements RecordSink {
   readonly transport: BatchTransport;
+  readonly log: Logger;
+  readonly callsiteResolver: CallSiteResolver;
+
+  /** @internal */
+  readonly _loggerCore: BindLoggerCore;
 
   constructor(options: BindInitOptions = {}) {
     this.transport = new BatchTransport(options);
+    this._loggerCore = new BindLoggerCore(this.transport, {
+      onError: options.onError,
+      callsite: options.callsite,
+    });
+    this.callsiteResolver = this._loggerCore.callsiteResolver;
+    this.log = createBoundLogger(() => this._loggerCore);
   }
 
   get identity(): Readonly<BatchIdentity> {
@@ -38,9 +52,21 @@ export class BindClient implements RecordSink {
   getStats(): TransportStats {
     return this.transport.getStats();
   }
+
+  getCallSiteStats(): CallSiteCacheStats {
+    return this.callsiteResolver.getStats();
+  }
 }
 
 let defaultClient: BindClient | undefined;
+
+/**
+ * Process-wide Bind logger bound dynamically to the active client initialized
+ * by `init()`. Safe to call (no-op returning `false`) before `init()` or after
+ * `shutdown()`. Child loggers created via `log.child(...)` before `init()`
+ * automatically bind once `init()` runs.
+ */
+export const log: Logger = createBoundLogger(() => defaultClient?._loggerCore);
 
 export function createClient(options: BindInitOptions = {}): BindClient {
   return new BindClient(options);

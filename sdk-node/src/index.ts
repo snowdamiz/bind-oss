@@ -1,4 +1,11 @@
-export { BindClient, createClient, flush, getClient, init, shutdown } from "./client.js";
+export {
+  CallSiteResolver,
+  captureCallerFrame,
+  DEFAULT_CALLSITE_SAMPLE_LIMIT,
+  DEFAULT_MAX_SHAPE_CACHE_ENTRIES,
+  DEFAULT_MAX_SOURCEMAP_CACHE_ENTRIES,
+} from "./callsite.js";
+export { BindClient, createClient, flush, getClient, init, log, shutdown } from "./client.js";
 export { createNanosecondClock, formatTimestampNs, nowEpochNs } from "./clock.js";
 export {
   BATCH_PATH,
@@ -8,6 +15,12 @@ export {
   resolveIdentity,
   type IdentityInput,
 } from "./identity.js";
+export {
+  buildStructuredShapeKey,
+  createLogger,
+  isTemplateStringsArray,
+  type CreateLoggerOptions,
+} from "./logger.js";
 export {
   BoundedRecordQueue,
   isDebugLevel,
@@ -23,6 +36,14 @@ export {
   isRetryableStatus,
   parseRetryAfterMs,
 } from "./retry.js";
+export {
+  MAX_NORMALIZE_DEPTH,
+  normalizeJsonValue,
+  normalizeStructuredFields,
+  normalizeTemplateArgs,
+  renderTemplateBody,
+  type CaptureErrorReporter,
+} from "./serialize.js";
 export {
   BatchTransport,
   createTransport,
@@ -45,6 +66,8 @@ export {
   type BatchIdentity,
   type BindInitOptions,
   type CallSite,
+  type CallSiteCacheStats,
+  type CallSiteResolverOptions,
   type CompressionMode,
   type EdgeParsed,
   type FetchLike,
@@ -54,13 +77,22 @@ export {
   type JsonObject,
   type JsonPrimitive,
   type JsonValue,
+  type LogCallOptions,
+  type Logger,
+  type LoggerContext,
+  type LoggerOptions,
+  type LogMethod,
   type LogRecordInput,
   type PreparedBatch,
+  type RawStackFrame,
   type RecordAttrs,
   type RecordSink,
   type RecordTemplate,
   type SeverityNumber,
   type SleepFn,
+  type SourceMapLookupResult,
+  type StructuredBody,
+  type StructuredFields,
   type TimestampInput,
   type TransportError,
   type TransportErrorCode,
