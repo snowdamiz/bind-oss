@@ -30,9 +30,16 @@ import {
   type CompiledObjectPattern,
   type CompiledTextPattern,
 } from "./matchers.js";
+import {
+  containsInnerEdgeTokenString,
+  findInnerEdgeTokenSpansBytes,
+  parseInnerEdgeTokenString,
+  spanOverlapsAny,
+  valueContainsInnerEdgeToken,
+} from "./redaction.js";
 import { resolveReferenceYear } from "./time.js";
 import { evaluateFieldValue, type TransformOutcome } from "./transforms.js";
-import { hasOwn } from "./utf8.js";
+import { encodeUtf8, hasOwn } from "./utf8.js";
 
 interface CompiledField {
   readonly spec: ParserField;
@@ -237,6 +244,7 @@ export function compileParser(spec: ParserSpec): CompiledParser {
     obj: Readonly<Record<string, unknown>> | null,
     args: readonly unknown[] | null,
     options: RuntimeOptions,
+    innerEdgeSpans: readonly ByteSpan[] = [],
   ): {
     readonly spans: Readonly<Record<string, ByteSpan>>;
     readonly fields: Readonly<Record<string, ExtractedField>>;
@@ -265,7 +273,32 @@ export function compileParser(spec: ParserSpec): CompiledParser {
           });
         } else {
           const cap = holes[holeName]!;
-          const outcome = evaluateFieldValue(cap.text, f, options, cap.redaction);
+          const overlapsInner = spanOverlapsAny(cap.span, innerEdgeSpans);
+          const decodedQuotedInner =
+            cap.holeClass === "quoted" && containsInnerEdgeTokenString(cap.text);
+          let decodedJsonInner = false;
+          if (cap.holeClass === "json" && cap.redaction === undefined && !overlapsInner) {
+            try {
+              decodedJsonInner = valueContainsInnerEdgeToken(JSON.parse(cap.text));
+            } catch {
+              decodedJsonInner = false;
+            }
+          }
+
+          let outcome: TransformOutcome;
+          if (overlapsInner || decodedQuotedInner || decodedJsonInner) {
+            const mode = options.hashMode ?? "hosted";
+            const exactInner =
+              mode === "gateway" && !decodedJsonInner
+                ? parseInnerEdgeTokenString(cap.text)
+                : null;
+            outcome =
+              exactInner !== null
+                ? evaluateFieldValue(cap.text, f, options, exactInner, cap.holeClass)
+                : { status: "redacted", token: "<redacted>" };
+          } else {
+            outcome = evaluateFieldValue(cap.text, f, options, cap.redaction, cap.holeClass);
+          }
           extracted = outcomeToExtractedField(f, outcome, cap.span);
         }
       } else if ("path" in f.from) {
@@ -333,7 +366,17 @@ export function compileParser(spec: ParserSpec): CompiledParser {
             version: spec.version,
           };
         }
-        const { spans, fields, errors } = evaluateFields(m.holes, null, null, options);
+        const innerEdgeSpans =
+          line.length >= 69 && line.includes(":~")
+            ? findInnerEdgeTokenSpansBytes(encodeUtf8(line))
+            : [];
+        const { spans, fields, errors } = evaluateFields(
+          m.holes,
+          null,
+          null,
+          options,
+          innerEdgeSpans,
+        );
         return {
           matched: true,
           template: spec.template,
@@ -364,7 +407,25 @@ export function compileParser(spec: ParserSpec): CompiledParser {
             version: spec.version,
           };
         }
-        const { spans, fields, errors } = evaluateFields(m.holes, m.object, null, options);
+        let innerEdgeSpans: readonly ByteSpan[] = [];
+        if (matcher.pattern.messagePath !== undefined) {
+          const msgLookup = lookupObjectPath(m.object, matcher.pattern.messagePath);
+          if (
+            msgLookup.found &&
+            typeof msgLookup.value === "string" &&
+            msgLookup.value.length >= 69 &&
+            msgLookup.value.includes(":~")
+          ) {
+            innerEdgeSpans = findInnerEdgeTokenSpansBytes(encodeUtf8(msgLookup.value));
+          }
+        }
+        const { spans, fields, errors } = evaluateFields(
+          m.holes,
+          m.object,
+          null,
+          options,
+          innerEdgeSpans,
+        );
         return {
           matched: true,
           template: spec.template,

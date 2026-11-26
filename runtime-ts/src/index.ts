@@ -112,12 +112,17 @@ export {
   type HoleScanResult,
 } from "./scanners.js";
 export {
+  containsInnerEdgeTokenString,
+  findInnerEdgeTokenSpansBytes,
   isInnerEdgeTokenString,
   KNOWN_MASK_TOKEN_KINDS,
+  parseInnerEdgeTokenString,
   parseRedactionTokenBytes,
   parseRedactionTokenString,
   rewriteBodySpans,
   scanRedactionToken,
+  spanOverlapsAny,
+  valueContainsInnerEdgeToken,
   type ScannedRedactionToken,
 } from "./redaction.js";
 export {

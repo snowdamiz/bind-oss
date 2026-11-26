@@ -32,7 +32,7 @@ import {
 } from "./canonical.js";
 import { compileParser, type CompiledParser } from "./evaluate.js";
 import { isPlainObject } from "./matchers.js";
-import { fromHex } from "./utf8.js";
+import { fromHex, toSafeIntOrBigInt } from "./utf8.js";
 
 export interface VectorExpectation {
   readonly matched: boolean;
@@ -459,25 +459,110 @@ function parseJsonPreservingUnsafeTimestampInts(raw: string): unknown {
     throw new SyntaxError("Unterminated JSON string");
   }
 
-  function parseNumberWithRaw(): { readonly value: number; readonly rawInt?: string } {
+  function parseExactJsonTimestampNumber(
+    lexeme: string,
+  ):
+    | { readonly kind: "int"; readonly value: bigint }
+    | { readonly kind: "huge_int"; readonly negative: boolean }
+    | { readonly kind: "fractional" } {
+    let p = 0;
+    let negative = false;
+    if (lexeme.charCodeAt(p) === 0x2d) {
+      negative = true;
+      p++;
+    }
+    const intStart = p;
+    while (p < lexeme.length) {
+      const c = lexeme.charCodeAt(p);
+      if (c < 0x30 || c > 0x39) break;
+      p++;
+    }
+    const intPart = lexeme.slice(intStart, p);
+
+    let fracPart = "";
+    if (p < lexeme.length && lexeme.charCodeAt(p) === 0x2e) {
+      p++;
+      const fracStart = p;
+      while (p < lexeme.length) {
+        const c = lexeme.charCodeAt(p);
+        if (c < 0x30 || c > 0x39) break;
+        p++;
+      }
+      fracPart = lexeme.slice(fracStart, p);
+    }
+
+    let exp = 0;
+    let expOverflowSign = 0;
+    if (p < lexeme.length && (lexeme.charCodeAt(p) === 0x65 || lexeme.charCodeAt(p) === 0x45)) {
+      p++;
+      let expSign = 1;
+      if (p < lexeme.length) {
+        const ec = lexeme.charCodeAt(p);
+        if (ec === 0x2d) {
+          expSign = -1;
+          p++;
+        } else if (ec === 0x2b) {
+          p++;
+        }
+      }
+      let expNz = p;
+      while (expNz < lexeme.length && lexeme.charCodeAt(expNz) === 0x30) {
+        expNz++;
+      }
+      const expDigits = lexeme.slice(expNz);
+      if (expDigits.length === 0) {
+        exp = 0;
+      } else if (expDigits.length > 8) {
+        expOverflowSign = expSign;
+      } else {
+        exp = expSign * Number(expDigits);
+      }
+    }
+
+    const combined = intPart + fracPart;
+    let firstNz = 0;
+    while (firstNz < combined.length && combined.charCodeAt(firstNz) === 0x30) {
+      firstNz++;
+    }
+    if (firstNz === combined.length) {
+      return { kind: "int", value: 0n };
+    }
+    let lastNz = combined.length - 1;
+    while (lastNz > firstNz && combined.charCodeAt(lastNz) === 0x30) {
+      lastNz--;
+    }
+    const sigDigits = combined.slice(firstNz, lastNz + 1);
+    const trailingZeros = combined.length - 1 - lastNz;
+
+    if (expOverflowSign < 0) {
+      return { kind: "fractional" };
+    }
+    if (expOverflowSign > 0) {
+      return { kind: "huge_int", negative };
+    }
+    const lsdExp = exp - fracPart.length + trailingZeros;
+    if (lsdExp < 0) {
+      return { kind: "fractional" };
+    }
+    if (sigDigits.length + lsdExp > 25) {
+      return { kind: "huge_int", negative };
+    }
+    return {
+      kind: "int",
+      value: BigInt((negative ? "-" : "") + sigDigits + "0".repeat(lsdExp)),
+    };
+  }
+
+  function parseNumberWithRaw(): { readonly value: number; readonly rawNum?: string } {
     const start = pos;
-    let isPureInt = true;
     if (pos < len && raw.charCodeAt(pos) === 0x2d) {
       pos++;
     }
     while (pos < len && isJsonNumberChar(raw.charCodeAt(pos))) {
-      const ch = raw.charCodeAt(pos);
-      if (ch < 0x30 || ch > 0x39) {
-        isPureInt = false;
-      }
       pos++;
     }
     const lexeme = raw.slice(start, pos);
-    const num = Number(lexeme);
-    if (isPureInt && !Number.isSafeInteger(num)) {
-      return { value: num, rawInt: lexeme };
-    }
-    return { value: num };
+    return { value: Number(lexeme), rawNum: lexeme };
   }
 
   function parseArray(expectDepth: number): unknown[] {
@@ -514,7 +599,7 @@ function parseJsonPreservingUnsafeTimestampInts(raw: string): unknown {
       pos++;
       return obj;
     }
-    let rawValueInt: string | undefined;
+    let rawValueNum: string | undefined;
     while (pos < len) {
       const key = parseString();
       skipWs();
@@ -538,7 +623,7 @@ function parseJsonPreservingUnsafeTimestampInts(raw: string): unknown {
       const valRes = parseValue(nextDepth);
       setJsonProp(obj, key, valRes.value);
       if (expectDepth === 3 && key === "value") {
-        rawValueInt = valRes.rawInt;
+        rawValueNum = valRes.rawNum;
       }
       skipWs();
       if (pos < len && raw.charCodeAt(pos) === 0x2c) {
@@ -550,12 +635,24 @@ function parseJsonPreservingUnsafeTimestampInts(raw: string): unknown {
         pos++;
         if (
           expectDepth === 3 &&
-          rawValueInt !== undefined &&
+          rawValueNum !== undefined &&
           obj["status"] === "ok" &&
           obj["type"] === "timestamp" &&
           Object.keys(obj).length === 3
         ) {
-          setJsonProp(obj, "value", BigInt(rawValueInt));
+          const exact = parseExactJsonTimestampNumber(rawValueNum);
+          if (exact.kind === "int") {
+            setJsonProp(obj, "value", toSafeIntOrBigInt(exact.value));
+          } else if (exact.kind === "huge_int") {
+            setJsonProp(obj, "value", exact.negative ? -(10n ** 30n) : 10n ** 30n);
+          } else {
+            const num = obj["value"];
+            setJsonProp(
+              obj,
+              "value",
+              typeof num === "number" && Number.isInteger(num) ? Number.NaN : num,
+            );
+          }
         }
         return obj;
       }
@@ -564,7 +661,7 @@ function parseJsonPreservingUnsafeTimestampInts(raw: string): unknown {
     throw new SyntaxError("Unterminated JSON object");
   }
 
-  function parseValue(expectDepth: number): { readonly value: unknown; readonly rawInt?: string } {
+  function parseValue(expectDepth: number): { readonly value: unknown; readonly rawNum?: string } {
     skipWs();
     if (pos >= len) {
       throw new SyntaxError("Unexpected end of JSON input");

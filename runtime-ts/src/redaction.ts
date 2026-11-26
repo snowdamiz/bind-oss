@@ -74,12 +74,15 @@ export function scanRedactionToken(
   }
   const kind = decodeUtf8(bytes, kindStart, i);
 
-  if (i >= end || !KNOWN_MASK_TOKEN_KINDS.has(kind)) {
+  if (i >= end) {
     return null;
   }
 
-  // Form 1: `<kind>`
+  // Form 1: `<kind>` (closed catalog only)
   if (bytes[i] === 0x3e /* '>' */) {
+    if (!KNOWN_MASK_TOKEN_KINDS.has(kind)) {
+      return null;
+    }
     const tokenEnd = i + 1;
     return {
       end: tokenEnd,
@@ -99,7 +102,7 @@ export function scanRedactionToken(
     return null;
   }
 
-  // Form 2: `<kind:~<64 lowercase hex>>` (edge inner pseudonym token)
+  // Form 2: `<kind:~<64 lowercase hex>>` (edge inner pseudonym token across all schema-valid hash.kind labels)
   if (bytes[i] === 0x7e /* '~' */) {
     const hexStart = i + 1;
     const hexEnd = hexStart + 64;
@@ -124,6 +127,11 @@ export function scanRedactionToken(
         };
       }
     }
+  }
+
+  // Closed catalog strictly applies to incoming final pseudonyms and normal mask descriptors
+  if (!KNOWN_MASK_TOKEN_KINDS.has(kind)) {
+    return null;
   }
 
   // Form 3: `<kind:tag>` (16 lowercase hex chars -> pseudonym) OR `<kind:descriptor>` (mask)
@@ -201,32 +209,211 @@ export function parseRedactionTokenString(str: string): RedactionTokenInfo | nul
 }
 
 /**
- * Checks whether an entire string matches the edge inner pseudonym shape
- * `<[a-z][a-z0-9_]*:~[0-9a-f]{64}>` for any valid schema kind (including custom kinds).
+ * Parses an entire string as a well-formed inner edge pseudonym token
+ * `<[a-z][a-z0-9_]*:~[0-9a-f]{64}>` for any schema-valid hash.kind label (including custom kinds).
  */
-export function isInnerEdgeTokenString(str: string): boolean {
+export function parseInnerEdgeTokenString(str: string): RedactionTokenInfo | null {
   // Minimum: "<a:~" (4) + 64 hex + ">" (1) = 69
   if (str.length < 69 || str.charCodeAt(0) !== 0x3c || str.charCodeAt(str.length - 1) !== 0x3e) {
-    return false;
+    return null;
   }
-  const colonIdx = str.length - 66;
+  const colonIdx = str.length - 67;
   if (str.charCodeAt(colonIdx) !== 0x3a || str.charCodeAt(colonIdx + 1) !== 0x7e) {
-    return false;
+    return null;
   }
   if (!isAsciiLowerAlpha(str.charCodeAt(1))) {
-    return false;
+    return null;
   }
   for (let i = 2; i < colonIdx; i++) {
     if (!isRedactionIdentChar(str.charCodeAt(i))) {
-      return false;
+      return null;
     }
   }
   for (let i = colonIdx + 2; i < str.length - 1; i++) {
     if (!isAsciiLowerHex(str.charCodeAt(i))) {
-      return false;
+      return null;
     }
   }
-  return true;
+  return {
+    category: "inner_pseudonym",
+    kind: str.slice(1, colonIdx),
+    innerHex: str.slice(colonIdx + 2, str.length - 1),
+    raw: str,
+  };
+}
+
+/**
+ * Checks whether an entire string matches the edge inner pseudonym shape
+ * `<[a-z][a-z0-9_]*:~[0-9a-f]{64}>` for any valid schema kind (including custom kinds).
+ */
+export function isInnerEdgeTokenString(str: string): boolean {
+  return parseInnerEdgeTokenString(str) !== null;
+}
+
+/**
+ * Finds all disjoint well-formed inner edge token byte spans
+ * `<[a-z][a-z0-9_]*:~[0-9a-f]{64}>` in a UTF-8 byte sequence in strictly linear O(n) time.
+ */
+export function findInnerEdgeTokenSpansBytes(bytes: Uint8Array): readonly ByteSpan[] {
+  const len = bytes.length;
+  if (len < 69) return [];
+
+  const spans: ByteSpan[] = [];
+  let minLtPos = 0;
+  let pos = 2;
+  const maxColon = len - 67;
+
+  while (pos <= maxColon) {
+    if (bytes[pos] !== 0x3a /* ':' */ || bytes[pos + 1] !== 0x7e /* '~' */) {
+      pos++;
+      continue;
+    }
+    if (bytes[pos + 66] !== 0x3e /* '>' */) {
+      pos += 2;
+      continue;
+    }
+    let hexOk = true;
+    for (let k = pos + 2; k < pos + 66; k++) {
+      if (!isAsciiLowerHex(bytes[k]!)) {
+        hexOk = false;
+        break;
+      }
+    }
+    if (!hexOk) {
+      pos += 2;
+      continue;
+    }
+    let cur = pos - 1;
+    while (cur > minLtPos && isRedactionIdentChar(bytes[cur]!)) {
+      cur--;
+    }
+    const spanEnd = pos + 67;
+    if (bytes[cur] === 0x3c /* '<' */) {
+      const identStart = cur + 1;
+      if (identStart < pos && isAsciiLowerAlpha(bytes[identStart]!)) {
+        spans.push({ start: cur, end: spanEnd });
+      }
+    }
+    minLtPos = spanEnd;
+    pos = spanEnd + 2;
+  }
+
+  return spans;
+}
+
+/**
+ * Returns true when `str` contains any well-formed inner edge token
+ * `<[a-z][a-z0-9_]*:~[0-9a-f]{64}>` (strictly linear O(n), zero RegExp, zero allocations).
+ */
+export function containsInnerEdgeTokenString(str: string): boolean {
+  const len = str.length;
+  if (len < 69 || !str.includes(":~")) {
+    return false;
+  }
+
+  let minLtPos = 0;
+  let pos = 2;
+  const maxColon = len - 67;
+
+  while (pos <= maxColon) {
+    if (str.charCodeAt(pos) !== 0x3a || str.charCodeAt(pos + 1) !== 0x7e) {
+      pos++;
+      continue;
+    }
+    if (str.charCodeAt(pos + 66) !== 0x3e) {
+      pos += 2;
+      continue;
+    }
+    let hexOk = true;
+    for (let k = pos + 2; k < pos + 66; k++) {
+      if (!isAsciiLowerHex(str.charCodeAt(k))) {
+        hexOk = false;
+        break;
+      }
+    }
+    if (!hexOk) {
+      pos += 2;
+      continue;
+    }
+    let cur = pos - 1;
+    while (cur > minLtPos && isRedactionIdentChar(str.charCodeAt(cur))) {
+      cur--;
+    }
+    if (str.charCodeAt(cur) === 0x3c) {
+      const identStart = cur + 1;
+      if (identStart < pos && isAsciiLowerAlpha(str.charCodeAt(identStart))) {
+        return true;
+      }
+    }
+    minLtPos = pos + 67;
+    pos = pos + 69;
+  }
+
+  return false;
+}
+
+/**
+ * Checks whether non-empty `span` overlaps any span in sorted disjoint `spans` in O(log k) time.
+ */
+export function spanOverlapsAny(span: ByteSpan, spans: readonly ByteSpan[]): boolean {
+  if (span.start >= span.end || spans.length === 0) return false;
+  let lo = 0;
+  let hi = spans.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >>> 1;
+    if (spans[mid]!.end <= span.start) {
+      lo = mid + 1;
+    } else {
+      hi = mid;
+    }
+  }
+  return lo < spans.length && spans[lo]!.start < span.end;
+}
+
+/**
+ * Iteratively checks whether a structured/JSON value (including object keys and nested
+ * arrays/objects) contains any well-formed inner edge token. Cycle-safe and non-recursive.
+ */
+export function valueContainsInnerEdgeToken(val: unknown): boolean {
+  if (typeof val === "string") {
+    return containsInnerEdgeTokenString(val);
+  }
+  if (val === null || typeof val !== "object") {
+    return false;
+  }
+
+  const seen = new WeakSet<object>();
+  const stack: unknown[] = [val];
+
+  while (stack.length > 0) {
+    const cur = stack.pop();
+    if (typeof cur === "string") {
+      if (containsInnerEdgeTokenString(cur)) return true;
+      continue;
+    }
+    if (cur === null || typeof cur !== "object") {
+      continue;
+    }
+    if (seen.has(cur)) {
+      continue;
+    }
+    seen.add(cur);
+    if (Array.isArray(cur)) {
+      for (let i = cur.length - 1; i >= 0; i--) {
+        stack.push(cur[i]);
+      }
+    } else {
+      const record = cur as Record<string, unknown>;
+      const keys = Object.keys(record);
+      for (let i = keys.length - 1; i >= 0; i--) {
+        const k = keys[i]!;
+        if (containsInnerEdgeTokenString(k)) return true;
+        stack.push(record[k]);
+      }
+    }
+  }
+
+  return false;
 }
 
 /**

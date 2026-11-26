@@ -493,6 +493,7 @@ function parseExactDecimalSecondsToMs(str: string): bigint | null {
   }
 
   let exp = 0;
+  let expOverflowSign = 0;
   if (pos < str.length && (str.charCodeAt(pos) === 0x65 || str.charCodeAt(pos) === 0x45)) {
     pos++;
     let expSign = 1;
@@ -520,13 +521,14 @@ function parseExactDecimalSecondsToMs(str: string): bigint | null {
     if (expDigits.length === 0) {
       exp = 0;
     } else if (expDigits.length > 8) {
-      return expSign < 0 ? 0n : null;
+      expOverflowSign = expSign;
     } else {
       exp = expSign * Number(expDigits);
       if (!Number.isSafeInteger(exp)) return null;
     }
   }
 
+  // Validate entire string before any exponent magnitude shortcut
   if (pos !== str.length) return null;
 
   const combined = intPart + fracPart;
@@ -536,6 +538,12 @@ function parseExactDecimalSecondsToMs(str: string): bigint | null {
   }
   if (nz === combined.length) {
     return 0n;
+  }
+  if (expOverflowSign < 0) {
+    return 0n;
+  }
+  if (expOverflowSign > 0) {
+    return null;
   }
   const digits = combined.slice(nz);
   const totalShift = exp + 3 - fracPart.length;

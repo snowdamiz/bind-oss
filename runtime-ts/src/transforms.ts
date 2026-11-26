@@ -13,6 +13,7 @@ import type {
   ByteUnit,
   FieldErrorCode,
   FieldType,
+  HoleClass,
   JsonValue,
   ParserField,
   RedactionTokenInfo,
@@ -26,7 +27,14 @@ import {
   computeOuterPseudonymTag,
 } from "./hmac.js";
 import { maskIpPrefix } from "./ip.js";
-import { isInnerEdgeTokenString, parseRedactionTokenString } from "./redaction.js";
+import {
+  containsInnerEdgeTokenString,
+  isInnerEdgeTokenString,
+  KNOWN_MASK_TOKEN_KINDS,
+  parseInnerEdgeTokenString,
+  parseRedactionTokenString,
+  valueContainsInnerEdgeToken,
+} from "./redaction.js";
 import { isValidJsonValueBytes, scanFloatBytes, scanIntBytes } from "./scanners.js";
 import { parseTimeValue, resolveReferenceYear } from "./time.js";
 import {
@@ -251,6 +259,13 @@ function handleIncomingRedactionToken(
       for (let i = 0; i < transforms.length; i++) {
         const tx = transforms[i]!;
         if (tx.op === "hash") {
+          const declaredKind =
+            tx.kind ?? (field.pii && field.pii !== "none" ? field.pii : "hash");
+          const authorized =
+            KNOWN_MASK_TOKEN_KINDS.has(token.kind) || token.kind === declaredKind;
+          if (!authorized) {
+            return { status: "redacted", token: "<redacted>" };
+          }
           const serverKey = options.hashKeys?.serverKey;
           if (serverKey !== undefined && token.innerHex !== undefined) {
             const innerBytes = fromHex(token.innerHex);
@@ -357,33 +372,49 @@ function applySingleTransform(
     }
 
     case "hash": {
-      if (!isStringLike(val)) {
+      const mode = options.hashMode ?? "hosted";
+      let hashInput: string;
+      if (isStringLike(val)) {
+        // Preserve an already-generated pseudonym tag identity through repeat hash transforms,
+        // including custom schema-valid kind prefixes outside the closed detector catalog.
+        if (val.kind === "string" && val.pseudonymized) {
+          if (isInnerEdgeTokenString(val.value)) {
+            if (mode === "edge") {
+              return { next: val };
+            }
+            return { terminal: { status: "redacted", token: "<redacted>" } };
+          }
+          return { next: val };
+        }
+        hashInput = val.value;
+      } else if (val.kind === "int" || val.kind === "timestamp") {
+        hashInput = val.value.toString(10);
+      } else if (val.kind === "float" || val.kind === "number") {
+        if (!Number.isFinite(val.value)) {
+          return { terminal: err("FLOAT_OVERFLOW", "Cannot hash non-finite number") };
+        }
+        hashInput = String(val.value);
+      } else if (val.kind === "bool") {
+        hashInput = val.value ? "true" : "false";
+      } else {
         return {
-          terminal: err("EXPECTED_STRING", `hash transform requires a string, got ${val.kind}`),
+          terminal: err("EXPECTED_STRING", `hash transform requires a scalar value, got ${val.kind}`),
         };
       }
-      const mode = options.hashMode ?? "hosted";
 
-      // Preserve an already-generated pseudonym tag identity through repeat hash transforms,
-      // including custom schema-valid kind prefixes outside the closed detector catalog.
-      if (val.kind === "string" && val.pseudonymized) {
-        if (isInnerEdgeTokenString(val.value)) {
-          if (mode === "edge") {
-            return { next: val };
-          }
-          return { terminal: { status: "redacted", token: "<redacted>" } };
-        }
-        return { next: val };
-      }
+      const declaredKind =
+        tx.kind ?? (field.pii && field.pii !== "none" ? field.pii : "hash");
 
-      // Do not double-hash a known replacement token string produced earlier in the pipeline
-      const existing = parseRedactionTokenString(val.value);
+      // Do not double-hash a recognized replacement token string produced earlier in the pipeline
+      const existing = parseRedactionTokenString(hashInput) ?? parseInnerEdgeTokenString(hashInput);
       if (existing !== null) {
         if (existing.category === "pseudonym") {
           return { next: { kind: "string", value: existing.raw, pseudonymized: true } };
         }
         if (existing.category === "inner_pseudonym") {
-          if (mode === "gateway") {
+          const authorized =
+            KNOWN_MASK_TOKEN_KINDS.has(existing.kind) || existing.kind === declaredKind;
+          if (mode === "gateway" && authorized) {
             const serverKey = options.hashKeys?.serverKey;
             if (serverKey !== undefined && existing.innerHex !== undefined) {
               const innerBytes = fromHex(existing.innerHex);
@@ -399,14 +430,17 @@ function applySingleTransform(
         return { terminal: { status: "redacted", token: existing.raw } };
       }
 
-      const kind =
-        tx.kind ?? (field.pii && field.pii !== "none" ? field.pii : "hash");
+      if (containsInnerEdgeTokenString(hashInput)) {
+        return { terminal: { status: "redacted", token: "<redacted>" } };
+      }
+
+      const kind = declaredKind;
       const edgeKey = options.hashKeys?.edgeKey;
       const serverKey = options.hashKeys?.serverKey;
 
       if (mode === "edge") {
         if (edgeKey !== undefined) {
-          const inner = computeInnerPseudonymBytes(edgeKey, val.value);
+          const inner = computeInnerPseudonymBytes(edgeKey, hashInput);
           return {
             next: {
               kind: "string",
@@ -424,7 +458,7 @@ function applySingleTransform(
       }
 
       if (edgeKey !== undefined && serverKey !== undefined) {
-        const tag = computeHostedPseudonymTag(edgeKey, serverKey, val.value);
+        const tag = computeHostedPseudonymTag(edgeKey, serverKey, hashInput);
         return { next: { kind: "string", value: `<${kind}:${tag}>`, pseudonymized: true } };
       }
       // Fail-closed rule: never pass raw data through or emit inner edge tokens in hosted mode
@@ -706,6 +740,9 @@ function applySingleTransform(
                 terminal: err("INVALID_JSON", `Cannot parse "${val.value}" as JSON`),
               };
             }
+            if (valueContainsInnerEdgeToken(parsed.value)) {
+              return { terminal: { status: "redacted", token: "<redacted>" } };
+            }
             return { next: { kind: "json", value: parsed.value } };
           }
           if (val.kind === "bool") {
@@ -920,6 +957,9 @@ function finalizeFieldType(
         if (!parsed.ok) {
           return err("INVALID_JSON", `Cannot parse "${val.value}" as JSON`);
         }
+        if (valueContainsInnerEdgeToken(parsed.value)) {
+          return { status: "redacted", token: "<redacted>" };
+        }
         return { status: "ok", value: parsed.value };
       }
       if (val.kind === "string") {
@@ -955,6 +995,7 @@ export function evaluateFieldValue(
   field: ParserField,
   options: RuntimeOptions,
   incomingRedaction?: RedactionTokenInfo,
+  holeClass?: HoleClass,
 ): TransformOutcome {
   if (incomingRedaction !== undefined) {
     return handleIncomingRedactionToken(incomingRedaction, field, options);
@@ -965,16 +1006,53 @@ export function evaluateFieldValue(
   }
 
   const fromTextHole = "hole" in field.from;
+  const transforms = field.transforms ?? [];
+  const firstOp = transforms[0];
+  const isDirectUnixS = firstOp?.op === "parse_time" && firstOp.format === "unix_s";
 
   let current: PipelineValue;
   if (typeof rawValue === "string") {
-    const token = parseRedactionTokenString(rawValue);
+    const token = parseRedactionTokenString(rawValue) ?? parseInnerEdgeTokenString(rawValue);
     if (token !== null) {
       return handleIncomingRedactionToken(token, field, options);
     }
-    current = fromTextHole
-      ? { kind: "text", value: rawValue }
-      : { kind: "string", value: rawValue };
+    if (containsInnerEdgeTokenString(rawValue)) {
+      return { status: "redacted", token: "<redacted>" };
+    }
+    if (fromTextHole) {
+      if (holeClass === "int" && field.type !== "string" && firstOp?.op !== "cast") {
+        const parsed = parseStrictInt64(rawValue);
+        if (!parsed.ok) {
+          return err(
+            parsed.code,
+            parsed.code === "INT64_OVERFLOW"
+              ? `Integer "${rawValue}" overflows Int64`
+              : `Cannot parse "${rawValue}" as Int64`,
+          );
+        }
+        current = { kind: "int", value: parsed.value };
+      } else if (
+        holeClass === "float" &&
+        field.type !== "string" &&
+        firstOp?.op !== "cast" &&
+        !isDirectUnixS
+      ) {
+        const parsed = parseStrictFloat64(rawValue);
+        if (!parsed.ok) {
+          return err(
+            parsed.code,
+            parsed.code === "FLOAT_OVERFLOW"
+              ? `Float "${rawValue}" overflows IEEE 754 binary64`
+              : `Cannot parse "${rawValue}" as float64`,
+          );
+        }
+        current = { kind: "float", value: parsed.value };
+      } else {
+        current = { kind: "text", value: rawValue };
+      }
+    } else {
+      current = { kind: "string", value: rawValue };
+    }
   } else if (typeof rawValue === "boolean") {
     current = { kind: "bool", value: rawValue };
   } else if (typeof rawValue === "bigint") {
@@ -984,13 +1062,13 @@ export function evaluateFieldValue(
       return err("FLOAT_OVERFLOW", "Input number is not finite");
     }
     current = { kind: "number", value: rawValue };
+  } else if (typeof rawValue === "object" && valueContainsInnerEdgeToken(rawValue)) {
+    return { status: "redacted", token: "<redacted>" };
   } else if (isJsonSafeValue(rawValue)) {
     current = { kind: "json", value: rawValue };
   } else {
     return err("INVALID_SPEC", `Unsupported input value type: ${typeof rawValue}`);
   }
-
-  const transforms = field.transforms ?? [];
   for (let i = 0; i < transforms.length; i++) {
     const res = applySingleTransform(current, transforms[i]!, field, options);
     if ("terminal" in res) {

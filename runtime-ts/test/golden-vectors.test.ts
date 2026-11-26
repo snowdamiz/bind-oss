@@ -8,12 +8,14 @@ import {
   compareVectorResults,
   compileParser,
   computeHostedPseudonymTag,
+  computeInnerPseudonymBytes,
   formatVectorResults,
   parseFixturePayload,
   parseRecord,
   parseTimeValue,
   runVectorCases,
   toCanonicalResult,
+  toLowerHex,
   toVectorResult,
   type FieldType,
   type ParserSpec,
@@ -45,14 +47,22 @@ interface VectorManifest {
 
 const manifest = JSON.parse(fs.readFileSync(MANIFEST_PATH, "utf8")) as VectorManifest;
 
-describe("PR #5 golden conformance vector suites (482 vectors across 7 suites)", () => {
+describe(`PR #5 golden conformance vector suites (${manifest.total_vectors} vectors across 7 suites)`, () => {
   it("loads manifest with exact suite and SQL support counts", () => {
     expect(manifest.schema_version).toBe(1);
     expect(manifest.suites).toHaveLength(7);
-    expect(manifest.total_vectors).toBe(482);
-    expect(manifest.sql_supported_count).toBe(455);
+    expect(manifest.total_vectors).toBeGreaterThanOrEqual(482);
+    expect(manifest.sql_supported_count + manifest.sql_refused_count).toBe(
+      manifest.total_vectors,
+    );
     expect(manifest.sql_refused_count).toBe(27);
-    expect(manifest.suites.reduce((sum, s) => sum + s.count, 0)).toBe(482);
+    expect(manifest.suites.reduce((sum, s) => sum + s.count, 0)).toBe(manifest.total_vectors);
+    expect(manifest.suites.reduce((sum, s) => sum + s.sql_supported_count, 0)).toBe(
+      manifest.sql_supported_count,
+    );
+    expect(manifest.suites.reduce((sum, s) => sum + s.sql_refused_count, 0)).toBe(
+      manifest.sql_refused_count,
+    );
   });
 
   for (const entry of manifest.suites) {
@@ -80,7 +90,7 @@ describe("PR #5 golden conformance vector suites (482 vectors across 7 suites)",
     });
   }
 
-  it("passes every embedded spec.tests[] case across all 482 golden vectors", () => {
+  it(`passes every embedded spec.tests[] case across all ${manifest.total_vectors} golden vectors`, () => {
     let totalSpecTests = 0;
     const failures: string[] = [];
 
@@ -109,7 +119,7 @@ describe("PR #5 golden conformance vector suites (482 vectors across 7 suites)",
       }
     }
 
-    expect(totalSpecTests).toBe(482);
+    expect(totalSpecTests).toBe(manifest.total_vectors);
     expect(failures).toEqual([]);
   });
 
@@ -146,7 +156,7 @@ describe("PR #5 golden conformance vector suites (482 vectors across 7 suites)",
       }
 
       // Verify all 7 suites together in a single CLI invocation
-      const allOut = path.join(tmpDir, "all-482.ndjson");
+      const allOut = path.join(tmpDir, `all-${manifest.total_vectors}.ndjson`);
       execFileSync(
         process.execPath,
         [
@@ -166,7 +176,7 @@ describe("PR #5 golden conformance vector suites (482 vectors across 7 suites)",
         .trim()
         .split("\n")
         .filter((l) => l.length > 0);
-      expect(allLines).toHaveLength(482);
+      expect(allLines).toHaveLength(manifest.total_vectors);
     } finally {
       fs.rmSync(tmpDir, { recursive: true, force: true });
     }
@@ -775,8 +785,261 @@ describe("Golden vector integration regressions", () => {
       expect(failedExit).toBe(1);
       expect(stderrText).toContain("9007199254740993");
       expect(stderrText).toContain("9007199254740992");
+
+      // Near-2^53 equivalent decimal & exponent timestamp representations pass --check losslessly
+      const equivFixturePath = path.join(tmpDir, "equiv-ts.json");
+      const rawEquivFixture = [
+        "[",
+        `  {"id":"ts-dec-zero","spec":${specJson},"input":{"kind":"text","line":"ts=9007199254740993"},"expected":{"matched":true,"fields":{"ts":{"status":"ok","type":"timestamp","value":9007199254740993.0}}}},`,
+        `  {"id":"ts-exp-pos","spec":${specJson},"input":{"kind":"text","line":"ts=9007199254740993"},"expected":{"matched":true,"fields":{"ts":{"status":"ok","type":"timestamp","value":9.007199254740993e15}}}},`,
+        `  {"id":"ts-exp-neg","spec":${specJson},"input":{"kind":"text","line":"ts=9007199254740993"},"expected":{"matched":true,"fields":{"ts":{"status":"ok","type":"timestamp","value":90071992547409930e-1}}}},`,
+        `  {"id":"ts-max-exp","spec":${specJson},"input":{"kind":"text","line":"ts=9223372036854775807"},"expected":{"matched":true,"fields":{"ts":{"status":"ok","type":"timestamp","value":9.223372036854775807e18}}}},`,
+        `  {"id":"ts-zero-huge-exp","spec":${specJson},"input":{"kind":"text","line":"ts=0"},"expected":{"matched":true,"fields":{"ts":{"status":"ok","type":"timestamp","value":0e+999999999}}}}`,
+        "]",
+      ].join("\n");
+      fs.writeFileSync(equivFixturePath, rawEquivFixture, "utf8");
+      execFileSync(
+        process.execPath,
+        [
+          CLI_PATH,
+          "--input",
+          equivFixturePath,
+          "--format",
+          "vector-ndjson",
+          "--check",
+          "--strict-error-codes",
+        ],
+        { encoding: "utf8", stdio: "pipe" },
+      );
+
+      // Fractional expected timestamps near 2^53 or sub-unit MUST fail --check instead of rounding
+      const fracProbes: readonly { id: string; line: string; expectedRaw: string }[] = [
+        { id: "frac-half-even", line: "ts=9007199254740992", expectedRaw: "9007199254740992.5" },
+        { id: "frac-exp-near-2p53", line: "ts=9007199254740992", expectedRaw: "9.0071992547409925e15" },
+        { id: "frac-neg-exp", line: "ts=9007199254740992", expectedRaw: "90071992547409925e-1" },
+        { id: "frac-sub-unit-zero", line: "ts=0", expectedRaw: "1e-1000" },
+        { id: "frac-small", line: "ts=1", expectedRaw: "1.5" },
+      ];
+      for (const probe of fracProbes) {
+        const fracPath = path.join(tmpDir, `${probe.id}.json`);
+        fs.writeFileSync(
+          fracPath,
+          `{"id":"${probe.id}","spec":${specJson},"input":{"kind":"text","line":"${probe.line}"},"expected":{"matched":true,"fields":{"ts":{"status":"ok","type":"timestamp","value":${probe.expectedRaw}}}}}`,
+          "utf8",
+        );
+        let code = 0;
+        try {
+          execFileSync(
+            process.execPath,
+            [CLI_PATH, "--input", fracPath, "--format", "vector-ndjson", "--check"],
+            { encoding: "utf8", stdio: "pipe" },
+          );
+        } catch (err) {
+          code = (err as { status?: number }).status ?? -1;
+        }
+        expect(code, `fractional probe ${probe.id} (${probe.expectedRaw})`).toBe(1);
+      }
     } finally {
       fs.rmSync(tmpDir, { recursive: true, force: true });
     }
+  });
+
+  it("enforces whole-input inner-edge no-spill for custom kinds and strict gateway authorization", () => {
+    const edgeKey = "edge-secret-v1";
+    const serverKey = "server-secret-v1";
+    const rawEmail = "alice@example.com";
+    const digest = toLowerHex(computeInnerPseudonymBytes(edgeKey, rawEmail));
+    const customInner = `<user:~${digest}>`;
+    const expectedTag = computeHostedPseudonymTag(edgeKey, serverKey, rawEmail);
+
+    const makeTextSpec = (
+      segments: Extract<ParserSpec["match"], { kind: "text" }>["segments"],
+      fields: ParserSpec["fields"],
+    ): ParserSpec => ({
+      spec_version: 1,
+      template: "tpl_01NOSPILL",
+      event: "nospill.check",
+      version: 1,
+      status: "active",
+      origin: "agent",
+      source: { kind: "mined" },
+      match: { kind: "text", segments },
+      fields,
+      tests: [],
+    });
+
+    // 1. Hosted mode masks custom <user:~64hex> across overlap, split, decoded quoted/JSON, object, args
+    const untilGt = makeTextSpec(
+      [{ lit: "u=" }, { hole: "u", class: "until" }, { lit: "> s=" }, { hole: "s", class: "int" }],
+      [
+        { id: "f1", name: "u", from: { hole: "u" }, type: "string", semantic: "text" },
+        { id: "f2", name: "s", from: { hole: "s" }, type: "int", semantic: "count" },
+      ],
+    );
+    const overlapRes = toVectorResult(parseRecord(untilGt, `u=${customInner} s=200`));
+    expect(overlapRes).toEqual({
+      matched: true,
+      fields: {
+        u: { status: "redacted", token: "<redacted>" },
+        s: { status: "ok", type: "int", value: "200" },
+      },
+    });
+    expect(JSON.stringify(overlapRes)).not.toContain(digest);
+
+    // Normal literal boundary preserved for non-inner 16-hex final pseudonym and plain text
+    expect(toVectorResult(parseRecord(untilGt, "u=alice> s=200"))).toEqual({
+      matched: true,
+      fields: {
+        u: { status: "ok", type: "string", value: "alice" },
+        s: { status: "ok", type: "int", value: "200" },
+      },
+    });
+    expect(toVectorResult(parseRecord(untilGt, "u=<email:9f2c41d07a3b55e1> s=200"))).toEqual({
+      matched: true,
+      fields: {
+        u: { status: "ok", type: "string", value: "<email:9f2c41d07a3b55e1" },
+        s: { status: "ok", type: "int", value: "200" },
+      },
+    });
+
+    // Escaped custom inner-edge token in JSON hole value and JSON hole key
+    const jsonHoleSpec = makeTextSpec(
+      [{ lit: "j=" }, { hole: "j", class: "json" }],
+      [{ id: "f1", name: "j", from: { hole: "j" }, type: "json", semantic: "unknown" }],
+    );
+    const escapedCustom = `\\u003cuser:\\u007e${digest}\\u003e`;
+    const jsonValRes = toVectorResult(parseRecord(jsonHoleSpec, `j={"a":"${escapedCustom}"}`));
+    expect(jsonValRes).toEqual({
+      matched: true,
+      fields: { j: { status: "redacted", token: "<redacted>" } },
+    });
+    expect(JSON.stringify(jsonValRes)).not.toContain(digest);
+
+    const jsonKeyRes = toVectorResult(parseRecord(jsonHoleSpec, `j={"${escapedCustom}":1}`));
+    expect(jsonKeyRes).toEqual({
+      matched: true,
+      fields: { j: { status: "redacted", token: "<redacted>" } },
+    });
+
+    // Structured object nested subtree and args containing custom inner-edge token
+    const objSpec: ParserSpec = {
+      spec_version: 1,
+      template: "tpl_01OBJNS1",
+      event: "obj.nospill",
+      version: 1,
+      status: "active",
+      origin: "agent",
+      source: { kind: "mined" },
+      match: { kind: "object", shape: ["payload"] },
+      fields: [{ id: "f1", name: "payload", from: { path: "payload" }, type: "json", semantic: "unknown" }],
+      tests: [],
+    };
+    const objRes = toVectorResult(
+      parseRecord(objSpec, { kind: "object", object: { payload: { nested: [`prefix ${customInner} suffix`] } } }),
+    );
+    expect(objRes).toEqual({
+      matched: true,
+      fields: { payload: { status: "redacted", token: "<redacted>" } },
+    });
+
+    // Non-inner custom angle forms stay ordinary text under closed-catalog mask/final rules
+    const dropWord = makeTextSpec(
+      [{ lit: "u=" }, { hole: "u", class: "word" }],
+      [{ id: "f1", name: "u", from: { hole: "u" }, type: "string", semantic: "text", transforms: [{ op: "drop" }] }],
+    );
+    expect(toVectorResult(parseRecord(dropWord, "u=<user:9f2c41d07a3b55e1>"))).toEqual({
+      matched: true,
+      fields: { u: { status: "dropped" } },
+    });
+
+    // 2. Explicit gateway mode upgrades custom <user:~64hex> ONLY when authorized by declared hash.kind
+    const gwUserSpec = makeTextSpec(
+      [{ lit: "u=" }, { hole: "u", class: "word" }],
+      [{
+        id: "f1",
+        name: "u",
+        from: { hole: "u" },
+        type: "string",
+        semantic: "text",
+        transforms: [{ op: "hash", kind: "user" }],
+      }],
+    );
+    const gwEmailSpec = makeTextSpec(
+      [{ lit: "u=" }, { hole: "u", class: "word" }],
+      [{
+        id: "f1",
+        name: "u",
+        from: { hole: "u" },
+        type: "string",
+        semantic: "email",
+        pii: "email",
+        transforms: [{ op: "hash", kind: "email" }],
+      }],
+    );
+
+    // Authorized custom kind in gateway mode upgrades cleanly
+    expect(
+      toVectorResult(
+        parseRecord(gwUserSpec, `u=${customInner}`, {
+          hashMode: "gateway",
+          hashKeys: { serverKey },
+        }),
+      ),
+    ).toEqual({
+      matched: true,
+      fields: { u: { status: "ok", type: "string", value: `<user:${expectedTag}>` } },
+    });
+
+    // Unauthorized custom kind in gateway mode safely redacts to <redacted>
+    const gwUnauth = toVectorResult(
+      parseRecord(gwEmailSpec, `u=${customInner}`, {
+        hashMode: "gateway",
+        hashKeys: { serverKey },
+      }),
+    );
+    expect(gwUnauth).toEqual({
+      matched: true,
+      fields: { u: { status: "redacted", token: "<redacted>" } },
+    });
+    expect(JSON.stringify(gwUnauth)).not.toContain(digest);
+
+    // Partial overlap in gateway mode still safely redacts
+    expect(
+      toVectorResult(
+        parseRecord(untilGt, `u=${customInner} s=200`, {
+          hashMode: "gateway",
+          hashKeys: { serverKey },
+        }),
+      ),
+    ).toEqual({
+      matched: true,
+      fields: {
+        u: { status: "redacted", token: "<redacted>" },
+        s: { status: "ok", type: "int", value: "200" },
+      },
+    });
+
+    // Explicit edge mode still emits custom <user:~64hex> from raw input
+    expect(
+      toVectorResult(
+        parseRecord(gwUserSpec, `u=${rawEmail}`, {
+          hashMode: "edge",
+          hashKeys: { edgeKey },
+        }),
+      ),
+    ).toEqual({
+      matched: true,
+      fields: { u: { status: "ok", type: "string", value: customInner } },
+    });
+  });
+
+  it("validates entire unix_s exponent before magnitude shortcuts and preserves huge all-zero values", () => {
+    expect(parseTimeValue("1e-999999999abc", "unix_s")).toBeNull();
+    expect(parseTimeValue("1e+999999999abc", "unix_s")).toBeNull();
+    expect(parseTimeValue("0e+999999999", "unix_s")).toBe(0n);
+    expect(parseTimeValue("0.000e+999999999999", "unix_s")).toBe(0n);
+    expect(parseTimeValue("-0.0e+999999999", "unix_s")).toBe(0n);
+    expect(parseTimeValue("1e-999999999", "unix_s")).toBe(0n);
+    expect(parseTimeValue("1e+999999999", "unix_s")).toBeNull();
   });
 });
