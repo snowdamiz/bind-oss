@@ -1,6 +1,7 @@
 import {
   argsInput,
   argsSpec,
+  dropped,
   field,
   match,
   objectInput,
@@ -1138,6 +1139,84 @@ export function buildSuite04() {
       spec: floatHoleToIntSpec,
       input: textInput("v=12.5"),
       expected: match({ v: parseErr("type_mismatch") }),
+    })
+  );
+
+  // ---- OVERFLOWING INT HOLE LEXEME CONTROLS (STRING TARGET, LEADING CAST, STRING DROP) ----
+  const intHoleToStringSpec = textSpec({
+    template: "tpl_04INT0018",
+    event: "test.transform.int_overflow_string",
+    segments: [{ lit: "n=" }, { hole: "n", class: "int" }],
+    fields: [
+      field({
+        id: "fld_04INT0018",
+        name: "n",
+        from: { hole: "n" },
+        type: "string",
+      }),
+    ],
+    sampleLine: "n=42",
+    sampleExpect: { n: "42" },
+  });
+
+  const intHoleLeadingCastFloatSpec = textSpec({
+    template: "tpl_04INT0019",
+    event: "test.transform.int_overflow_cast_float",
+    segments: [{ lit: "n=" }, { hole: "n", class: "int" }],
+    fields: [
+      field({
+        id: "fld_04INT0019",
+        name: "n",
+        from: { hole: "n" },
+        type: "float",
+        transforms: [{ op: "cast", to: "float" }],
+      }),
+    ],
+    sampleLine: "n=42",
+    sampleExpect: { n: 42 },
+  });
+
+  const intHoleStringDropSpec = textSpec({
+    template: "tpl_04INT0020",
+    event: "test.transform.int_overflow_string_drop",
+    segments: [{ lit: "n=" }, { hole: "n", class: "int" }],
+    fields: [
+      field({
+        id: "fld_04INT0020",
+        name: "n",
+        from: { hole: "n" },
+        type: "string",
+        transforms: [{ op: "drop" }],
+      }),
+    ],
+    sampleLine: "n=42",
+    sampleExpect: { n: null },
+  });
+
+  vectors.push(
+    vec({
+      id: "vec_tr_int_hole_overflow_string_target_018",
+      description: "int hole preserves overflowing int64 lexeme verbatim when field target type is string",
+      tags: ["hole:int", "type:string", "boundary:int64_overflow"],
+      spec: intHoleToStringSpec,
+      input: textInput("n=9223372036854775808"),
+      expected: match({ n: okStr("9223372036854775808") }),
+    }),
+    vec({
+      id: "vec_tr_int_hole_overflow_leading_cast_float_019",
+      description: "int hole with explicit leading cast(float) converts overflowing int64 lexeme 2^63 to binary64 float",
+      tags: ["hole:int", "transform:cast", "cast:float", "type:float", "boundary:int64_overflow"],
+      spec: intHoleLeadingCastFloatSpec,
+      input: textInput("n=9223372036854775808"),
+      expected: match({ n: okFloat(9223372036854775808) }),
+    }),
+    vec({
+      id: "vec_tr_int_hole_overflow_string_drop_020",
+      description: "int hole on string target with drop drops overflowing int64 lexeme cleanly without int_overflow",
+      tags: ["hole:int", "type:string", "transform:drop", "dropped", "boundary:int64_overflow"],
+      spec: intHoleStringDropSpec,
+      input: textInput("n=9223372036854775808"),
+      expected: match({ n: dropped() }),
     })
   );
 

@@ -1480,6 +1480,170 @@ export function buildSuite05() {
     })
   );
 
+  // ---- ESCAPED INNER TAGS IN rest->cast(json) & JSON HOLE DUPLICATE KEYS, WORD+LIT+REST SPLIT, NESTED INSPECTION, HASH COERCION ----
+  const restCastJsonSpec = textSpec({
+    template: "tpl_05INED20",
+    event: "test.redaction.inner_edge_rest_cast_json",
+    segments: [{ lit: "payload=" }, { hole: "p", class: "rest" }],
+    fields: [
+      field({
+        id: "fld_05INED20",
+        name: "payload",
+        from: { hole: "p" },
+        type: "json",
+        transforms: [{ op: "cast", to: "json" }],
+      }),
+    ],
+    sampleLine: 'payload={"ok":true}',
+    sampleExpect: { payload: { ok: true } },
+  });
+
+  const jsonHoleInnerEdgeSpec = textSpec({
+    template: "tpl_05INED22",
+    event: "test.redaction.inner_edge_json_hole_dup",
+    segments: [{ lit: "payload=" }, { hole: "p", class: "json" }],
+    fields: [
+      field({
+        id: "fld_05INED22",
+        name: "payload",
+        from: { hole: "p" },
+        type: "json",
+      }),
+    ],
+    sampleLine: 'payload={"a":"ok"}',
+    sampleExpect: { payload: { a: "ok" } },
+  });
+
+  const wordColonRestSpec = textSpec({
+    template: "tpl_05INED23",
+    event: "test.redaction.inner_edge_word_colon_rest",
+    segments: [
+      { lit: "user=" },
+      { hole: "u", class: "word" },
+      { lit: ":" },
+      { hole: "r", class: "rest" },
+    ],
+    fields: [
+      field({ id: "fld_05INED23A", name: "u", from: { hole: "u" }, type: "string" }),
+      field({ id: "fld_05INED23B", name: "r", from: { hole: "r" }, type: "string" }),
+    ],
+    sampleLine: "user=alice:ok",
+    sampleExpect: { u: "alice", r: "ok" },
+  });
+
+  const nestedInnerEdgeObjSpec = objectSpec({
+    template: "tpl_05INED25",
+    event: "test.redaction.inner_edge_nested_obj",
+    shape: ["data"],
+    fields: [
+      field({
+        id: "fld_05INED25",
+        name: "data",
+        from: { path: "data" },
+        type: "json",
+      }),
+    ],
+    sampleObject: { data: { ok: true } },
+    sampleExpect: { data: { ok: true } },
+  });
+
+  let nestedCustomInner = { leaf: CUSTOM_USER_INNER_EDGE };
+  for (let d = 0; d < 16; d += 1) {
+    nestedCustomInner = { a: nestedCustomInner };
+  }
+
+  const hashScalarOrStructuredSpec = objectSpec({
+    template: "tpl_05HASH26",
+    event: "test.transform.hash_scalar_only",
+    shape: ["val"],
+    fields: [
+      field({
+        id: "fld_05HASH26",
+        name: "val",
+        from: { path: "val" },
+        type: "string",
+        transforms: [{ op: "hash", kind: "user" }],
+      }),
+    ],
+    sampleObject: { val: "alice" },
+    sampleExpect: { val: `<user:${hmacTag("alice")}>` },
+  });
+
+  vectors.push(
+    vec({
+      id: "vec_redact_inner_edge_rest_cast_json_escaped_020",
+      description: "rest -> cast(json) decoding an escaped custom inner edge token fails closed as <redacted>",
+      tags: ["hole:rest", "transform:cast", "cast:json", "type:json", "redaction:inner_edge", "redacted", "ambiguity:hosted_inner_edge_token"],
+      spec: restCastJsonSpec,
+      input: textInput(`payload={"a":"${CUSTOM_USER_INNER_EDGE_DECODED_ESC}"}`),
+      expected: match({ payload: redacted("<redacted>") }),
+    }),
+    vec({
+      id: "vec_redact_inner_edge_rest_cast_json_dup_key_escaped_021",
+      description: "rest -> cast(json) carrying a duplicate member's escaped inner edge token fails closed as <redacted> even when JSON.parse drops the earlier key",
+      tags: ["hole:rest", "transform:cast", "cast:json", "type:json", "redaction:inner_edge", "redacted", "ambiguity:hosted_inner_edge_token"],
+      spec: restCastJsonSpec,
+      input: textInput(`payload={"a":"${CUSTOM_USER_INNER_EDGE_DECODED_ESC}","a":"safe"}`),
+      expected: match({ payload: redacted("<redacted>") }),
+    }),
+    vec({
+      id: "vec_redact_inner_edge_json_hole_dup_key_escaped_022",
+      description: "json hole raw text carrying a duplicate member's escaped inner edge token fails closed as <redacted> even when JSON.parse drops its key",
+      tags: ["hole:json", "type:json", "redaction:inner_edge", "redacted", "ambiguity:hosted_inner_edge_token"],
+      spec: jsonHoleInnerEdgeSpec,
+      input: textInput(`payload={"a":"${CUSTOM_USER_INNER_EDGE_DECODED_ESC}","a":"safe"}`),
+      expected: match({ payload: redacted("<redacted>") }),
+    }),
+    vec({
+      id: "vec_redact_inner_edge_custom_kind_user_word_colon_rest_split_023",
+      description: "leading custom inner edge token preserves ordinary word+':'+rest split when ':' does not immediately follow the full tag and redacts both overlapping spans",
+      tags: ["hole:word", "hole:rest", "type:string", "boundary:following_literal", "redaction:inner_edge", "redacted", "ambiguity:hosted_inner_edge_token"],
+      spec: wordColonRestSpec,
+      input: textInput(`user=${CUSTOM_USER_INNER_EDGE}`),
+      expected: match({ u: redacted("<redacted>"), r: redacted("<redacted>") }),
+    }),
+    vec({
+      id: "vec_redact_inner_edge_custom_kind_user_word_colon_rest_full_tag_024",
+      description: "leading custom inner edge token immediately followed by requested ':' literal matches the full tag in word (redacted) and preserves trailing rest",
+      tags: ["hole:word", "hole:rest", "type:string", "boundary:following_literal", "redaction:inner_edge", "redacted", "ambiguity:hosted_inner_edge_token"],
+      spec: wordColonRestSpec,
+      input: textInput(`user=${CUSTOM_USER_INNER_EDGE}:ok`),
+      expected: match({ u: redacted("<redacted>"), r: okStr("ok") }),
+    }),
+    vec({
+      id: "vec_redact_inner_edge_nested_object_025",
+      description: "nested structured object containing a custom inner edge token at depth 16 fails closed as <redacted> via iterative inspection",
+      tags: ["object:pure", "type:json", "redaction:inner_edge", "redacted", "ambiguity:hosted_inner_edge_token"],
+      spec: nestedInnerEdgeObjSpec,
+      input: objectInput({ data: nestedCustomInner }),
+      expected: match({ data: redacted("<redacted>") }),
+    }),
+    vec({
+      id: "vec_tr_hash_scalar_int_coercion_026",
+      description: "hash supports scalar int string coercion from structured object input",
+      tags: ["object:pure", "transform:hash", "type:string"],
+      spec: hashScalarOrStructuredSpec,
+      input: objectInput({ val: 42 }),
+      expected: match({ val: okStr(`<user:${hmacTag("42")}>`) }),
+    }),
+    vec({
+      id: "vec_tr_hash_structured_object_rejected_027",
+      description: "hash rejects structured object input with type_mismatch instead of coercing to string",
+      tags: ["object:pure", "transform:hash", "parse_error"],
+      spec: hashScalarOrStructuredSpec,
+      input: objectInput({ val: { a: 1 } }),
+      expected: match({ val: parseErr("type_mismatch") }),
+    }),
+    vec({
+      id: "vec_tr_hash_structured_array_rejected_028",
+      description: "hash rejects structured array input with type_mismatch instead of coercing to string",
+      tags: ["object:pure", "transform:hash", "parse_error"],
+      spec: hashScalarOrStructuredSpec,
+      input: objectInput({ val: [1, 2] }),
+      expected: match({ val: parseErr("type_mismatch") }),
+    })
+  );
+
   return {
     suite: "05-transforms-privacy-and-redaction",
     description: "Golden conformance vectors covering hash, mask (token and ip_prefix), drop, known redaction tokens across all 11 hole classes and field types, neutral unknown angle-bracket strings, and explicit PII transform placement.",
