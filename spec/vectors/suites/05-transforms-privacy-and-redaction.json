@@ -6917,6 +6917,757 @@
           }
         }
       }
+    },
+    {
+      "id": "vec_redact_inner_edge_rest_cast_json_escaped_020",
+      "description": "rest -> cast(json) decoding an escaped custom inner edge token fails closed as <redacted>",
+      "tags": [
+        "hole:rest",
+        "transform:cast",
+        "cast:json",
+        "type:json",
+        "redaction:inner_edge",
+        "redacted",
+        "ambiguity:hosted_inner_edge_token",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_05INED20",
+        "event": "test.redaction.inner_edge_rest_cast_json",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "payload="
+            },
+            {
+              "hole": "p",
+              "class": "rest"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_05INED20",
+            "name": "payload",
+            "from": {
+              "hole": "p"
+            },
+            "type": "json",
+            "semantic": "unknown",
+            "transforms": [
+              {
+                "op": "cast",
+                "to": "json"
+              }
+            ]
+          }
+        ],
+        "tests": [
+          {
+            "line": "payload={\"ok\":true}",
+            "expect": {
+              "payload": {
+                "ok": true
+              }
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "payload={\"a\":\"\\u003cuser:\\u007e0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\\u003e\"}"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "payload": {
+            "status": "redacted",
+            "token": "<redacted>"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_redact_inner_edge_rest_cast_json_dup_key_escaped_021",
+      "description": "rest -> cast(json) carrying a duplicate member's escaped inner edge token fails closed as <redacted> even when JSON.parse drops the earlier key",
+      "tags": [
+        "hole:rest",
+        "transform:cast",
+        "cast:json",
+        "type:json",
+        "redaction:inner_edge",
+        "redacted",
+        "ambiguity:hosted_inner_edge_token",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_05INED20",
+        "event": "test.redaction.inner_edge_rest_cast_json",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "payload="
+            },
+            {
+              "hole": "p",
+              "class": "rest"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_05INED20",
+            "name": "payload",
+            "from": {
+              "hole": "p"
+            },
+            "type": "json",
+            "semantic": "unknown",
+            "transforms": [
+              {
+                "op": "cast",
+                "to": "json"
+              }
+            ]
+          }
+        ],
+        "tests": [
+          {
+            "line": "payload={\"ok\":true}",
+            "expect": {
+              "payload": {
+                "ok": true
+              }
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "payload={\"a\":\"\\u003cuser:\\u007e0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\\u003e\",\"a\":\"safe\"}"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "payload": {
+            "status": "redacted",
+            "token": "<redacted>"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_redact_inner_edge_json_hole_dup_key_escaped_022",
+      "description": "json hole raw text carrying a duplicate member's escaped inner edge token fails closed as <redacted> even when JSON.parse drops its key",
+      "tags": [
+        "hole:json",
+        "type:json",
+        "redaction:inner_edge",
+        "redacted",
+        "ambiguity:hosted_inner_edge_token",
+        "match:text",
+        "sql:refuse",
+        "sql:refuse:json_hole"
+      ],
+      "sql": {
+        "supported": false,
+        "refusal_code": "unsupported_json_hole",
+        "reason": "Specs containing a text json hole are refused by the ClickHouse SQL compiler because balanced JSON text scanning is not supported in SQL compilation."
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_05INED22",
+        "event": "test.redaction.inner_edge_json_hole_dup",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "payload="
+            },
+            {
+              "hole": "p",
+              "class": "json"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_05INED22",
+            "name": "payload",
+            "from": {
+              "hole": "p"
+            },
+            "type": "json",
+            "semantic": "unknown"
+          }
+        ],
+        "tests": [
+          {
+            "line": "payload={\"a\":\"ok\"}",
+            "expect": {
+              "payload": {
+                "a": "ok"
+              }
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "payload={\"a\":\"\\u003cuser:\\u007e0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\\u003e\",\"a\":\"safe\"}"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "payload": {
+            "status": "redacted",
+            "token": "<redacted>"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_redact_inner_edge_custom_kind_user_word_colon_rest_split_023",
+      "description": "leading custom inner edge token preserves ordinary word+':'+rest split when ':' does not immediately follow the full tag and redacts both overlapping spans",
+      "tags": [
+        "hole:word",
+        "hole:rest",
+        "type:string",
+        "boundary:following_literal",
+        "redaction:inner_edge",
+        "redacted",
+        "ambiguity:hosted_inner_edge_token",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_05INED23",
+        "event": "test.redaction.inner_edge_word_colon_rest",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "user="
+            },
+            {
+              "hole": "u",
+              "class": "word"
+            },
+            {
+              "lit": ":"
+            },
+            {
+              "hole": "r",
+              "class": "rest"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_05INED23A",
+            "name": "u",
+            "from": {
+              "hole": "u"
+            },
+            "type": "string",
+            "semantic": "unknown"
+          },
+          {
+            "id": "fld_05INED23B",
+            "name": "r",
+            "from": {
+              "hole": "r"
+            },
+            "type": "string",
+            "semantic": "unknown"
+          }
+        ],
+        "tests": [
+          {
+            "line": "user=alice:ok",
+            "expect": {
+              "u": "alice",
+              "r": "ok"
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "user=<user:~0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef>"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "u": {
+            "status": "redacted",
+            "token": "<redacted>"
+          },
+          "r": {
+            "status": "redacted",
+            "token": "<redacted>"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_redact_inner_edge_custom_kind_user_word_colon_rest_full_tag_024",
+      "description": "leading custom inner edge token immediately followed by requested ':' literal matches the full tag in word (redacted) and preserves trailing rest",
+      "tags": [
+        "hole:word",
+        "hole:rest",
+        "type:string",
+        "boundary:following_literal",
+        "redaction:inner_edge",
+        "redacted",
+        "ambiguity:hosted_inner_edge_token",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_05INED23",
+        "event": "test.redaction.inner_edge_word_colon_rest",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "user="
+            },
+            {
+              "hole": "u",
+              "class": "word"
+            },
+            {
+              "lit": ":"
+            },
+            {
+              "hole": "r",
+              "class": "rest"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_05INED23A",
+            "name": "u",
+            "from": {
+              "hole": "u"
+            },
+            "type": "string",
+            "semantic": "unknown"
+          },
+          {
+            "id": "fld_05INED23B",
+            "name": "r",
+            "from": {
+              "hole": "r"
+            },
+            "type": "string",
+            "semantic": "unknown"
+          }
+        ],
+        "tests": [
+          {
+            "line": "user=alice:ok",
+            "expect": {
+              "u": "alice",
+              "r": "ok"
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "user=<user:~0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef>:ok"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "u": {
+            "status": "redacted",
+            "token": "<redacted>"
+          },
+          "r": {
+            "status": "ok",
+            "type": "string",
+            "value": "ok"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_redact_inner_edge_nested_object_025",
+      "description": "nested structured object containing a custom inner edge token at depth 16 fails closed as <redacted> via iterative inspection",
+      "tags": [
+        "object:pure",
+        "type:json",
+        "redaction:inner_edge",
+        "redacted",
+        "ambiguity:hosted_inner_edge_token",
+        "match:object"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_05INED25",
+        "event": "test.redaction.inner_edge_nested_obj",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "object",
+          "shape": [
+            "data"
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_05INED25",
+            "name": "data",
+            "from": {
+              "path": "data"
+            },
+            "type": "json",
+            "semantic": "unknown"
+          }
+        ],
+        "tests": [
+          {
+            "object": {
+              "data": {
+                "ok": true
+              }
+            },
+            "expect": {
+              "data": {
+                "ok": true
+              }
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "object",
+        "object": {
+          "data": {
+            "a": {
+              "a": {
+                "a": {
+                  "a": {
+                    "a": {
+                      "a": {
+                        "a": {
+                          "a": {
+                            "a": {
+                              "a": {
+                                "a": {
+                                  "a": {
+                                    "a": {
+                                      "a": {
+                                        "a": {
+                                          "a": {
+                                            "leaf": "<user:~0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef>"
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "data": {
+            "status": "redacted",
+            "token": "<redacted>"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_tr_hash_scalar_int_coercion_026",
+      "description": "hash supports scalar int string coercion from structured object input",
+      "tags": [
+        "object:pure",
+        "transform:hash",
+        "type:string",
+        "match:object"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_05HASH26",
+        "event": "test.transform.hash_scalar_only",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "object",
+          "shape": [
+            "val"
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_05HASH26",
+            "name": "val",
+            "from": {
+              "path": "val"
+            },
+            "type": "string",
+            "semantic": "unknown",
+            "transforms": [
+              {
+                "op": "hash",
+                "kind": "user"
+              }
+            ]
+          }
+        ],
+        "tests": [
+          {
+            "object": {
+              "val": "alice"
+            },
+            "expect": {
+              "val": "<user:d46dbe4c5987c848>"
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "object",
+        "object": {
+          "val": 42
+        }
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "val": {
+            "status": "ok",
+            "type": "string",
+            "value": "<user:b8fc0352137b130d>"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_tr_hash_structured_object_rejected_027",
+      "description": "hash rejects structured object input with type_mismatch instead of coercing to string",
+      "tags": [
+        "object:pure",
+        "transform:hash",
+        "parse_error",
+        "match:object"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_05HASH26",
+        "event": "test.transform.hash_scalar_only",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "object",
+          "shape": [
+            "val"
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_05HASH26",
+            "name": "val",
+            "from": {
+              "path": "val"
+            },
+            "type": "string",
+            "semantic": "unknown",
+            "transforms": [
+              {
+                "op": "hash",
+                "kind": "user"
+              }
+            ]
+          }
+        ],
+        "tests": [
+          {
+            "object": {
+              "val": "alice"
+            },
+            "expect": {
+              "val": "<user:d46dbe4c5987c848>"
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "object",
+        "object": {
+          "val": {
+            "a": 1
+          }
+        }
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "val": {
+            "status": "parse_error",
+            "code": "type_mismatch"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_tr_hash_structured_array_rejected_028",
+      "description": "hash rejects structured array input with type_mismatch instead of coercing to string",
+      "tags": [
+        "object:pure",
+        "transform:hash",
+        "parse_error",
+        "match:object"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_05HASH26",
+        "event": "test.transform.hash_scalar_only",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "object",
+          "shape": [
+            "val"
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_05HASH26",
+            "name": "val",
+            "from": {
+              "path": "val"
+            },
+            "type": "string",
+            "semantic": "unknown",
+            "transforms": [
+              {
+                "op": "hash",
+                "kind": "user"
+              }
+            ]
+          }
+        ],
+        "tests": [
+          {
+            "object": {
+              "val": "alice"
+            },
+            "expect": {
+              "val": "<user:d46dbe4c5987c848>"
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "object",
+        "object": {
+          "val": [
+            1,
+            2
+          ]
+        }
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "val": {
+            "status": "parse_error",
+            "code": "type_mismatch"
+          }
+        }
+      }
     }
   ]
 }

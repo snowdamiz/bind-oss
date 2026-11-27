@@ -12,6 +12,7 @@ import {
   MANIFEST_PATH,
   VECTORS_DIR,
   createVectorValidator,
+  evaluateVector,
   float64ToHex,
   hexToFloat64,
   validateAllVectors,
@@ -812,6 +813,232 @@ describe("Negative validation checks: malformed vectors and semantic regressions
         e.includes("reference evaluator mismatch")
       )
     );
+  });
+
+  it("blocks escaped inner tags in rest->cast(json) and duplicate-member json holes, preserves word+lit+rest split, rejects structured hash coercion, and pins overflowing-int controls", () => {
+    const restCastEsc = suite05.vectors.find(
+      (v) => v.id === "vec_redact_inner_edge_rest_cast_json_escaped_020"
+    );
+    const restCastDup = suite05.vectors.find(
+      (v) => v.id === "vec_redact_inner_edge_rest_cast_json_dup_key_escaped_021"
+    );
+    const jsonHoleDup = suite05.vectors.find(
+      (v) => v.id === "vec_redact_inner_edge_json_hole_dup_key_escaped_022"
+    );
+    const wordSplit = suite05.vectors.find(
+      (v) => v.id === "vec_redact_inner_edge_custom_kind_user_word_colon_rest_split_023"
+    );
+    const wordFullTag = suite05.vectors.find(
+      (v) => v.id === "vec_redact_inner_edge_custom_kind_user_word_colon_rest_full_tag_024"
+    );
+    const hashScalar = suite05.vectors.find(
+      (v) => v.id === "vec_tr_hash_scalar_int_coercion_026"
+    );
+    const hashObj = suite05.vectors.find(
+      (v) => v.id === "vec_tr_hash_structured_object_rejected_027"
+    );
+    const hashArr = suite05.vectors.find(
+      (v) => v.id === "vec_tr_hash_structured_array_rejected_028"
+    );
+    const intOverflowStr = suite04.vectors.find(
+      (v) => v.id === "vec_tr_int_hole_overflow_string_target_018"
+    );
+    const intOverflowCastFloat = suite04.vectors.find(
+      (v) => v.id === "vec_tr_int_hole_overflow_leading_cast_float_019"
+    );
+    const intOverflowStrDrop = suite04.vectors.find(
+      (v) => v.id === "vec_tr_int_hole_overflow_string_drop_020"
+    );
+    assert.ok(
+      restCastEsc &&
+        restCastDup &&
+        jsonHoleDup &&
+        wordSplit &&
+        wordFullTag &&
+        hashScalar &&
+        hashObj &&
+        hashArr &&
+        intOverflowStr &&
+        intOverflowCastFloat &&
+        intOverflowStrDrop
+    );
+
+    const ctx = suite05.context;
+
+    // 1. rest->cast(json) must reject leaking escaped inner tag (single & duplicate key),
+    //    while keeping escaped ordinary <nil> intact.
+    const badRestCast = singleVectorSuite(suite05, restCastEsc);
+    badRestCast.vectors[0].expected.fields.payload = {
+      status: "ok",
+      type: "json",
+      value: { a: "<user:~0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef>" },
+    };
+    assert.ok(
+      validateVectorSuiteDocument(badRestCast, validator).some((e) =>
+        e.includes("reference evaluator mismatch")
+      )
+    );
+    const cleanEscNil = evaluateVector(
+      restCastEsc.spec,
+      { kind: "text", line: 'payload={"a":"\u003cnil\u003e","a":"safe"}' },
+      ctx
+    );
+    assert.deepEqual(cleanEscNil, {
+      matched: true,
+      fields: { payload: { status: "ok", type: "json", value: { a: "safe" } } },
+    });
+
+    // 2. json hole raw text carrying a duplicate member's escaped inner tag must fail closed
+    //    for both type: "json" and type: "string" even though JSON.parse drops the earlier key.
+    const badJsonDup = singleVectorSuite(suite05, jsonHoleDup);
+    badJsonDup.vectors[0].expected.fields.payload = {
+      status: "ok",
+      type: "json",
+      value: { a: "safe" },
+    };
+    assert.ok(
+      validateVectorSuiteDocument(badJsonDup, validator).some((e) =>
+        e.includes("reference evaluator mismatch")
+      )
+    );
+    const jsonHoleStrSpec = structuredClone(jsonHoleDup.spec);
+    jsonHoleStrSpec.fields[0].type = "string";
+    const jsonHoleStrRes = evaluateVector(jsonHoleStrSpec, jsonHoleDup.input, ctx);
+    assert.deepEqual(jsonHoleStrRes, {
+      matched: true,
+      fields: { payload: { status: "redacted", token: "<redacted>" } },
+    });
+
+    // 3. Leading custom inner token in word+':'+rest:
+    //    - without immediately following ':', preserve split and redact both overlapping spans
+    //    - even with trailing whitespace (' tail'), preserve split instead of failing match
+    //    - with immediately following ':', take full tag in word and keep trailing rest
+    const badWordSplit = singleVectorSuite(suite05, wordSplit);
+    badWordSplit.vectors[0].expected = { matched: false };
+    assert.ok(
+      validateVectorSuiteDocument(badWordSplit, validator).some((e) =>
+        e.includes("reference evaluator mismatch")
+      )
+    );
+    const splitWithTrailingSpace = evaluateVector(
+      wordSplit.spec,
+      {
+        kind: "text",
+        line: "user=<user:~0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef> tail",
+      },
+      ctx
+    );
+    assert.deepEqual(splitWithTrailingSpace, {
+      matched: true,
+      fields: {
+        u: { status: "redacted", token: "<redacted>" },
+        r: { status: "redacted", token: "<redacted>" },
+      },
+    });
+    const fullTagBeforeColon = evaluateVector(wordFullTag.spec, wordFullTag.input, ctx);
+    assert.deepEqual(fullTagBeforeColon, {
+      matched: true,
+      fields: {
+        u: { status: "redacted", token: "<redacted>" },
+        r: { status: "ok", type: "string", value: "ok" },
+      },
+    });
+
+    // 4. hash scalar-only coercion: structured objects, arrays, and JSON null must never coerce.
+    const restCastJsonThenHashSpec = structuredClone(restCastEsc.spec);
+    restCastJsonThenHashSpec.fields[0].type = "string";
+    restCastJsonThenHashSpec.fields[0].transforms = [
+      { op: "cast", to: "json" },
+      { op: "hash", kind: "user" },
+    ];
+    for (const rawJson of ['{"a":1}', "[1,2]", "null"]) {
+      const res = evaluateVector(
+        restCastJsonThenHashSpec,
+        { kind: "text", line: `payload=${rawJson}` },
+        ctx
+      );
+      assert.deepEqual(res, {
+        matched: true,
+        fields: { payload: { status: "parse_error", code: "type_mismatch" } },
+      });
+    }
+    const boolScalarHash = evaluateVector(hashScalar.spec, { kind: "object", object: { val: true } }, ctx);
+    assert.equal(boolScalarHash.matched, true);
+    assert.equal(boolScalarHash.fields.val.status, "ok");
+    assert.match(boolScalarHash.fields.val.value, /^<user:[0-9a-f]{16}>$/);
+
+    // 5. Overflowing int hole lexeme controls must NOT be unconditionally rejected as int_overflow.
+    for (const vecCase of [intOverflowStr, intOverflowCastFloat, intOverflowStrDrop]) {
+      const badOverflow = singleVectorSuite(suite04, vecCase);
+      badOverflow.vectors[0].expected.fields.n = { status: "parse_error", code: "int_overflow" };
+      assert.ok(
+        validateVectorSuiteDocument(badOverflow, validator).some((e) =>
+          e.includes("reference evaluator mismatch")
+        )
+      );
+    }
+  });
+
+  it("inspects 20,000-level deeply nested valid JSON inputs iteratively without stack overflow", () => {
+    const depth = 20000;
+    const ctx = suite05.context;
+    const customInner =
+      "<user:~0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef>";
+    const customInnerEsc =
+      "\u003cuser:\u007e0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\u003e";
+
+    const nestedObjSpec = suite05.vectors.find(
+      (v) => v.id === "vec_redact_inner_edge_nested_object_025"
+    ).spec;
+    const restCastJsonSpec = suite05.vectors.find(
+      (v) => v.id === "vec_redact_inner_edge_rest_cast_json_escaped_020"
+    ).spec;
+    const jsonHoleSpec = suite05.vectors.find(
+      (v) => v.id === "vec_redact_inner_edge_json_hole_dup_key_escaped_022"
+    ).spec;
+
+    let deepClean = "ok";
+    let deepInner = customInner;
+    for (let i = 0; i < depth; i += 1) {
+      deepClean = [deepClean];
+      deepInner = [deepInner];
+    }
+
+    const objCleanRes = evaluateVector(nestedObjSpec, { kind: "object", object: { data: deepClean } }, ctx);
+    assert.equal(objCleanRes.matched, true);
+    assert.equal(objCleanRes.fields.data.status, "ok");
+    assert.equal(objCleanRes.fields.data.type, "json");
+
+    const objInnerRes = evaluateVector(nestedObjSpec, { kind: "object", object: { data: deepInner } }, ctx);
+    assert.deepEqual(objInnerRes, {
+      matched: true,
+      fields: { data: { status: "redacted", token: "<redacted>" } },
+    });
+
+    const openBrackets = "[".repeat(depth);
+    const closeBrackets = "]".repeat(depth);
+    const deepJsonCleanLine = `payload=${openBrackets}"ok"${closeBrackets}`;
+    const deepJsonInnerLine = `payload=${openBrackets}"${customInnerEsc}"${closeBrackets}`;
+
+    const restCleanRes = evaluateVector(restCastJsonSpec, { kind: "text", line: deepJsonCleanLine }, ctx);
+    assert.equal(restCleanRes.matched, true);
+    assert.equal(restCleanRes.fields.payload.status, "ok");
+
+    const restInnerRes = evaluateVector(restCastJsonSpec, { kind: "text", line: deepJsonInnerLine }, ctx);
+    assert.deepEqual(restInnerRes, {
+      matched: true,
+      fields: { payload: { status: "redacted", token: "<redacted>" } },
+    });
+
+    const holeCleanRes = evaluateVector(jsonHoleSpec, { kind: "text", line: deepJsonCleanLine }, ctx);
+    assert.equal(holeCleanRes.matched, true);
+    assert.equal(holeCleanRes.fields.payload.status, "ok");
+
+    const holeInnerRes = evaluateVector(jsonHoleSpec, { kind: "text", line: deepJsonInnerLine }, ctx);
+    assert.deepEqual(holeInnerRes, {
+      matched: true,
+      fields: { payload: { status: "redacted", token: "<redacted>" } },
+    });
   });
 });
 

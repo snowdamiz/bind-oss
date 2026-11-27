@@ -7430,6 +7430,226 @@
           }
         }
       }
+    },
+    {
+      "id": "vec_tr_int_hole_overflow_string_target_018",
+      "description": "int hole preserves overflowing int64 lexeme verbatim when field target type is string",
+      "tags": [
+        "hole:int",
+        "type:string",
+        "boundary:int64_overflow",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_04INT0018",
+        "event": "test.transform.int_overflow_string",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "n="
+            },
+            {
+              "hole": "n",
+              "class": "int"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_04INT0018",
+            "name": "n",
+            "from": {
+              "hole": "n"
+            },
+            "type": "string",
+            "semantic": "unknown"
+          }
+        ],
+        "tests": [
+          {
+            "line": "n=42",
+            "expect": {
+              "n": "42"
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "n=9223372036854775808"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "n": {
+            "status": "ok",
+            "type": "string",
+            "value": "9223372036854775808"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_tr_int_hole_overflow_leading_cast_float_019",
+      "description": "int hole with explicit leading cast(float) converts overflowing int64 lexeme 2^63 to binary64 float",
+      "tags": [
+        "hole:int",
+        "transform:cast",
+        "cast:float",
+        "type:float",
+        "boundary:int64_overflow",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_04INT0019",
+        "event": "test.transform.int_overflow_cast_float",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "n="
+            },
+            {
+              "hole": "n",
+              "class": "int"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_04INT0019",
+            "name": "n",
+            "from": {
+              "hole": "n"
+            },
+            "type": "float",
+            "semantic": "unknown",
+            "transforms": [
+              {
+                "op": "cast",
+                "to": "float"
+              }
+            ]
+          }
+        ],
+        "tests": [
+          {
+            "line": "n=42",
+            "expect": {
+              "n": 42
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "n=9223372036854775808"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "n": {
+            "status": "ok",
+            "type": "float",
+            "value": "43e0000000000000"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_tr_int_hole_overflow_string_drop_020",
+      "description": "int hole on string target with drop drops overflowing int64 lexeme cleanly without int_overflow",
+      "tags": [
+        "hole:int",
+        "type:string",
+        "transform:drop",
+        "dropped",
+        "boundary:int64_overflow",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_04INT0020",
+        "event": "test.transform.int_overflow_string_drop",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "n="
+            },
+            {
+              "hole": "n",
+              "class": "int"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_04INT0020",
+            "name": "n",
+            "from": {
+              "hole": "n"
+            },
+            "type": "string",
+            "semantic": "unknown",
+            "transforms": [
+              {
+                "op": "drop"
+              }
+            ]
+          }
+        ],
+        "tests": [
+          {
+            "line": "n=42",
+            "expect": {
+              "n": null
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "n=9223372036854775808"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "n": {
+            "status": "dropped"
+          }
+        }
+      }
     }
   ]
 }

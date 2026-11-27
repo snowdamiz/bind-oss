@@ -289,20 +289,88 @@ function containsInnerEdgeToken(text) {
   return INNER_EDGE_TOKEN_RE.test(text);
 }
 
-function jsonContainsInnerEdgeToken(val) {
-  if (typeof val === "string") {
-    return containsInnerEdgeToken(val);
-  }
-  if (Array.isArray(val)) {
-    for (const item of val) {
-      if (jsonContainsInnerEdgeToken(item)) return true;
-    }
+// Minimum raw length of a JSON string literal containing <a:~64hex> is 2 quotes + 69 chars = 71.
+const MIN_JSON_INNER_EDGE_LITERAL_LEN = 71;
+
+function rawJsonTextContainsInnerEdgeToken(jsonText) {
+  if (typeof jsonText !== "string" || jsonText.length < MIN_JSON_INNER_EDGE_LITERAL_LEN) {
     return false;
   }
-  if (val !== null && typeof val === "object") {
-    for (const k of Object.keys(val)) {
-      if (containsInnerEdgeToken(k) || jsonContainsInnerEdgeToken(val[k])) {
-        return true;
+  let i = 0;
+  const len = jsonText.length;
+  while (i < len) {
+    if (jsonText[i] !== '"') {
+      i += 1;
+      continue;
+    }
+    const start = i;
+    i += 1;
+    let escaped = false;
+    while (i < len) {
+      const ch = jsonText[i];
+      if (escaped) {
+        escaped = false;
+      } else if (ch === "\\") {
+        escaped = true;
+      } else if (ch === '"') {
+        i += 1;
+        break;
+      }
+      i += 1;
+    }
+    if (i - start >= MIN_JSON_INNER_EDGE_LITERAL_LEN) {
+      try {
+        const decoded = JSON.parse(jsonText.slice(start, i));
+        if (typeof decoded === "string" && containsInnerEdgeToken(decoded)) {
+          return true;
+        }
+      } catch {
+        // Ignore non-string or malformed literal fragments
+      }
+    }
+  }
+  return false;
+}
+
+function jsonContainsInnerEdgeToken(root) {
+  if (typeof root === "string") {
+    return containsInnerEdgeToken(root);
+  }
+  if (root === null || typeof root !== "object") {
+    return false;
+  }
+  const stack = [root];
+  const seen = new Set();
+  while (stack.length > 0) {
+    const val = stack.pop();
+    if (typeof val === "string") {
+      if (containsInnerEdgeToken(val)) return true;
+      continue;
+    }
+    if (val === null || typeof val !== "object" || seen.has(val)) {
+      continue;
+    }
+    seen.add(val);
+    if (Array.isArray(val)) {
+      for (let i = 0; i < val.length; i += 1) {
+        const item = val[i];
+        if (typeof item === "string") {
+          if (containsInnerEdgeToken(item)) return true;
+        } else if (item !== null && typeof item === "object") {
+          stack.push(item);
+        }
+      }
+    } else {
+      const keys = Object.keys(val);
+      for (let i = 0; i < keys.length; i += 1) {
+        const k = keys[i];
+        if (containsInnerEdgeToken(k)) return true;
+        const v = val[k];
+        if (typeof v === "string") {
+          if (containsInnerEdgeToken(v)) return true;
+        } else if (v !== null && typeof v === "object") {
+          stack.push(v);
+        }
       }
     }
   }
@@ -588,7 +656,11 @@ function matchTextSegments(segments, line) {
     if (cls === "quoted" && containsInnerEdgeToken(raw)) {
       return { token: "<redacted>", category: "inner_edge", isPseudonym: false };
     }
-    if (cls === "json" && parsedJson !== undefined && jsonContainsInnerEdgeToken(parsedJson)) {
+    if (
+      cls === "json" &&
+      (rawJsonTextContainsInnerEdgeToken(raw) ||
+        (parsedJson !== undefined && jsonContainsInnerEdgeToken(parsedJson)))
+    ) {
       return { token: "<redacted>", category: "inner_edge", isPseudonym: false };
     }
     return baseTokenInfo;
@@ -627,16 +699,19 @@ function matchTextSegments(segments, line) {
     }
 
     if (cls === "word") {
-      // A known redaction token matches a word hole only when bounded by EOL,
-      // ASCII whitespace, or the immediately following literal. Unknown angle
-      // forms such as <nil> or <b>bold stay ordinary word text.
+      // A recognized incoming redaction token matches a word hole intact only
+      // when bounded by the immediately following literal (if present), or by
+      // EOL / ASCII whitespace (when no literal immediately follows). If a
+      // following literal is requested and does not immediately follow the full
+      // token, fall through to ordinary literal-bounded word scanning so valid
+      // word+literal+rest splits are preserved and overlapping spans redact.
       const tok = matchKnownRedactionTokenPrefix(line, pos);
-      if (
-        tok &&
-        (tok.nextPos === line.length ||
-          isAsciiWhitespace(line.charCodeAt(tok.nextPos)) ||
-          (nextLit !== null && line.startsWith(nextLit, tok.nextPos)))
-      ) {
+      const tokBounded =
+        tok !== null &&
+        (nextLit !== null
+          ? line.startsWith(nextLit, tok.nextPos)
+          : tok.nextPos === line.length || isAsciiWhitespace(line.charCodeAt(tok.nextPos)));
+      if (tokBounded) {
         const tokenInfo = classifyHoleToken(tok.raw, pos, tok.nextPos, cls, tok.tokenInfo);
         holes.set(seg.hole, { raw: tok.raw, holeClass: cls, tokenInfo });
         pos = tok.nextPos;
@@ -1067,8 +1142,17 @@ function evaluateField(field, extracted, context) {
           curKind = "string";
           break;
         }
-        if (typeof cur !== "string") {
-          cur = typeof cur === "bigint" ? cur.toString(10) : String(cur);
+        if (typeof cur === "bigint") {
+          cur = cur.toString(10);
+        } else if (typeof cur === "number") {
+          if (!Number.isFinite(cur)) {
+            return { status: "parse_error", code: "type_mismatch" };
+          }
+          cur = String(cur);
+        } else if (typeof cur === "boolean") {
+          cur = cur ? "true" : "false";
+        } else if (typeof cur !== "string") {
+          return { status: "parse_error", code: "type_mismatch" };
         }
         const alreadyToken = classifyRedactionToken(cur);
         if (alreadyToken) {
@@ -1201,14 +1285,22 @@ function evaluateField(field, extracted, context) {
           }
           case "json": {
             if (typeof cur !== "string") {
+              if (jsonContainsInnerEdgeToken(cur)) {
+                return { status: "redacted", token: "<redacted>" };
+              }
               curKind = "json";
             } else {
+              let parsed;
               try {
-                cur = JSON.parse(cur);
-                curKind = "json";
+                parsed = JSON.parse(cur);
               } catch {
                 return { status: "parse_error", code: "invalid_json" };
               }
+              if (rawJsonTextContainsInnerEdgeToken(cur) || jsonContainsInnerEdgeToken(parsed)) {
+                return { status: "redacted", token: "<redacted>" };
+              }
+              cur = parsed;
+              curKind = "json";
             }
             break;
           }
@@ -1497,28 +1589,33 @@ function fieldResultToSpecTestValue(res) {
   }
 }
 
-function deepEqual(a, b) {
-  if (Object.is(a, b)) return true;
-  if (typeof a !== typeof b || a === null || b === null) return false;
-  if (Array.isArray(a) !== Array.isArray(b)) return false;
-  if (Array.isArray(a)) {
-    if (a.length !== b.length) return false;
-    for (let i = 0; i < a.length; i += 1) {
-      if (!deepEqual(a[i], b[i])) return false;
+function deepEqual(rootA, rootB) {
+  const stack = [[rootA, rootB]];
+  while (stack.length > 0) {
+    const [a, b] = stack.pop();
+    if (Object.is(a, b)) continue;
+    if (typeof a !== typeof b || a === null || b === null) return false;
+    if (Array.isArray(a) !== Array.isArray(b)) return false;
+    if (Array.isArray(a)) {
+      if (a.length !== b.length) return false;
+      for (let i = 0; i < a.length; i += 1) {
+        stack.push([a[i], b[i]]);
+      }
+      continue;
     }
-    return true;
-  }
-  if (typeof a === "object") {
-    const ka = Object.keys(a).sort();
-    const kb = Object.keys(b).sort();
-    if (ka.length !== kb.length) return false;
-    for (let i = 0; i < ka.length; i += 1) {
-      if (ka[i] !== kb[i]) return false;
-      if (!deepEqual(a[ka[i]], b[kb[i]])) return false;
+    if (typeof a === "object") {
+      const ka = Object.keys(a).sort();
+      const kb = Object.keys(b).sort();
+      if (ka.length !== kb.length) return false;
+      for (let i = 0; i < ka.length; i += 1) {
+        if (ka[i] !== kb[i]) return false;
+        stack.push([a[ka[i]], b[kb[i]]]);
+      }
+      continue;
     }
-    return true;
+    return false;
   }
-  return false;
+  return true;
 }
 
 export function validateVectorSuiteDocument(suiteDoc, validator) {
