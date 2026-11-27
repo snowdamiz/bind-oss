@@ -1,0 +1,58 @@
+{
+  "spec_version": 1,
+  "template": "tpl_01REVIEW01",
+  "event": "review.int_hole_scale_to_string",
+  "version": 1,
+  "status": "active",
+  "origin": "agent",
+  "source": { "kind": "mined" },
+  "match": {
+    "kind": "text",
+    "segments": [{ "lit": "n=" }, { "hole": "n", "class": "int" }]
+  },
+  "fields": [
+    {
+      "id": "fld_01SCALE1",
+      "name": "scaled",
+      "from": { "hole": "n" },
+      "type": "string",
+      "semantic": "text",
+      "transforms": [{ "op": "scale", "div": 2 }, { "op": "cast", "to": "string" }]
+    },
+    {
+      "id": "fld_01SCALE2",
+      "name": "lowered",
+      "from": { "hole": "n" },
+      "type": "string",
+      "semantic": "text",
+      "transforms": [{ "op": "lower" }, { "op": "scale", "div": 2 }, { "op": "cast", "to": "string" }]
+    },
+    {
+      "id": "fld_01SCALE3",
+      "name": "explicit_float",
+      "from": { "hole": "n" },
+      "type": "string",
+      "semantic": "text",
+      "transforms": [
+        { "op": "lower" },
+        { "op": "cast", "to": "float" },
+        { "op": "scale", "div": 2 },
+        { "op": "cast", "to": "string" }
+      ]
+    }
+  ],
+  "tests": [
+    {
+      "line": "n=9223372036854775808",
+      "expect": {
+        "scaled": "4611686018427388000",
+        "lowered": "4611686018427388000",
+        "explicit_float": "4611686018427388000"
+      }
+    },
+    {
+      "line": "n=+00043",
+      "expect": { "scaled": "21.5", "lowered": "21.5", "explicit_float": "21.5" }
+    }
+  ]
+}

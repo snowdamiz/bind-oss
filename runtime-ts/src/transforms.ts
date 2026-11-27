@@ -402,12 +402,12 @@ function applySingleTransform(
           terminal: err("EXPECTED_STRING", `lower transform requires a string, got ${val.kind}`),
         };
       }
-      return {
-        next:
-          val.kind === "string" && val.pseudonymized
-            ? { kind: "string", value: val.value, pseudonymized: true }
-            : { kind: "string", value: val.value.toLowerCase() },
-      };
+      if (val.kind === "string" && val.pseudonymized) {
+        return { next: val };
+      }
+      // Keep raw hole text available to numeric transforms on string targets.
+      const kind = field.type === "string" ? val.kind : "string";
+      return { next: { kind, value: val.value.toLowerCase() } };
     }
 
     case "enum_map": {

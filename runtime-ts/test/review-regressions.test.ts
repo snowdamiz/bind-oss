@@ -481,6 +481,15 @@ describe("Node 20 review regressions: lexical JSON no-spill, rest->cast(json), w
     });
   });
 
+  it("checks exact string output when scaling int holes with or without a leading lower", () => {
+    const fixture = path.join(RUNTIME_DIR, "test/fixtures/int-hole-scale-to-string.json");
+    execFileSync(
+      process.execPath,
+      [CLI_PATH, "--input", fixture, "--format", "vector-ndjson", "--check", "--strict-error-codes"],
+      { encoding: "utf8", stdio: "pipe" },
+    );
+  });
+
   it("enforces scalar-only hash coercion and word+colon+rest split with trailing whitespace", () => {
     const hashObjSpec: ParserSpec = {
       spec_version: 1,
