@@ -14,7 +14,9 @@ import {
   createVectorValidator,
   evaluateVector,
   float64ToHex,
+  formatDiagnosticPreview,
   hexToFloat64,
+  sha256File,
   validateAllVectors,
   validateVectorSuiteDocument,
 } from "../scripts/validate-vectors.mjs";
@@ -1039,6 +1041,156 @@ describe("Negative validation checks: malformed vectors and semantic regressions
       matched: true,
       fields: { payload: { status: "redacted", token: "<redacted>" } },
     });
+  });
+
+  it("reports bounded mismatch diagnostics for 20,000-level JSON in top-level expected and embedded spec.tests[].expect without RangeError", () => {
+    const depth = 20000;
+    const deepJsonRaw = `${"[".repeat(depth)}"ok"${"]".repeat(depth)}`;
+    const deepArray = JSON.parse(deepJsonRaw);
+    let deepObject = "ok";
+    for (let i = 0; i < depth; i += 1) {
+      deepObject = { a: deepObject };
+    }
+
+    const baseVec = suite05.vectors.find(
+      (v) => v.id === "vec_redact_inner_edge_json_hole_dup_key_escaped_022"
+    );
+    assert.ok(baseVec);
+
+    // Control: matching 20,000-level JSON in both top-level expected and spec.tests[].expect passes.
+    const controlSuite = singleVectorSuite(suite05, baseVec);
+    controlSuite.vectors[0].input = { kind: "text", line: `payload=${deepJsonRaw}` };
+    controlSuite.vectors[0].expected = {
+      matched: true,
+      fields: { payload: { status: "ok", type: "json", value: deepArray } },
+    };
+    controlSuite.vectors[0].spec.tests = [
+      { line: `payload=${deepJsonRaw}`, expect: { payload: deepArray } },
+    ];
+    assert.deepEqual(validateVectorSuiteDocument(controlSuite, validator), []);
+
+    // 1. Top-level expected mismatch when actual is 20,000-level JSON.
+    const topMismatchDeepActual = singleVectorSuite(suite05, baseVec);
+    topMismatchDeepActual.vectors[0].input = { kind: "text", line: `payload=${deepJsonRaw}` };
+    topMismatchDeepActual.vectors[0].expected = {
+      matched: true,
+      fields: { payload: { status: "ok", type: "json", value: "wrong" } },
+    };
+    topMismatchDeepActual.vectors[0].spec.tests = [
+      { line: `payload=${deepJsonRaw}`, expect: { payload: deepArray } },
+    ];
+    const topActualErrs = validateVectorSuiteDocument(topMismatchDeepActual, validator);
+    assert.equal(topActualErrs.length, 1);
+    assert.ok(topActualErrs[0].startsWith(`${baseVec.id}: reference evaluator mismatch:`));
+    assert.ok(topActualErrs[0].includes("expected:"));
+    assert.ok(topActualErrs[0].includes("actual:"));
+    assert.ok(topActualErrs[0].includes("[Array]"));
+    assert.ok(topActualErrs[0].length < 1200, `Expected bounded mismatch error, got length ${topActualErrs[0].length}`);
+
+    // 2. Top-level expected mismatch when vec.expected holds 20,000-level nested objects.
+    const topMismatchDeepExpected = singleVectorSuite(suite05, baseVec);
+    topMismatchDeepExpected.vectors[0].input = { kind: "text", line: `payload={"ok":true}` };
+    topMismatchDeepExpected.vectors[0].expected = {
+      matched: true,
+      fields: { payload: { status: "ok", type: "json", value: deepObject } },
+    };
+    topMismatchDeepExpected.vectors[0].spec.tests = [
+      { line: `payload={"ok":true}`, expect: { payload: { ok: true } } },
+    ];
+    const topExpectedErrs = validateVectorSuiteDocument(topMismatchDeepExpected, validator);
+    assert.equal(topExpectedErrs.length, 1);
+    assert.ok(topExpectedErrs[0].startsWith(`${baseVec.id}: reference evaluator mismatch:`));
+    assert.ok(topExpectedErrs[0].includes("[Object]"));
+    assert.ok(topExpectedErrs[0].length < 1200);
+
+    // 3. Embedded spec.tests[].expect mismatch when simplified actual is 20,000-level JSON.
+    const specTestMismatchDeepActual = singleVectorSuite(suite05, baseVec);
+    specTestMismatchDeepActual.vectors[0].input = { kind: "text", line: `payload=${deepJsonRaw}` };
+    specTestMismatchDeepActual.vectors[0].expected = {
+      matched: true,
+      fields: { payload: { status: "ok", type: "json", value: deepArray } },
+    };
+    specTestMismatchDeepActual.vectors[0].spec.tests = [
+      { line: `payload=${deepJsonRaw}`, expect: { payload: "wrong" } },
+    ];
+    const specActualErrs = validateVectorSuiteDocument(specTestMismatchDeepActual, validator);
+    assert.equal(specActualErrs.length, 1);
+    assert.ok(specActualErrs[0].startsWith(`${baseVec.id}: spec.tests[0] expectation mismatch:`));
+    assert.ok(specActualErrs[0].includes("expected:"));
+    assert.ok(specActualErrs[0].includes("actual:"));
+    assert.ok(specActualErrs[0].includes("[Array]"));
+    assert.ok(specActualErrs[0].length < 1200);
+
+    // 4. Embedded spec.tests[].expect mismatch when tc.expect holds 20,000-level JSON.
+    const specTestMismatchDeepExpected = singleVectorSuite(suite05, baseVec);
+    specTestMismatchDeepExpected.vectors[0].input = { kind: "text", line: `payload={"ok":true}` };
+    specTestMismatchDeepExpected.vectors[0].expected = {
+      matched: true,
+      fields: { payload: { status: "ok", type: "json", value: { ok: true } } },
+    };
+    specTestMismatchDeepExpected.vectors[0].spec.tests = [
+      { line: `payload={"ok":true}`, expect: { payload: deepArray } },
+    ];
+    const specExpectedErrs = validateVectorSuiteDocument(specTestMismatchDeepExpected, validator);
+    assert.equal(specExpectedErrs.length, 1);
+    assert.ok(specExpectedErrs[0].startsWith(`${baseVec.id}: spec.tests[0] expectation mismatch:`));
+    assert.ok(specExpectedErrs[0].includes("[Array]"));
+    assert.ok(specExpectedErrs[0].length < 1200);
+
+    // 5. Simultaneous mismatches in both top-level expected and spec.tests[0].expect preserve both case diagnostics.
+    const bothMismatch = singleVectorSuite(suite05, baseVec);
+    bothMismatch.vectors[0].input = { kind: "text", line: `payload=${deepJsonRaw}` };
+    bothMismatch.vectors[0].expected = {
+      matched: true,
+      fields: { payload: { status: "ok", type: "json", value: "wrong" } },
+    };
+    bothMismatch.vectors[0].spec.tests = [
+      { line: `payload=${deepJsonRaw}`, expect: { payload: "wrong" } },
+    ];
+    const bothErrs = validateVectorSuiteDocument(bothMismatch, validator);
+    assert.equal(bothErrs.length, 2);
+    assert.ok(bothErrs[0].startsWith(`${baseVec.id}: reference evaluator mismatch:`));
+    assert.ok(bothErrs[1].startsWith(`${baseVec.id}: spec.tests[0] expectation mismatch:`));
+
+    // 6. Preview size cap bounds wide objects and respects explicit maxChars.
+    const wideObj = Object.fromEntries(Array.from({ length: 200 }, (_, i) => [`field_${i}`, i]));
+    const defaultPreview = formatDiagnosticPreview(wideObj);
+    assert.ok(defaultPreview.length <= 512);
+    assert.ok(defaultPreview.endsWith("... (truncated)"));
+    assert.ok(formatDiagnosticPreview(wideObj, 64).length <= 64);
+
+    // 7. Full validateAllVectors corpus check with a 20,000-level mismatch returns normal valid=false status.
+    const tmpDir = copyVectorsToTempDir();
+    try {
+      const suite05Path = path.join(tmpDir, "suites", "05-transforms-privacy-and-redaction.json");
+      const manifestPath = path.join(tmpDir, "manifest.json");
+      const mutatedSuite = JSON.parse(fs.readFileSync(suite05Path, "utf8"));
+      const targetVec = mutatedSuite.vectors.find((v) => v.id === baseVec.id);
+      const deepPlaceholder = "__DEEP_20000_JSON_PLACEHOLDER__";
+      targetVec.input = { kind: "text", line: `payload=${deepJsonRaw}` };
+      targetVec.expected = {
+        matched: true,
+        fields: { payload: { status: "ok", type: "json", value: "wrong" } },
+      };
+      targetVec.spec.tests = [
+        { line: `payload=${deepJsonRaw}`, expect: { payload: deepPlaceholder } },
+      ];
+      const suiteJson = `${JSON.stringify(mutatedSuite, null, 2).replace(`"${deepPlaceholder}"`, deepJsonRaw)}\n`;
+      fs.writeFileSync(suite05Path, suiteJson, "utf8");
+
+      const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+      const entry = manifest.suites.find((s) => s.suite === "05-transforms-privacy-and-redaction");
+      entry.sha256 = sha256File(suite05Path);
+      fs.writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
+
+      const res = validateAllVectors({ vectorsDir: tmpDir });
+      assert.equal(res.valid, false);
+      assert.equal(res.errors.length, 1);
+      assert.ok(res.errors[0].startsWith(`${baseVec.id}: reference evaluator mismatch:`));
+      assert.ok(res.errors[0].length < 1200);
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
   });
 });
 
