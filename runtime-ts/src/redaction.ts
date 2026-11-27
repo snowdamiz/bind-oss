@@ -11,6 +11,7 @@ import type { ByteSpan, RedactionTokenInfo } from "./types.js";
 import {
   decodeUtf8,
   encodeUtf8,
+  hexValue,
   isAsciiLowerAlpha,
   isAsciiLowerHex,
   isAsciiSpace,
@@ -368,6 +369,150 @@ export function spanOverlapsAny(span: ByteSpan, spans: readonly ByteSpan[]): boo
     }
   }
   return lo < spans.length && spans[lo]!.start < span.end;
+}
+
+function decodeJsonStringContent(raw: string, start: number, end: number): string | null {
+  const parts: string[] = [];
+  let chunkStart = start;
+  for (let i = start; i < end; i++) {
+    if (raw.charCodeAt(i) !== 0x5c /* '\\' */) {
+      continue;
+    }
+    if (i > chunkStart) {
+      parts.push(raw.slice(chunkStart, i));
+    }
+    i++;
+    if (i >= end) {
+      return null;
+    }
+    const esc = raw.charCodeAt(i);
+    switch (esc) {
+      case 0x22: // '"'
+        parts.push('"');
+        break;
+      case 0x5c: // '\\'
+        parts.push("\\");
+        break;
+      case 0x2f: // '/'
+        parts.push("/");
+        break;
+      case 0x62: // 'b'
+        parts.push("\b");
+        break;
+      case 0x66: // 'f'
+        parts.push("\f");
+        break;
+      case 0x6e: // 'n'
+        parts.push("\n");
+        break;
+      case 0x72: // 'r'
+        parts.push("\r");
+        break;
+      case 0x74: // 't'
+        parts.push("\t");
+        break;
+      case 0x75: {
+        // 'u' -> \uXXXX
+        if (i + 4 >= end) {
+          return null;
+        }
+        const h0 = hexValue(raw.charCodeAt(i + 1));
+        const h1 = hexValue(raw.charCodeAt(i + 2));
+        const h2 = hexValue(raw.charCodeAt(i + 3));
+        const h3 = hexValue(raw.charCodeAt(i + 4));
+        if (h0 < 0 || h1 < 0 || h2 < 0 || h3 < 0) {
+          return null;
+        }
+        parts.push(String.fromCharCode((h0 << 12) | (h1 << 8) | (h2 << 4) | h3));
+        i += 4;
+        break;
+      }
+      default:
+        return null;
+    }
+    chunkStart = i + 1;
+  }
+  if (chunkStart < end) {
+    parts.push(raw.slice(chunkStart, end));
+  }
+  return parts.join("");
+}
+
+/**
+ * Lexically scans every RFC 8259 JSON string token (object keys and values,
+ * including duplicate object members before deduplication by `JSON.parse`)
+ * and returns true when any decoded string contains a well-formed inner edge
+ * token `<[a-z][a-z0-9_]*:~[0-9a-f]{64}>`. Strictly linear O(n), zero RegExp.
+ */
+export function jsonTextContainsInnerEdgeToken(rawJson: string): boolean {
+  const len = rawJson.length;
+  // Minimum JSON string token containing an inner edge token: '"' + 69 + '"' = 71
+  if (len < 71 || (!rawJson.includes(":~") && !rawJson.includes("\\u"))) {
+    return false;
+  }
+
+  let pos = 0;
+  while (pos < len) {
+    if (rawJson.charCodeAt(pos) !== 0x22 /* '"' */) {
+      pos++;
+      continue;
+    }
+    const contentStart = pos + 1;
+    pos = contentStart;
+    let hasEscape = false;
+    let hasUnicodeEscape = false;
+    let closed = false;
+    while (pos < len) {
+      const ch = rawJson.charCodeAt(pos);
+      if (ch === 0x5c /* '\\' */) {
+        hasEscape = true;
+        if (pos + 1 >= len) {
+          return false;
+        }
+        if (rawJson.charCodeAt(pos + 1) === 0x75 /* 'u' */) {
+          hasUnicodeEscape = true;
+        }
+        pos += 2;
+        continue;
+      }
+      if (ch === 0x22 /* '"' */) {
+        closed = true;
+        break;
+      }
+      pos++;
+    }
+    if (!closed) {
+      return false;
+    }
+    const contentEnd = pos;
+    pos++; // advance past closing '"'
+
+    // RFC 8259 escapes never lengthen a string (\uXXXX -> 1 char, \X -> 1 char).
+    if (contentEnd - contentStart < 69) {
+      continue;
+    }
+
+    if (!hasEscape) {
+      if (containsInnerEdgeTokenString(rawJson.slice(contentStart, contentEnd))) {
+        return true;
+      }
+      continue;
+    }
+
+    if (!hasUnicodeEscape) {
+      const colonTildeIdx = rawJson.indexOf(":~", contentStart);
+      if (colonTildeIdx === -1 || colonTildeIdx >= contentEnd) {
+        continue;
+      }
+    }
+
+    const decoded = decodeJsonStringContent(rawJson, contentStart, contentEnd);
+    if (decoded !== null && containsInnerEdgeTokenString(decoded)) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 /**

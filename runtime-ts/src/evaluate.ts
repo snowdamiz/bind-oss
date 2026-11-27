@@ -33,9 +33,9 @@ import {
 import {
   containsInnerEdgeTokenString,
   findInnerEdgeTokenSpansBytes,
+  jsonTextContainsInnerEdgeToken,
   parseInnerEdgeTokenString,
   spanOverlapsAny,
-  valueContainsInnerEdgeToken,
 } from "./redaction.js";
 import { resolveReferenceYear } from "./time.js";
 import { evaluateFieldValue, type TransformOutcome } from "./transforms.js";
@@ -276,14 +276,11 @@ export function compileParser(spec: ParserSpec): CompiledParser {
           const overlapsInner = spanOverlapsAny(cap.span, innerEdgeSpans);
           const decodedQuotedInner =
             cap.holeClass === "quoted" && containsInnerEdgeTokenString(cap.text);
-          let decodedJsonInner = false;
-          if (cap.holeClass === "json" && cap.redaction === undefined && !overlapsInner) {
-            try {
-              decodedJsonInner = valueContainsInnerEdgeToken(JSON.parse(cap.text));
-            } catch {
-              decodedJsonInner = false;
-            }
-          }
+          const decodedJsonInner =
+            cap.holeClass === "json" &&
+            cap.redaction === undefined &&
+            !overlapsInner &&
+            jsonTextContainsInnerEdgeToken(cap.text);
 
           let outcome: TransformOutcome;
           if (overlapsInner || decodedQuotedInner || decodedJsonInner) {

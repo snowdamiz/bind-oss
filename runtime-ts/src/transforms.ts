@@ -30,6 +30,7 @@ import { maskIpPrefix } from "./ip.js";
 import {
   containsInnerEdgeTokenString,
   isInnerEdgeTokenString,
+  jsonTextContainsInnerEdgeToken,
   KNOWN_MASK_TOKEN_KINDS,
   parseInnerEdgeTokenString,
   parseRedactionTokenString,
@@ -740,7 +741,7 @@ function applySingleTransform(
                 terminal: err("INVALID_JSON", `Cannot parse "${val.value}" as JSON`),
               };
             }
-            if (valueContainsInnerEdgeToken(parsed.value)) {
+            if (jsonTextContainsInnerEdgeToken(val.value)) {
               return { terminal: { status: "redacted", token: "<redacted>" } };
             }
             return { next: { kind: "json", value: parsed.value } };
@@ -957,7 +958,7 @@ function finalizeFieldType(
         if (!parsed.ok) {
           return err("INVALID_JSON", `Cannot parse "${val.value}" as JSON`);
         }
-        if (valueContainsInnerEdgeToken(parsed.value)) {
+        if (jsonTextContainsInnerEdgeToken(val.value)) {
           return { status: "redacted", token: "<redacted>" };
         }
         return { status: "ok", value: parsed.value };

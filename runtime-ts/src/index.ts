@@ -115,6 +115,7 @@ export {
   containsInnerEdgeTokenString,
   findInnerEdgeTokenSpansBytes,
   isInnerEdgeTokenString,
+  jsonTextContainsInnerEdgeToken,
   KNOWN_MASK_TOKEN_KINDS,
   parseInnerEdgeTokenString,
   parseRedactionTokenBytes,

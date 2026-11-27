@@ -422,9 +422,10 @@ function setJsonProp(obj: Record<string, unknown>, key: string, val: unknown): v
 }
 
 /**
- * Parses a JSON fixture string while preserving non-safe Int64 JSON integer literals
- * inside `expected.fields.<name>` / `expect.fields.<name>` timestamp objects as exact
- * `bigint` values. Pure ES2022 (Node 20 compatible, no `JSON.parse` `context.source`).
+ * Parses a JSON fixture string while preserving exact decimal/exponent semantics
+ * (and rejecting fractional values) for expected timestamp numbers across both
+ * vector `expected.fields.<name>` envelopes and standalone `ParserSpec.tests[].expect`
+ * / plain `expect` maps. Pure ES2022 (Node 20 compatible, no `JSON.parse` `context.source`).
  */
 function parseJsonPreservingUnsafeTimestampInts(raw: string): unknown {
   const fast: unknown = JSON.parse(raw);
@@ -434,6 +435,7 @@ function parseJsonPreservingUnsafeTimestampInts(raw: string): unknown {
 
   const len = raw.length;
   let pos = 0;
+  const expectRawNums = new WeakMap<Record<string, unknown>, Map<string, string>>();
 
   function skipWs(): void {
     while (pos < len && isJsonWhitespace(raw.charCodeAt(pos))) {
@@ -553,6 +555,26 @@ function parseJsonPreservingUnsafeTimestampInts(raw: string): unknown {
     };
   }
 
+  function applyExactTimestampLexeme(
+    obj: Record<string, unknown>,
+    key: string,
+    rawLexeme: string,
+  ): void {
+    const exact = parseExactJsonTimestampNumber(rawLexeme);
+    if (exact.kind === "int") {
+      setJsonProp(obj, key, toSafeIntOrBigInt(exact.value));
+    } else if (exact.kind === "huge_int") {
+      setJsonProp(obj, key, exact.negative ? -(10n ** 30n) : 10n ** 30n);
+    } else {
+      const num = obj[key];
+      setJsonProp(
+        obj,
+        key,
+        typeof num === "number" && Number.isInteger(num) ? Number.NaN : num,
+      );
+    }
+  }
+
   function parseNumberWithRaw(): { readonly value: number; readonly rawNum?: string } {
     const start = pos;
     if (pos < len && raw.charCodeAt(pos) === 0x2d) {
@@ -600,6 +622,7 @@ function parseJsonPreservingUnsafeTimestampInts(raw: string): unknown {
       return obj;
     }
     let rawValueNum: string | undefined;
+    let plainRawNums: Map<string, string> | undefined;
     while (pos < len) {
       const key = parseString();
       skipWs();
@@ -612,7 +635,7 @@ function parseJsonPreservingUnsafeTimestampInts(raw: string): unknown {
       if (expectDepth === 0) {
         if (key === "expected" || key === "expect") {
           nextDepth = 1;
-        } else if (key === "vectors" || key === "cases") {
+        } else if (key === "vectors" || key === "cases" || key === "tests" || key === "spec") {
           nextDepth = 0;
         }
       } else if (expectDepth === 1) {
@@ -624,6 +647,15 @@ function parseJsonPreservingUnsafeTimestampInts(raw: string): unknown {
       setJsonProp(obj, key, valRes.value);
       if (expectDepth === 3 && key === "value") {
         rawValueNum = valRes.rawNum;
+      } else if (expectDepth === 1 || expectDepth === 2) {
+        if (valRes.rawNum !== undefined) {
+          if (plainRawNums === undefined) {
+            plainRawNums = new Map<string, string>();
+          }
+          plainRawNums.set(key, valRes.rawNum);
+        } else if (plainRawNums !== undefined) {
+          plainRawNums.delete(key);
+        }
       }
       skipWs();
       if (pos < len && raw.charCodeAt(pos) === 0x2c) {
@@ -640,19 +672,9 @@ function parseJsonPreservingUnsafeTimestampInts(raw: string): unknown {
           obj["type"] === "timestamp" &&
           Object.keys(obj).length === 3
         ) {
-          const exact = parseExactJsonTimestampNumber(rawValueNum);
-          if (exact.kind === "int") {
-            setJsonProp(obj, "value", toSafeIntOrBigInt(exact.value));
-          } else if (exact.kind === "huge_int") {
-            setJsonProp(obj, "value", exact.negative ? -(10n ** 30n) : 10n ** 30n);
-          } else {
-            const num = obj["value"];
-            setJsonProp(
-              obj,
-              "value",
-              typeof num === "number" && Number.isInteger(num) ? Number.NaN : num,
-            );
-          }
+          applyExactTimestampLexeme(obj, "value", rawValueNum);
+        } else if ((expectDepth === 1 || expectDepth === 2) && plainRawNums !== undefined && plainRawNums.size > 0) {
+          expectRawNums.set(obj, plainRawNums);
         }
         return obj;
       }
@@ -685,7 +707,92 @@ function parseJsonPreservingUnsafeTimestampInts(raw: string): unknown {
     return parseNumberWithRaw();
   }
 
-  return parseValue(0).value;
+  function collectTimestampFieldNames(spec: unknown): ReadonlySet<string> | null {
+    if (!isPlainObject(spec) || !Array.isArray(spec["fields"])) {
+      return null;
+    }
+    let names: Set<string> | null = null;
+    for (let i = 0; i < spec["fields"].length; i++) {
+      const f = spec["fields"][i];
+      if (isPlainObject(f) && f["type"] === "timestamp" && typeof f["name"] === "string") {
+        if (names === null) {
+          names = new Set<string>();
+        }
+        names.add(f["name"]);
+      }
+    }
+    return names;
+  }
+
+  function applyPlainExpectTimestampNums(
+    expectObj: unknown,
+    tsFields: ReadonlySet<string>,
+  ): void {
+    if (!isPlainObject(expectObj)) return;
+    const rawNums = expectRawNums.get(expectObj);
+    if (rawNums === undefined) return;
+    for (const [fieldName, lexeme] of rawNums) {
+      if (tsFields.has(fieldName)) {
+        applyExactTimestampLexeme(expectObj, fieldName, lexeme);
+      }
+    }
+  }
+
+  function applyPlainExpectations(root: unknown): void {
+    if (Array.isArray(root)) {
+      for (let i = 0; i < root.length; i++) {
+        applyPlainExpectations(root[i]);
+      }
+      return;
+    }
+    if (!isPlainObject(root)) return;
+
+    if (isParserSpecObject(root)) {
+      const tsFields = collectTimestampFieldNames(root);
+      if (tsFields !== null) {
+        for (let i = 0; i < root.tests.length; i++) {
+          const t = root.tests[i];
+          if (isPlainObject(t)) {
+            applyPlainExpectTimestampNums(t["expect"], tsFields);
+          }
+        }
+      }
+      return;
+    }
+
+    const list = Array.isArray(root["vectors"])
+      ? root["vectors"]
+      : Array.isArray(root["cases"])
+        ? root["cases"]
+        : undefined;
+    if (list !== undefined) {
+      for (let i = 0; i < list.length; i++) {
+        applyPlainExpectations(list[i]);
+      }
+      return;
+    }
+
+    if (isParserSpecObject(root["spec"])) {
+      applyPlainExpectations(root["spec"]);
+    }
+    const tsFields = collectTimestampFieldNames(root["spec"]);
+    if (tsFields !== null) {
+      const exp = root["expect"] ?? root["expected"];
+      if (isPlainObject(exp)) {
+        if (typeof exp["matched"] === "boolean") {
+          if (isPlainObject(exp["fields"])) {
+            applyPlainExpectTimestampNums(exp["fields"], tsFields);
+          }
+        } else {
+          applyPlainExpectTimestampNums(exp, tsFields);
+        }
+      }
+    }
+  }
+
+  const parsedRoot = parseValue(0).value;
+  applyPlainExpectations(parsedRoot);
+  return parsedRoot;
 }
 
 export function parseFixturePayload(rawText: string, sourceName = "fixture"): VectorCase[] {

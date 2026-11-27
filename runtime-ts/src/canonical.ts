@@ -587,6 +587,7 @@ export function compareCanonicalResults(
 
 export type ExpectedFieldSpec =
   | JsonValue
+  | bigint
   | { readonly status: "error"; readonly code?: FieldErrorCode }
   | { readonly status: "parse_error"; readonly code?: string }
   | { readonly status: "redacted"; readonly token?: string }
@@ -595,6 +596,16 @@ export type ExpectedFieldSpec =
   | { readonly float_hex: string }
   | { readonly int64: string }
   | { readonly timestamp_ms: string };
+
+function formatExpectedValue(val: unknown): string {
+  if (typeof val === "bigint") {
+    return val.toString(10);
+  }
+  if (typeof val === "number" && !Number.isFinite(val)) {
+    return String(val);
+  }
+  return JSON.stringify(val);
+}
 
 /**
  * Checks a `ParseResult` against a `ParserSpec` test expectation map (as in `spec.tests[].expect`)
@@ -715,7 +726,7 @@ export function checkFieldExpectations(
     }
 
     if (actual.status !== "ok") {
-      diffs.push(`field "${name}": expected value ${JSON.stringify(exp)}, got status=${actual.status}`);
+      diffs.push(`field "${name}": expected value ${formatExpectedValue(exp)}, got status=${actual.status}`);
       continue;
     }
 
@@ -731,15 +742,19 @@ export function checkFieldExpectations(
       }
       case "int":
       case "timestamp": {
-        const expStr =
-          typeof exp === "number"
-            ? Math.trunc(exp).toString(10)
-            : typeof exp === "string"
-              ? exp
-              : null;
+        let expStr: string | null = null;
+        if (typeof exp === "bigint") {
+          expStr = exp.toString(10);
+        } else if (typeof exp === "number") {
+          if (Number.isFinite(exp) && Number.isInteger(exp)) {
+            expStr = BigInt(exp).toString(10);
+          }
+        } else if (typeof exp === "string") {
+          expStr = exp;
+        }
         if (expStr === null || actual.value !== expStr) {
           diffs.push(
-            `field "${name}": expected ${fType} ${JSON.stringify(exp)}, got ${actual.value}`,
+            `field "${name}": expected ${fType} ${formatExpectedValue(exp)}, got ${actual.value}`,
           );
         }
         break;
@@ -747,7 +762,7 @@ export function checkFieldExpectations(
       case "float": {
         if (typeof exp !== "number" || actual.value_hex !== float64ToHex(exp)) {
           diffs.push(
-            `field "${name}": float64 mismatch (actual=${actual.value_hex}, expected=${typeof exp === "number" ? float64ToHex(exp) : JSON.stringify(exp)})`,
+            `field "${name}": float64 mismatch (actual=${actual.value_hex}, expected=${typeof exp === "number" ? float64ToHex(exp) : formatExpectedValue(exp)})`,
           );
         }
         break;
@@ -755,7 +770,7 @@ export function checkFieldExpectations(
       case "bool": {
         if (typeof exp !== "boolean" || actual.value !== exp) {
           diffs.push(
-            `field "${name}": expected bool ${JSON.stringify(exp)}, got ${String(actual.value)}`,
+            `field "${name}": expected bool ${formatExpectedValue(exp)}, got ${String(actual.value)}`,
           );
         }
         break;
