@@ -4,6 +4,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { describe, expect, it } from "vitest";
 import {
+  canonicalizeJson,
   checkFieldExpectations,
   computeHostedPseudonymTag,
   computeInnerPseudonymBytes,
@@ -11,8 +12,10 @@ import {
   parseFixturePayload,
   parseRecord,
   runVectorCases,
+  stringifyVectorJson,
   toLowerHex,
   toVectorResult,
+  type JsonValue,
   type ParserSpec,
 } from "../src/index.js";
 
@@ -441,6 +444,24 @@ describe("Node 20 review regressions: lexical JSON no-spill, rest->cast(json), w
       fields: { n: { status: "ok", type: "string", value: overInt64 } },
     });
 
+    const intStringDropSpec = makeTextSpec(
+      [{ lit: "n=" }, { hole: "n", class: "int" }],
+      [
+        {
+          id: "f1",
+          name: "n",
+          from: { hole: "n" },
+          type: "string",
+          semantic: "id",
+          transforms: [{ op: "drop" }],
+        },
+      ],
+    );
+    expect(toVectorResult(parseRecord(intStringDropSpec, `n=${overInt64}`))).toEqual({
+      matched: true,
+      fields: { n: { status: "dropped" } },
+    });
+
     const intScaleOverflowSpec = makeTextSpec(
       [{ lit: "n=" }, { hole: "n", class: "int" }],
       [
@@ -458,5 +479,204 @@ describe("Node 20 review regressions: lexical JSON no-spill, rest->cast(json), w
       matched: true,
       fields: { n: { status: "parse_error", code: "int_overflow" } },
     });
+  });
+
+  it("enforces scalar-only hash coercion and word+colon+rest split with trailing whitespace", () => {
+    const hashObjSpec: ParserSpec = {
+      spec_version: 1,
+      template: "tpl_01HASHSC01",
+      event: "review.hash_scalar_only",
+      version: 1,
+      status: "active",
+      origin: "agent",
+      source: { kind: "mined" },
+      match: { kind: "object", shape: ["val"] },
+      fields: [
+        {
+          id: "f_val",
+          name: "val",
+          from: { path: "val" },
+          type: "string",
+          semantic: "id",
+          transforms: [{ op: "hash", kind: "user" }],
+        },
+      ],
+      tests: [],
+    };
+    const hostedOpts = { hashMode: "hosted" as const, hashKeys: { edgeKey, serverKey } };
+
+    const intHash = toVectorResult(parseRecord(hashObjSpec, { kind: "object", object: { val: 42 } }, hostedOpts));
+    expect(intHash).toEqual({
+      matched: true,
+      fields: {
+        val: {
+          status: "ok",
+          type: "string",
+          value: `<user:${computeHostedPseudonymTag(edgeKey, serverKey, "42")}>`,
+        },
+      },
+    });
+
+    const boolHash = toVectorResult(parseRecord(hashObjSpec, { kind: "object", object: { val: true } }, hostedOpts));
+    expect(boolHash).toEqual({
+      matched: true,
+      fields: {
+        val: {
+          status: "ok",
+          type: "string",
+          value: `<user:${computeHostedPseudonymTag(edgeKey, serverKey, "true")}>`,
+        },
+      },
+    });
+
+    for (const bad of [{ a: 1 }, [1, 2]]) {
+      expect(
+        toVectorResult(parseRecord(hashObjSpec, { kind: "object", object: { val: bad } }, hostedOpts)),
+      ).toEqual({
+        matched: true,
+        fields: { val: { status: "parse_error", code: "type_mismatch" } },
+      });
+    }
+
+    const restCastJsonHashSpec = makeTextSpec(
+      [{ lit: "payload=" }, { hole: "p", class: "rest" }],
+      [
+        {
+          id: "f1",
+          name: "payload",
+          from: { hole: "p" },
+          type: "string",
+          semantic: "id",
+          transforms: [
+            { op: "cast", to: "json" },
+            { op: "hash", kind: "user" },
+          ],
+        },
+      ],
+    );
+    for (const rawJson of ['{"a":1}', "[1,2]", "null"]) {
+      expect(
+        toVectorResult(parseRecord(restCastJsonHashSpec, `payload=${rawJson}`, hostedOpts)),
+      ).toEqual({
+        matched: true,
+        fields: { payload: { status: "parse_error", code: "type_mismatch" } },
+      });
+    }
+
+    // Trailing whitespace after leading custom inner token must preserve word+":"+rest split
+    const wordColonRestSpec = makeTextSpec(
+      [{ lit: "user=" }, { hole: "u", class: "word" }, { lit: ":" }, { hole: "r", class: "rest" }],
+      [
+        { id: "f1", name: "u", from: { hole: "u" }, type: "string", semantic: "id" },
+        { id: "f2", name: "r", from: { hole: "r" }, type: "string", semantic: "message" },
+      ],
+    );
+    expect(
+      toVectorResult(parseRecord(wordColonRestSpec, `user=${customInner} tail`, hostedOpts)),
+    ).toEqual({
+      matched: true,
+      fields: {
+        u: { status: "redacted", token: "<redacted>" },
+        r: { status: "redacted", token: "<redacted>" },
+      },
+    });
+  });
+
+  it("handles 20,000-level deeply nested valid JSON iteratively without stack overflow across object, rest->cast(json), json hole, and canonical serializers", () => {
+    const depth = 20_000;
+    const hostedOpts = { hashMode: "hosted" as const, hashKeys: { edgeKey, serverKey } };
+    const customInnerEsc = `\\u003cuser:\\u007e${digest}\\u003e`;
+
+    const nestedObjSpec: ParserSpec = {
+      spec_version: 1,
+      template: "tpl_01DEEP01",
+      event: "review.deep_json_obj",
+      version: 1,
+      status: "active",
+      origin: "agent",
+      source: { kind: "mined" },
+      match: { kind: "object", shape: ["data"] },
+      fields: [{ id: "f1", name: "data", from: { path: "data" }, type: "json", semantic: "payload" }],
+      tests: [],
+    };
+    const restCastJsonSpec = makeTextSpec(
+      [{ lit: "payload=" }, { hole: "p", class: "rest" }],
+      [
+        {
+          id: "f1",
+          name: "payload",
+          from: { hole: "p" },
+          type: "json",
+          semantic: "payload",
+          transforms: [{ op: "cast", to: "json" }],
+        },
+      ],
+    );
+    const jsonHoleSpec = makeTextSpec(
+      [{ lit: "payload=" }, { hole: "p", class: "json" }],
+      [{ id: "f1", name: "payload", from: { hole: "p" }, type: "json", semantic: "payload" }],
+    );
+
+    let deepClean: JsonValue = "ok";
+    let deepInner: JsonValue = customInner;
+    for (let i = 0; i < depth; i++) {
+      deepClean = [deepClean];
+      deepInner = [deepInner];
+    }
+
+    const objClean = toVectorResult(
+      parseRecord(nestedObjSpec, { kind: "object", object: { data: deepClean } }, hostedOpts),
+    );
+    expect(objClean.matched).toBe(true);
+    if (objClean.matched) {
+      expect(objClean.fields["data"]?.status).toBe("ok");
+    }
+
+    expect(
+      toVectorResult(
+        parseRecord(nestedObjSpec, { kind: "object", object: { data: deepInner } }, hostedOpts),
+      ),
+    ).toEqual({
+      matched: true,
+      fields: { data: { status: "redacted", token: "<redacted>" } },
+    });
+
+    const open = "[".repeat(depth);
+    const close = "]".repeat(depth);
+    const deepCleanLine = `payload=${open}"ok"${close}`;
+    const deepInnerLine = `payload=${open}"${customInnerEsc}"${close}`;
+
+    const restClean = toVectorResult(parseRecord(restCastJsonSpec, deepCleanLine, hostedOpts));
+    expect(restClean.matched).toBe(true);
+    if (restClean.matched) {
+      expect(restClean.fields["payload"]?.status).toBe("ok");
+    }
+    expect(toVectorResult(parseRecord(restCastJsonSpec, deepInnerLine, hostedOpts))).toEqual({
+      matched: true,
+      fields: { payload: { status: "redacted", token: "<redacted>" } },
+    });
+
+    const holeClean = toVectorResult(parseRecord(jsonHoleSpec, deepCleanLine, hostedOpts));
+    expect(holeClean.matched).toBe(true);
+    if (holeClean.matched) {
+      expect(holeClean.fields["payload"]?.status).toBe("ok");
+    }
+    expect(toVectorResult(parseRecord(jsonHoleSpec, deepInnerLine, hostedOpts))).toEqual({
+      matched: true,
+      fields: { payload: { status: "redacted", token: "<redacted>" } },
+    });
+
+    const expectedSerialized = `${open}"ok"${close}`;
+    expect(canonicalizeJson(deepClean)).toBe(expectedSerialized);
+    expect(stringifyVectorJson(deepClean)).toBe(expectedSerialized);
+
+    // Circular object inputs remain cleanly rejected (never hang or overflow)
+    const circular: Record<string, unknown> = {};
+    circular["self"] = circular;
+    const circRes = parseRecord(nestedObjSpec, { kind: "object", object: { data: circular } }, hostedOpts);
+    expect(circRes.matched).toBe(true);
+    if (circRes.matched) {
+      expect(circRes.fields["data"]?.status).toBe("error");
+    }
   });
 });

@@ -35,95 +35,184 @@ function toSafeVectorTimestamp(big: bigint): number | bigint {
   return big;
 }
 
-function serializeVectorJsonValue(
-  value: unknown,
-  pretty: boolean,
-  depth: number,
-): string | undefined {
-  if (value === null) return "null";
-  switch (typeof value) {
-    case "boolean":
-      return value ? "true" : "false";
-    case "bigint":
-      return value.toString(10);
-    case "number":
-      return Number.isFinite(value) ? JSON.stringify(value) : "null";
-    case "string":
-      return JSON.stringify(value);
-    case "undefined":
-    case "function":
-    case "symbol":
-      return undefined;
-  }
-  if (Array.isArray(value)) {
-    if (value.length === 0) return "[]";
-    const childIndent = pretty ? "  ".repeat(depth + 1) : "";
-    const closeIndent = pretty ? "  ".repeat(depth) : "";
-    const items: string[] = [];
-    for (let i = 0; i < value.length; i++) {
-      const serialized = serializeVectorJsonValue(value[i], pretty, depth + 1);
-      items.push(serialized === undefined ? "null" : serialized);
-    }
-    if (!pretty) {
-      return "[" + items.join(",") + "]";
-    }
-    return "[\n" + items.map((item) => childIndent + item).join(",\n") + "\n" + closeIndent + "]";
-  }
-  const obj = value as Record<string, unknown>;
-  const keys = Object.keys(obj);
-  const pairs: string[] = [];
-  const childIndent = pretty ? "  ".repeat(depth + 1) : "";
-  const closeIndent = pretty ? "  ".repeat(depth) : "";
-  for (let i = 0; i < keys.length; i++) {
-    const k = keys[i]!;
-    const serialized = serializeVectorJsonValue(obj[k], pretty, depth + 1);
-    if (serialized === undefined) continue;
-    pairs.push(
-      pretty
-        ? childIndent + JSON.stringify(k) + ": " + serialized
-        : JSON.stringify(k) + ":" + serialized,
-    );
-  }
-  if (pairs.length === 0) return "{}";
-  if (!pretty) {
-    return "{" + pairs.join(",") + "}";
-  }
-  return "{\n" + pairs.join(",\n") + "\n" + closeIndent + "}";
+function isSerializableVectorValue(value: unknown): boolean {
+  const t = typeof value;
+  return t !== "undefined" && t !== "function" && t !== "symbol";
 }
 
+type VectorSerializeTask =
+  | { readonly kind: "value"; readonly value: unknown; readonly depth: number }
+  | { readonly kind: "literal"; readonly text: string };
+
 /**
- * Serializes vector JSON values without Node 21+ `JSON.rawJSON`, emitting `bigint`
- * timestamps as exact unquoted RFC 8259 JSON integer literals for Node 20 compatibility.
+ * Serializes vector JSON values iteratively without Node 21+ `JSON.rawJSON`, emitting
+ * `bigint` timestamps as exact unquoted RFC 8259 JSON integer literals for Node 20 compatibility.
  */
 export function stringifyVectorJson(value: unknown, pretty = false): string {
-  return serializeVectorJsonValue(value, pretty, 0) ?? "null";
+  if (!isSerializableVectorValue(value)) {
+    return "null";
+  }
+
+  const out: string[] = [];
+  const stack: VectorSerializeTask[] = [{ kind: "value", value, depth: 0 }];
+
+  while (stack.length > 0) {
+    const task = stack.pop()!;
+    if (task.kind === "literal") {
+      out.push(task.text);
+      continue;
+    }
+    const v = task.value;
+    if (v === null) {
+      out.push("null");
+      continue;
+    }
+    switch (typeof v) {
+      case "boolean":
+        out.push(v ? "true" : "false");
+        continue;
+      case "bigint":
+        out.push(v.toString(10));
+        continue;
+      case "number":
+        out.push(Number.isFinite(v) ? JSON.stringify(v) : "null");
+        continue;
+      case "string":
+        out.push(JSON.stringify(v));
+        continue;
+      case "undefined":
+      case "function":
+      case "symbol":
+        out.push("null");
+        continue;
+    }
+
+    if (Array.isArray(v)) {
+      if (v.length === 0) {
+        out.push("[]");
+        continue;
+      }
+      if (!pretty) {
+        out.push("[");
+        stack.push({ kind: "literal", text: "]" });
+        for (let i = v.length - 1; i >= 0; i--) {
+          const item: unknown = isSerializableVectorValue(v[i]) ? v[i] : null;
+          stack.push({ kind: "value", value: item, depth: task.depth + 1 });
+          if (i > 0) {
+            stack.push({ kind: "literal", text: "," });
+          }
+        }
+      } else {
+        const childIndent = "  ".repeat(task.depth + 1);
+        const closeIndent = "  ".repeat(task.depth);
+        out.push("[\n");
+        stack.push({ kind: "literal", text: "\n" + closeIndent + "]" });
+        for (let i = v.length - 1; i >= 0; i--) {
+          const item: unknown = isSerializableVectorValue(v[i]) ? v[i] : null;
+          stack.push({ kind: "value", value: item, depth: task.depth + 1 });
+          stack.push({ kind: "literal", text: (i > 0 ? ",\n" : "") + childIndent });
+        }
+      }
+      continue;
+    }
+
+    const obj = v as Record<string, unknown>;
+    const allKeys = Object.keys(obj);
+    const keys: string[] = [];
+    for (let i = 0; i < allKeys.length; i++) {
+      const k = allKeys[i]!;
+      if (isSerializableVectorValue(obj[k])) {
+        keys.push(k);
+      }
+    }
+    if (keys.length === 0) {
+      out.push("{}");
+      continue;
+    }
+    if (!pretty) {
+      out.push("{");
+      stack.push({ kind: "literal", text: "}" });
+      for (let i = keys.length - 1; i >= 0; i--) {
+        const k = keys[i]!;
+        stack.push({ kind: "value", value: obj[k], depth: task.depth + 1 });
+        stack.push({ kind: "literal", text: (i > 0 ? "," : "") + JSON.stringify(k) + ":" });
+      }
+    } else {
+      const childIndent = "  ".repeat(task.depth + 1);
+      const closeIndent = "  ".repeat(task.depth);
+      out.push("{\n");
+      stack.push({ kind: "literal", text: "\n" + closeIndent + "}" });
+      for (let i = keys.length - 1; i >= 0; i--) {
+        const k = keys[i]!;
+        stack.push({ kind: "value", value: obj[k], depth: task.depth + 1 });
+        stack.push({
+          kind: "literal",
+          text: (i > 0 ? ",\n" : "") + childIndent + JSON.stringify(k) + ": ",
+        });
+      }
+    }
+  }
+
+  return out.join("");
 }
 
+type CanonicalJsonTask =
+  | { readonly kind: "value"; readonly value: JsonValue }
+  | { readonly kind: "literal"; readonly text: string };
+
 /**
- * Deterministically serializes a JSON value with lexicographically sorted object keys.
+ * Deterministically and iteratively serializes a JSON value with lexicographically sorted object keys.
  */
 export function canonicalizeJson(value: JsonValue): string {
-  if (value === null) return "null";
-  if (typeof value === "boolean") return value ? "true" : "false";
-  if (typeof value === "number") {
-    return Object.is(value, -0) ? "-0" : JSON.stringify(value);
-  }
-  if (typeof value === "string") return JSON.stringify(value);
-  if (Array.isArray(value)) {
-    const items: string[] = [];
-    for (let i = 0; i < value.length; i++) {
-      items.push(canonicalizeJson(value[i]!));
+  const out: string[] = [];
+  const stack: CanonicalJsonTask[] = [{ kind: "value", value }];
+
+  while (stack.length > 0) {
+    const task = stack.pop()!;
+    if (task.kind === "literal") {
+      out.push(task.text);
+      continue;
     }
-    return "[" + items.join(",") + "]";
+    const v = task.value;
+    if (v === null) {
+      out.push("null");
+    } else if (typeof v === "boolean") {
+      out.push(v ? "true" : "false");
+    } else if (typeof v === "number") {
+      out.push(Object.is(v, -0) ? "-0" : JSON.stringify(v));
+    } else if (typeof v === "string") {
+      out.push(JSON.stringify(v));
+    } else if (Array.isArray(v)) {
+      if (v.length === 0) {
+        out.push("[]");
+      } else {
+        out.push("[");
+        stack.push({ kind: "literal", text: "]" });
+        for (let i = v.length - 1; i >= 0; i--) {
+          stack.push({ kind: "value", value: v[i]! });
+          if (i > 0) {
+            stack.push({ kind: "literal", text: "," });
+          }
+        }
+      }
+    } else {
+      const obj = v as { readonly [key: string]: JsonValue };
+      const keys = Object.keys(obj).sort();
+      if (keys.length === 0) {
+        out.push("{}");
+      } else {
+        out.push("{");
+        stack.push({ kind: "literal", text: "}" });
+        for (let i = keys.length - 1; i >= 0; i--) {
+          const k = keys[i]!;
+          stack.push({ kind: "value", value: obj[k]! });
+          stack.push({ kind: "literal", text: (i > 0 ? "," : "") + JSON.stringify(k) + ":" });
+        }
+      }
+    }
   }
-  const obj = value as { readonly [key: string]: JsonValue };
-  const keys = Object.keys(obj).sort();
-  const pairs: string[] = [];
-  for (let i = 0; i < keys.length; i++) {
-    const k = keys[i]!;
-    pairs.push(JSON.stringify(k) + ":" + canonicalizeJson(obj[k]!));
-  }
-  return "{" + pairs.join(",") + "}";
+
+  return out.join("");
 }
 
 /**

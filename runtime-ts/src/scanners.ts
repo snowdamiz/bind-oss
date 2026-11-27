@@ -23,8 +23,6 @@ import {
   isAsciiSpace,
 } from "./utf8.js";
 
-const MAX_JSON_DEPTH = 512;
-
 export interface HoleScanResult {
   readonly end: number;
   readonly raw: string;
@@ -400,12 +398,10 @@ export function scanJsonContainerBytes(
     switch (state) {
       case JsonState.ExpectValue: {
         if (b === 0x7b /* '{' */) {
-          if (stack.length >= MAX_JSON_DEPTH) return -1;
           stack.push(JsonContainerKind.Object);
           pos++;
           state = JsonState.ExpectObjKeyOrEnd;
         } else if (b === 0x5b /* '[' */) {
-          if (stack.length >= MAX_JSON_DEPTH) return -1;
           stack.push(JsonContainerKind.Array);
           pos++;
           state = JsonState.ExpectArrValueOrEnd;

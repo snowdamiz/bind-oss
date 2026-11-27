@@ -219,26 +219,84 @@ function parseJsonString(
   }
 }
 
-function isJsonSafeValue(val: unknown): val is JsonValue {
-  if (val === null || typeof val === "string" || typeof val === "boolean") {
+function isJsonSafeValue(root: unknown): root is JsonValue {
+  if (root === null || typeof root === "string" || typeof root === "boolean") {
     return true;
   }
-  if (typeof val === "number") {
-    return Number.isFinite(val);
+  if (typeof root === "number") {
+    return Number.isFinite(root);
   }
-  if (Array.isArray(val)) {
-    for (let i = 0; i < val.length; i++) {
-      if (!isJsonSafeValue(val[i])) return false;
+  if (typeof root !== "object") {
+    return false;
+  }
+
+  const stack: Array<{ readonly node: object; readonly exit: boolean }> = [
+    { node: root, exit: false },
+  ];
+  const visiting = new Set<object>();
+  const verified = new Set<object>();
+
+  while (stack.length > 0) {
+    const frame = stack.pop()!;
+    const node = frame.node;
+    if (frame.exit) {
+      visiting.delete(node);
+      verified.add(node);
+      continue;
     }
-    return true;
-  }
-  if (typeof val === "object") {
-    for (const key of Object.keys(val as Record<string, unknown>)) {
-      if (!isJsonSafeValue((val as Record<string, unknown>)[key])) return false;
+    if (verified.has(node)) {
+      continue;
     }
-    return true;
+    if (visiting.has(node)) {
+      return false;
+    }
+    visiting.add(node);
+    stack.push({ node, exit: true });
+
+    if (Array.isArray(node)) {
+      for (let i = 0; i < node.length; i++) {
+        const item: unknown = node[i];
+        if (item === null || typeof item === "string" || typeof item === "boolean") {
+          continue;
+        }
+        if (typeof item === "number") {
+          if (!Number.isFinite(item)) return false;
+          continue;
+        }
+        if (typeof item === "object") {
+          if (visiting.has(item)) return false;
+          if (!verified.has(item)) {
+            stack.push({ node: item, exit: false });
+          }
+          continue;
+        }
+        return false;
+      }
+    } else {
+      const rec = node as Record<string, unknown>;
+      const keys = Object.keys(rec);
+      for (let i = 0; i < keys.length; i++) {
+        const v = rec[keys[i]!];
+        if (v === null || typeof v === "string" || typeof v === "boolean") {
+          continue;
+        }
+        if (typeof v === "number") {
+          if (!Number.isFinite(v)) return false;
+          continue;
+        }
+        if (typeof v === "object") {
+          if (visiting.has(v)) return false;
+          if (!verified.has(v)) {
+            stack.push({ node: v, exit: false });
+          }
+          continue;
+        }
+        return false;
+      }
+    }
   }
-  return false;
+
+  return true;
 }
 
 function handleIncomingRedactionToken(
