@@ -679,4 +679,183 @@ describe("Node 20 review regressions: lexical JSON no-spill, rest->cast(json), w
       expect(circRes.fields["data"]?.status).toBe("error");
     }
   });
+
+  it("does not confuse a standalone JSON field named fields with a vector envelope or mutate wide JSON numbers and signed zero", () => {
+    const wideFieldsSpec = JSON.stringify({
+      spec_version: 1,
+      template: "tpl_01JNY8VHGABQ3K7S8PG4N1ZJ2P",
+      event: "review.json_expectation",
+      version: 1,
+      status: "active",
+      origin: "agent",
+      source: { kind: "mined" },
+      match: { kind: "object", shape: ["payload"] },
+      fields: [
+        {
+          id: "fld_01JSONPAYLOAD",
+          name: "fields",
+          from: { path: "payload" },
+          type: "json",
+          semantic: "unknown",
+        },
+      ],
+      tests: [
+        {
+          object: {
+            payload: { copy: { status: "ok", type: "timestamp", value: 9007199254740992 } },
+          },
+          expect: {
+            fields: { copy: { status: "ok", type: "timestamp", value: 9007199254740992 } },
+          },
+        },
+      ],
+    });
+
+    const signedZeroFieldsSpec =
+      `{"spec_version":1,"template":"tpl_01JNY8VHGABQ3K7S8PG4N1ZJ2P","event":"review.json_expectation","version":1,"status":"active","origin":"agent","source":{"kind":"mined"},"match":{"kind":"object","shape":["payload"]},"fields":[{"id":"fld_01JSONPAYLOAD","name":"fields","from":{"path":"payload"},"type":"json","semantic":"unknown"}],"tests":[{"object":{"payload":{"copy":{"status":"ok","type":"timestamp","value":0}}},"expect":{"fields":{"copy":{"status":"ok","type":"timestamp","value":-0}}}}]}`;
+
+    // Standalone spec with BOTH a bool field named "matched" and a json field named "fields"
+    // plus a real timestamp field "ts"
+    const combinedStandaloneSpec =
+      `{"spec_version":1,"template":"tpl_01JNY8VHGABQ3K7S8PG4N1ZJ2P","event":"review.json_expectation_combined","version":1,"status":"active","origin":"agent","source":{"kind":"mined"},"match":{"kind":"object","shape":["matched","payload","ts"]},"fields":[{"id":"f_m","name":"matched","from":{"path":"matched"},"type":"bool","semantic":"unknown"},{"id":"f_f","name":"fields","from":{"path":"payload"},"type":"json","semantic":"unknown"},{"id":"f_t","name":"ts","from":{"path":"ts"},"type":"timestamp","semantic":"timestamp","transforms":[{"op":"parse_time","format":"unix_ms"}]}],"tests":[{"object":{"matched":true,"payload":{"copy":{"status":"ok","type":"timestamp","value":9007199254740992}},"ts":"9007199254740993"},"expect":{"matched":true,"fields":{"copy":{"status":"ok","type":"timestamp","value":9007199254740992}},"ts":9.007199254740993e15}}]}`;
+
+    const combinedSignedZeroFail =
+      `{"spec_version":1,"template":"tpl_01JNY8VHGABQ3K7S8PG4N1ZJ2P","event":"review.json_expectation_combined","version":1,"status":"active","origin":"agent","source":{"kind":"mined"},"match":{"kind":"object","shape":["payload","ts"]},"fields":[{"id":"f_f","name":"fields","from":{"path":"payload"},"type":"json","semantic":"unknown"},{"id":"f_t","name":"ts","from":{"path":"ts"},"type":"timestamp","semantic":"timestamp","transforms":[{"op":"parse_time","format":"unix_ms"}]}],"tests":[{"object":{"payload":{"copy":{"status":"ok","type":"timestamp","value":0}},"ts":"9007199254740993"},"expect":{"fields":{"copy":{"status":"ok","type":"timestamp","value":-0}},"ts":9007199254740993}}]}`;
+
+    // Plain VectorCase (no matched) with a json field named "fields"
+    const plainVectorCase =
+      `{"id":"plain-fields","spec":{"spec_version":1,"template":"tpl_01PLAINFIELDS","event":"review.plain_fields","version":1,"status":"active","origin":"agent","source":{"kind":"mined"},"match":{"kind":"object","shape":["payload"]},"fields":[{"id":"f1","name":"fields","from":{"path":"payload"},"type":"json","semantic":"unknown"}],"tests":[]},"input":{"object":{"payload":{"copy":{"status":"ok","type":"timestamp","value":9007199254740992}}}},"expect":{"fields":{"copy":{"status":"ok","type":"timestamp","value":9007199254740992}}}}`;
+
+    // Vector envelope with both a json field containing a timestamp-shaped object and a real timestamp field
+    const vectorEnvelopeCase =
+      `{"id":"vec-mixed","spec":{"spec_version":1,"template":"tpl_01VECMIXED","event":"review.vec_mixed","version":1,"status":"active","origin":"agent","source":{"kind":"mined"},"match":{"kind":"object","shape":["payload","ts"]},"fields":[{"id":"f1","name":"data","from":{"path":"payload"},"type":"json","semantic":"unknown"},{"id":"f2","name":"ts","from":{"path":"ts"},"type":"timestamp","semantic":"timestamp","transforms":[{"op":"parse_time","format":"unix_ms"}]}],"tests":[]},"input":{"object":{"payload":{"copy":{"status":"ok","type":"timestamp","value":9007199254740992}},"ts":"9007199254740993"}},"expected":{"matched":true,"fields":{"data":{"status":"ok","type":"json","value":{"copy":{"status":"ok","type":"timestamp","value":9007199254740992}}},"ts":{"status":"ok","type":"timestamp","value":9007199254740993}}}}`;
+
+    for (const [label, raw] of [
+      ["wideFieldsSpec", wideFieldsSpec],
+      ["combinedStandaloneSpec", combinedStandaloneSpec],
+      ["plainVectorCase", plainVectorCase],
+      ["vectorEnvelopeCase", vectorEnvelopeCase],
+    ] as const) {
+      const cases = parseFixturePayload(raw, `${label}.json`);
+      const report = runVectorCases(cases);
+      expect(report.failed, `${label}: ${JSON.stringify(report.checks)}`).toBe(0);
+      expect(report.passed).toBe(1);
+    }
+
+    // Signed zero in JSON expectation must NOT be coerced to +0
+    for (const [label, raw] of [
+      ["signedZeroFieldsSpec", signedZeroFieldsSpec],
+      ["combinedSignedZeroFail", combinedSignedZeroFail],
+    ] as const) {
+      const cases = parseFixturePayload(raw, `${label}.json`);
+      const report = runVectorCases(cases);
+      expect(report.failed, `${label} should fail on 0 vs -0`).toBe(1);
+      expect(report.checks[0]?.diffs[0]).toContain(`"value":-0`);
+    }
+
+    // End-to-end CLI verification
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "bind-runtime-ts-fields-json-"));
+    try {
+      const widePath = path.join(tmpDir, "wide-fields.json");
+      fs.writeFileSync(widePath, wideFieldsSpec, "utf8");
+      execFileSync(
+        process.execPath,
+        [CLI_PATH, "--input", widePath, "--format", "ndjson", "--check"],
+        { encoding: "utf8", stdio: "pipe" },
+      );
+
+      const szPath = path.join(tmpDir, "signed-zero-fields.json");
+      fs.writeFileSync(szPath, signedZeroFieldsSpec, "utf8");
+      let szExit = 0;
+      try {
+        execFileSync(
+          process.execPath,
+          [CLI_PATH, "--input", szPath, "--format", "ndjson", "--check"],
+          { encoding: "utf8", stdio: "pipe" },
+        );
+      } catch (err) {
+        szExit = (err as { status?: number }).status ?? -1;
+      }
+      expect(szExit).toBe(1);
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  it("keeps timestamp lexeme preservation stack-safe for 20,000-level nested fixtures containing timestamp text through the CLI", () => {
+    const depth = 20_000;
+    const open = "[".repeat(depth);
+    const close = "]".repeat(depth);
+    const deepPayload = `${open}{"type":"timestamp"}${close}`;
+
+    // 1. Standalone ParserSpec with 20,000 nested arrays containing {"type":"timestamp"} (no timestamp field)
+    const deepTsSpec =
+      `{"spec_version":1,"template":"tpl_01DEEPTS01","event":"review.deep_ts","version":1,"status":"active","origin":"agent","source":{"kind":"mined"},"match":{"kind":"object","shape":["payload"]},"fields":[{"id":"f1","name":"data","from":{"path":"payload"},"type":"json","semantic":"unknown"}],"tests":[{"object":{"payload":${deepPayload}},"expect":{"data":${deepPayload}}}]}`;
+
+    // 2. Standalone ParserSpec with BOTH 20,000 nested arrays containing "timestamp" AND a real timestamp field
+    const deepTsWithRealTimestampOk =
+      `{"spec_version":1,"template":"tpl_01DEEPTS02","event":"review.deep_ts_real","version":1,"status":"active","origin":"agent","source":{"kind":"mined"},"match":{"kind":"object","shape":["payload","ts"]},"fields":[{"id":"f1","name":"data","from":{"path":"payload"},"type":"json","semantic":"unknown"},{"id":"f2","name":"ts","from":{"path":"ts"},"type":"timestamp","semantic":"timestamp","transforms":[{"op":"parse_time","format":"unix_ms"}]}],"tests":[{"object":{"payload":${deepPayload},"ts":"9007199254740993"},"expect":{"data":${deepPayload},"ts":9.007199254740993e15}}]}`;
+
+    const deepTsWithRealTimestampFracFail =
+      `{"spec_version":1,"template":"tpl_01DEEPTS02","event":"review.deep_ts_real","version":1,"status":"active","origin":"agent","source":{"kind":"mined"},"match":{"kind":"object","shape":["payload","ts"]},"fields":[{"id":"f1","name":"data","from":{"path":"payload"},"type":"json","semantic":"unknown"},{"id":"f2","name":"ts","from":{"path":"ts"},"type":"timestamp","semantic":"timestamp","transforms":[{"op":"parse_time","format":"unix_ms"}]}],"tests":[{"object":{"payload":${deepPayload},"ts":"9007199254740992"},"expect":{"data":${deepPayload},"ts":9007199254740992.5}}]}`;
+
+    // 3. Vector suite with 20,000 nested arrays containing "timestamp" AND a real vector timestamp expectation
+    const deepVectorSuite =
+      `{"schema_version":1,"suite":"deep-ts-suite","vectors":[{"id":"deep-vec-1","spec":{"spec_version":1,"template":"tpl_01DEEPVEC1","event":"review.deep_vec","version":1,"status":"active","origin":"agent","source":{"kind":"mined"},"match":{"kind":"object","shape":["payload","ts"]},"fields":[{"id":"f1","name":"data","from":{"path":"payload"},"type":"json","semantic":"unknown"},{"id":"f2","name":"ts","from":{"path":"ts"},"type":"timestamp","semantic":"timestamp","transforms":[{"op":"parse_time","format":"unix_ms"}]}],"tests":[]},"input":{"object":{"payload":${deepPayload},"ts":"9007199254740993"}},"expected":{"matched":true,"fields":{"data":{"status":"ok","type":"json","value":${deepPayload}},"ts":{"status":"ok","type":"timestamp","value":9007199254740993}}}}]}`;
+
+    for (const [label, raw] of [
+      ["deepTsSpec", deepTsSpec],
+      ["deepTsWithRealTimestampOk", deepTsWithRealTimestampOk],
+      ["deepVectorSuite", deepVectorSuite],
+    ] as const) {
+      const cases = parseFixturePayload(raw, `${label}.json`);
+      const report = runVectorCases(cases);
+      expect(report.failed, `${label}: ${JSON.stringify(report.checks)}`).toBe(0);
+      expect(report.passed).toBe(1);
+    }
+
+    const fracReport = runVectorCases(
+      parseFixturePayload(deepTsWithRealTimestampFracFail, "deep-frac.json"),
+    );
+    expect(fracReport.failed).toBe(1);
+
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "bind-runtime-ts-deep-ts-"));
+    try {
+      const deepPath = path.join(tmpDir, "deep-ts.json");
+      fs.writeFileSync(deepPath, deepTsSpec, "utf8");
+      const ndjsonOut = execFileSync(
+        process.execPath,
+        [CLI_PATH, "--input", deepPath, "--format", "ndjson", "--check"],
+        { encoding: "utf8", stdio: "pipe" },
+      );
+      expect(ndjsonOut).toContain(`"matched":true`);
+
+      const vecOut = execFileSync(
+        process.execPath,
+        [CLI_PATH, "--input", deepPath, "--format", "vector-ndjson", "--check"],
+        { encoding: "utf8", stdio: "pipe" },
+      );
+      expect(vecOut).toContain(`"matched":true`);
+
+      const deepRealPath = path.join(tmpDir, "deep-ts-real.json");
+      fs.writeFileSync(deepRealPath, deepTsWithRealTimestampOk, "utf8");
+      const realOut = execFileSync(
+        process.execPath,
+        [CLI_PATH, "--input", deepRealPath, "--format", "vector-ndjson", "--check"],
+        { encoding: "utf8", stdio: "pipe" },
+      );
+      expect(realOut).toContain("9007199254740993");
+
+      const deepSuitePath = path.join(tmpDir, "deep-suite.json");
+      fs.writeFileSync(deepSuitePath, deepVectorSuite, "utf8");
+      const suiteOut = execFileSync(
+        process.execPath,
+        [CLI_PATH, "--input", deepSuitePath, "--format", "vector-ndjson", "--check"],
+        { encoding: "utf8", stdio: "pipe" },
+      );
+      expect(suiteOut).toContain("9007199254740993");
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
 });

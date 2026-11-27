@@ -32,7 +32,7 @@ import {
 } from "./canonical.js";
 import { compileParser, type CompiledParser } from "./evaluate.js";
 import { isPlainObject } from "./matchers.js";
-import { fromHex, toSafeIntOrBigInt } from "./utf8.js";
+import { fromHex, hasOwn, toSafeIntOrBigInt } from "./utf8.js";
 
 export interface VectorExpectation {
   readonly matched: boolean;
@@ -397,15 +397,8 @@ function isJsonWhitespace(code: number): boolean {
   return code === 0x20 || code === 0x09 || code === 0x0a || code === 0x0d;
 }
 
-function isJsonNumberChar(code: number): boolean {
-  return (
-    (code >= 0x30 && code <= 0x39) ||
-    code === 0x2d ||
-    code === 0x2b ||
-    code === 0x2e ||
-    code === 0x65 ||
-    code === 0x45
-  );
+function isJsonNumberStart(code: number): boolean {
+  return (code >= 0x30 && code <= 0x39) || code === 0x2d;
 }
 
 function setJsonProp(obj: Record<string, unknown>, key: string, val: unknown): void {
@@ -421,11 +414,292 @@ function setJsonProp(obj: Record<string, unknown>, key: string, val: unknown): v
   }
 }
 
+interface JsonSpan {
+  readonly start: number;
+  readonly end: number;
+}
+
+function skipJsonWs(raw: string, pos: number): number {
+  const len = raw.length;
+  while (pos < len && isJsonWhitespace(raw.charCodeAt(pos))) {
+    pos++;
+  }
+  return pos;
+}
+
+function scanJsonStringEnd(raw: string, start: number): number {
+  const len = raw.length;
+  let pos = start + 1;
+  while (pos < len) {
+    const ch = raw.charCodeAt(pos++);
+    if (ch === 0x5c) {
+      pos++;
+    } else if (ch === 0x22) {
+      return pos;
+    }
+  }
+  throw new SyntaxError("Unterminated JSON string");
+}
+
+function decodeJsonString(raw: string, start: number, end: number): string {
+  const backslash = raw.indexOf("\\", start + 1);
+  if (backslash === -1 || backslash >= end - 1) {
+    return raw.slice(start + 1, end - 1);
+  }
+  return JSON.parse(raw.slice(start, end)) as string;
+}
+
+/**
+ * Iteratively scans to the end of any valid RFC 8259 JSON value starting at `start`.
+ * Uses O(1) JS stack frames and O(1) auxiliary memory regardless of nesting depth.
+ */
+function scanJsonValueEnd(raw: string, start: number): number {
+  const len = raw.length;
+  let pos = start;
+  const first = raw.charCodeAt(pos);
+  if (first === 0x22) {
+    return scanJsonStringEnd(raw, pos);
+  }
+  if (first !== 0x7b && first !== 0x5b) {
+    while (pos < len) {
+      const c = raw.charCodeAt(pos);
+      if (isJsonWhitespace(c) || c === 0x2c || c === 0x5d || c === 0x7d) {
+        break;
+      }
+      pos++;
+    }
+    return pos;
+  }
+  let depth = 0;
+  while (pos < len) {
+    const ch = raw.charCodeAt(pos);
+    if (ch === 0x22) {
+      pos = scanJsonStringEnd(raw, pos);
+      continue;
+    }
+    if (ch === 0x7b || ch === 0x5b) {
+      depth++;
+    } else if (ch === 0x7d || ch === 0x5d) {
+      depth--;
+      if (depth === 0) {
+        return pos + 1;
+      }
+    }
+    pos++;
+  }
+  throw new SyntaxError("Unterminated JSON container");
+}
+
+/**
+ * Scans immediate members of a valid JSON object starting at `objStart`, returning
+ * the raw value span of the last occurrence of each key (matching `JSON.parse`
+ * duplicate-key semantics) without recursing into nested values.
+ */
+function scanJsonObjectMemberSpans(raw: string, objStart: number): Map<string, JsonSpan> {
+  const members = new Map<string, JsonSpan>();
+  const len = raw.length;
+  let pos = skipJsonWs(raw, objStart + 1);
+  if (pos < len && raw.charCodeAt(pos) === 0x7d) {
+    return members;
+  }
+  while (pos < len) {
+    const keyEnd = scanJsonStringEnd(raw, pos);
+    const key = decodeJsonString(raw, pos, keyEnd);
+    pos = skipJsonWs(raw, keyEnd);
+    pos++; // colon
+    pos = skipJsonWs(raw, pos);
+    const valStart = pos;
+    const valEnd = scanJsonValueEnd(raw, valStart);
+    members.set(key, { start: valStart, end: valEnd });
+    pos = skipJsonWs(raw, valEnd);
+    if (pos < len && raw.charCodeAt(pos) === 0x2c) {
+      pos = skipJsonWs(raw, pos + 1);
+      continue;
+    }
+    break;
+  }
+  return members;
+}
+
+/**
+ * Scans immediate elements of a valid JSON array starting at `arrStart` without
+ * recursing into nested values.
+ */
+function scanJsonArrayElementSpans(raw: string, arrStart: number): JsonSpan[] {
+  const elems: JsonSpan[] = [];
+  const len = raw.length;
+  let pos = skipJsonWs(raw, arrStart + 1);
+  if (pos < len && raw.charCodeAt(pos) === 0x5d) {
+    return elems;
+  }
+  while (pos < len) {
+    const elemStart = pos;
+    const elemEnd = scanJsonValueEnd(raw, elemStart);
+    elems.push({ start: elemStart, end: elemEnd });
+    pos = skipJsonWs(raw, elemEnd);
+    if (pos < len && raw.charCodeAt(pos) === 0x2c) {
+      pos = skipJsonWs(raw, pos + 1);
+      continue;
+    }
+    break;
+  }
+  return elems;
+}
+
+function parseExactJsonTimestampNumber(
+  lexeme: string,
+):
+  | { readonly kind: "int"; readonly value: bigint }
+  | { readonly kind: "huge_int"; readonly negative: boolean }
+  | { readonly kind: "fractional" } {
+  let p = 0;
+  let negative = false;
+  if (lexeme.charCodeAt(p) === 0x2d) {
+    negative = true;
+    p++;
+  }
+  const intStart = p;
+  while (p < lexeme.length) {
+    const c = lexeme.charCodeAt(p);
+    if (c < 0x30 || c > 0x39) break;
+    p++;
+  }
+  const intPart = lexeme.slice(intStart, p);
+
+  let fracPart = "";
+  if (p < lexeme.length && lexeme.charCodeAt(p) === 0x2e) {
+    p++;
+    const fracStart = p;
+    while (p < lexeme.length) {
+      const c = lexeme.charCodeAt(p);
+      if (c < 0x30 || c > 0x39) break;
+      p++;
+    }
+    fracPart = lexeme.slice(fracStart, p);
+  }
+
+  let exp = 0;
+  let expOverflowSign = 0;
+  if (p < lexeme.length && (lexeme.charCodeAt(p) === 0x65 || lexeme.charCodeAt(p) === 0x45)) {
+    p++;
+    let expSign = 1;
+    if (p < lexeme.length) {
+      const ec = lexeme.charCodeAt(p);
+      if (ec === 0x2d) {
+        expSign = -1;
+        p++;
+      } else if (ec === 0x2b) {
+        p++;
+      }
+    }
+    let expNz = p;
+    while (expNz < lexeme.length && lexeme.charCodeAt(expNz) === 0x30) {
+      expNz++;
+    }
+    const expDigits = lexeme.slice(expNz);
+    if (expDigits.length === 0) {
+      exp = 0;
+    } else if (expDigits.length > 8) {
+      expOverflowSign = expSign;
+    } else {
+      exp = expSign * Number(expDigits);
+    }
+  }
+
+  const combined = intPart + fracPart;
+  let firstNz = 0;
+  while (firstNz < combined.length && combined.charCodeAt(firstNz) === 0x30) {
+    firstNz++;
+  }
+  if (firstNz === combined.length) {
+    return { kind: "int", value: 0n };
+  }
+  let lastNz = combined.length - 1;
+  while (lastNz > firstNz && combined.charCodeAt(lastNz) === 0x30) {
+    lastNz--;
+  }
+  const sigDigits = combined.slice(firstNz, lastNz + 1);
+  const trailingZeros = combined.length - 1 - lastNz;
+
+  if (expOverflowSign < 0) {
+    return { kind: "fractional" };
+  }
+  if (expOverflowSign > 0) {
+    return { kind: "huge_int", negative };
+  }
+  const lsdExp = exp - fracPart.length + trailingZeros;
+  if (lsdExp < 0) {
+    return { kind: "fractional" };
+  }
+  if (sigDigits.length + lsdExp > 25) {
+    return { kind: "huge_int", negative };
+  }
+  return {
+    kind: "int",
+    value: BigInt((negative ? "-" : "") + sigDigits + "0".repeat(lsdExp)),
+  };
+}
+
+function applyExactTimestampLexeme(
+  obj: Record<string, unknown>,
+  key: string,
+  rawLexeme: string,
+): void {
+  const exact = parseExactJsonTimestampNumber(rawLexeme);
+  if (exact.kind === "int") {
+    setJsonProp(obj, key, toSafeIntOrBigInt(exact.value));
+  } else if (exact.kind === "huge_int") {
+    setJsonProp(obj, key, exact.negative ? -(10n ** 30n) : 10n ** 30n);
+  } else {
+    const num = obj[key];
+    setJsonProp(
+      obj,
+      key,
+      typeof num === "number" && Number.isInteger(num) ? Number.NaN : num,
+    );
+  }
+}
+
+function collectTimestampFieldNames(spec: unknown): ReadonlySet<string> | null {
+  if (!isPlainObject(spec) || !Array.isArray(spec["fields"])) {
+    return null;
+  }
+  let names: Set<string> | null = null;
+  for (let i = 0; i < spec["fields"].length; i++) {
+    const f = spec["fields"][i];
+    if (isPlainObject(f) && f["type"] === "timestamp" && typeof f["name"] === "string") {
+      if (names === null) {
+        names = new Set<string>();
+      }
+      names.add(f["name"]);
+    }
+  }
+  return names;
+}
+
+function hasNumericTimestampExpectation(
+  expectObj: Record<string, unknown>,
+  tsFields: ReadonlySet<string>,
+): boolean {
+  for (const fieldName of tsFields) {
+    if (hasOwn(expectObj, fieldName) && typeof expectObj[fieldName] === "number") {
+      return true;
+    }
+  }
+  return false;
+}
+
 /**
  * Parses a JSON fixture string while preserving exact decimal/exponent semantics
  * (and rejecting fractional values) for expected timestamp numbers across both
  * vector `expected.fields.<name>` envelopes and standalone `ParserSpec.tests[].expect`
- * / plain `expect` maps. Pure ES2022 (Node 20 compatible, no `JSON.parse` `context.source`).
+ * / plain `expect` maps.
+ *
+ * Uses `JSON.parse` for all ordinary JSON values and scans only the relevant
+ * top-level structural spans iteratively (O(1) call stack) so deeply nested
+ * payloads containing the word "timestamp" never overflow the stack and non-timestamp
+ * JSON expectations (including fields named `"fields"`, wide numbers, and `-0`)
+ * remain completely untouched. Pure ES2022 (Node 20 compatible, no `context.source`).
  */
 function parseJsonPreservingUnsafeTimestampInts(raw: string): unknown {
   const fast: unknown = JSON.parse(raw);
@@ -433,366 +707,207 @@ function parseJsonPreservingUnsafeTimestampInts(raw: string): unknown {
     return fast;
   }
 
-  const len = raw.length;
-  let pos = 0;
-  const expectRawNums = new WeakMap<Record<string, unknown>, Map<string, string>>();
-
-  function skipWs(): void {
-    while (pos < len && isJsonWhitespace(raw.charCodeAt(pos))) {
-      pos++;
-    }
-  }
-
-  function parseString(): string {
-    const start = pos;
-    pos++; // opening quote
-    while (pos < len) {
-      const ch = raw.charCodeAt(pos);
-      if (ch === 0x5c) {
-        pos += 2;
-        continue;
-      }
-      if (ch === 0x22) {
-        pos++;
-        return JSON.parse(raw.slice(start, pos)) as string;
-      }
-      pos++;
-    }
-    throw new SyntaxError("Unterminated JSON string");
-  }
-
-  function parseExactJsonTimestampNumber(
-    lexeme: string,
-  ):
-    | { readonly kind: "int"; readonly value: bigint }
-    | { readonly kind: "huge_int"; readonly negative: boolean }
-    | { readonly kind: "fractional" } {
-    let p = 0;
-    let negative = false;
-    if (lexeme.charCodeAt(p) === 0x2d) {
-      negative = true;
-      p++;
-    }
-    const intStart = p;
-    while (p < lexeme.length) {
-      const c = lexeme.charCodeAt(p);
-      if (c < 0x30 || c > 0x39) break;
-      p++;
-    }
-    const intPart = lexeme.slice(intStart, p);
-
-    let fracPart = "";
-    if (p < lexeme.length && lexeme.charCodeAt(p) === 0x2e) {
-      p++;
-      const fracStart = p;
-      while (p < lexeme.length) {
-        const c = lexeme.charCodeAt(p);
-        if (c < 0x30 || c > 0x39) break;
-        p++;
-      }
-      fracPart = lexeme.slice(fracStart, p);
-    }
-
-    let exp = 0;
-    let expOverflowSign = 0;
-    if (p < lexeme.length && (lexeme.charCodeAt(p) === 0x65 || lexeme.charCodeAt(p) === 0x45)) {
-      p++;
-      let expSign = 1;
-      if (p < lexeme.length) {
-        const ec = lexeme.charCodeAt(p);
-        if (ec === 0x2d) {
-          expSign = -1;
-          p++;
-        } else if (ec === 0x2b) {
-          p++;
-        }
-      }
-      let expNz = p;
-      while (expNz < lexeme.length && lexeme.charCodeAt(expNz) === 0x30) {
-        expNz++;
-      }
-      const expDigits = lexeme.slice(expNz);
-      if (expDigits.length === 0) {
-        exp = 0;
-      } else if (expDigits.length > 8) {
-        expOverflowSign = expSign;
-      } else {
-        exp = expSign * Number(expDigits);
-      }
-    }
-
-    const combined = intPart + fracPart;
-    let firstNz = 0;
-    while (firstNz < combined.length && combined.charCodeAt(firstNz) === 0x30) {
-      firstNz++;
-    }
-    if (firstNz === combined.length) {
-      return { kind: "int", value: 0n };
-    }
-    let lastNz = combined.length - 1;
-    while (lastNz > firstNz && combined.charCodeAt(lastNz) === 0x30) {
-      lastNz--;
-    }
-    const sigDigits = combined.slice(firstNz, lastNz + 1);
-    const trailingZeros = combined.length - 1 - lastNz;
-
-    if (expOverflowSign < 0) {
-      return { kind: "fractional" };
-    }
-    if (expOverflowSign > 0) {
-      return { kind: "huge_int", negative };
-    }
-    const lsdExp = exp - fracPart.length + trailingZeros;
-    if (lsdExp < 0) {
-      return { kind: "fractional" };
-    }
-    if (sigDigits.length + lsdExp > 25) {
-      return { kind: "huge_int", negative };
-    }
-    return {
-      kind: "int",
-      value: BigInt((negative ? "-" : "") + sigDigits + "0".repeat(lsdExp)),
-    };
-  }
-
-  function applyExactTimestampLexeme(
-    obj: Record<string, unknown>,
-    key: string,
-    rawLexeme: string,
-  ): void {
-    const exact = parseExactJsonTimestampNumber(rawLexeme);
-    if (exact.kind === "int") {
-      setJsonProp(obj, key, toSafeIntOrBigInt(exact.value));
-    } else if (exact.kind === "huge_int") {
-      setJsonProp(obj, key, exact.negative ? -(10n ** 30n) : 10n ** 30n);
-    } else {
-      const num = obj[key];
-      setJsonProp(
-        obj,
-        key,
-        typeof num === "number" && Number.isInteger(num) ? Number.NaN : num,
-      );
-    }
-  }
-
-  function parseNumberWithRaw(): { readonly value: number; readonly rawNum?: string } {
-    const start = pos;
-    if (pos < len && raw.charCodeAt(pos) === 0x2d) {
-      pos++;
-    }
-    while (pos < len && isJsonNumberChar(raw.charCodeAt(pos))) {
-      pos++;
-    }
-    const lexeme = raw.slice(start, pos);
-    return { value: Number(lexeme), rawNum: lexeme };
-  }
-
-  function parseArray(expectDepth: number): unknown[] {
-    pos++; // opening bracket
-    skipWs();
-    const arr: unknown[] = [];
-    if (pos < len && raw.charCodeAt(pos) === 0x5d) {
-      pos++;
-      return arr;
-    }
-    const childDepth = expectDepth === 0 ? 0 : -1;
-    while (pos < len) {
-      arr.push(parseValue(childDepth).value);
-      skipWs();
-      if (pos < len && raw.charCodeAt(pos) === 0x2c) {
-        pos++;
-        skipWs();
-        continue;
-      }
-      if (pos < len && raw.charCodeAt(pos) === 0x5d) {
-        pos++;
-        return arr;
-      }
-      throw new SyntaxError(`Unexpected token in JSON array at ${pos}`);
-    }
-    throw new SyntaxError("Unterminated JSON array");
-  }
-
-  function parseObject(expectDepth: number): Record<string, unknown> {
-    pos++; // opening brace
-    skipWs();
-    const obj: Record<string, unknown> = {};
-    if (pos < len && raw.charCodeAt(pos) === 0x7d) {
-      pos++;
-      return obj;
-    }
-    let rawValueNum: string | undefined;
-    let plainRawNums: Map<string, string> | undefined;
-    while (pos < len) {
-      const key = parseString();
-      skipWs();
-      if (pos >= len || raw.charCodeAt(pos) !== 0x3a) {
-        throw new SyntaxError(`Expected colon in JSON object at ${pos}`);
-      }
-      pos++; // colon
-      skipWs();
-      let nextDepth = -1;
-      if (expectDepth === 0) {
-        if (key === "expected" || key === "expect") {
-          nextDepth = 1;
-        } else if (key === "vectors" || key === "cases" || key === "tests" || key === "spec") {
-          nextDepth = 0;
-        }
-      } else if (expectDepth === 1) {
-        nextDepth = key === "fields" ? 2 : -1;
-      } else if (expectDepth === 2) {
-        nextDepth = 3;
-      }
-      const valRes = parseValue(nextDepth);
-      setJsonProp(obj, key, valRes.value);
-      if (expectDepth === 3 && key === "value") {
-        rawValueNum = valRes.rawNum;
-      } else if (expectDepth === 1 || expectDepth === 2) {
-        if (valRes.rawNum !== undefined) {
-          if (plainRawNums === undefined) {
-            plainRawNums = new Map<string, string>();
-          }
-          plainRawNums.set(key, valRes.rawNum);
-        } else if (plainRawNums !== undefined) {
-          plainRawNums.delete(key);
-        }
-      }
-      skipWs();
-      if (pos < len && raw.charCodeAt(pos) === 0x2c) {
-        pos++;
-        skipWs();
-        continue;
-      }
-      if (pos < len && raw.charCodeAt(pos) === 0x7d) {
-        pos++;
-        if (
-          expectDepth === 3 &&
-          rawValueNum !== undefined &&
-          obj["status"] === "ok" &&
-          obj["type"] === "timestamp" &&
-          Object.keys(obj).length === 3
-        ) {
-          applyExactTimestampLexeme(obj, "value", rawValueNum);
-        } else if ((expectDepth === 1 || expectDepth === 2) && plainRawNums !== undefined && plainRawNums.size > 0) {
-          expectRawNums.set(obj, plainRawNums);
-        }
-        return obj;
-      }
-      throw new SyntaxError(`Unexpected token in JSON object at ${pos}`);
-    }
-    throw new SyntaxError("Unterminated JSON object");
-  }
-
-  function parseValue(expectDepth: number): { readonly value: unknown; readonly rawNum?: string } {
-    skipWs();
-    if (pos >= len) {
-      throw new SyntaxError("Unexpected end of JSON input");
-    }
-    const ch = raw.charCodeAt(pos);
-    if (ch === 0x7b) return { value: parseObject(expectDepth) };
-    if (ch === 0x5b) return { value: parseArray(expectDepth) };
-    if (ch === 0x22) return { value: parseString() };
-    if (ch === 0x74) {
-      pos += 4;
-      return { value: true };
-    }
-    if (ch === 0x66) {
-      pos += 5;
-      return { value: false };
-    }
-    if (ch === 0x6e) {
-      pos += 4;
-      return { value: null };
-    }
-    return parseNumberWithRaw();
-  }
-
-  function collectTimestampFieldNames(spec: unknown): ReadonlySet<string> | null {
-    if (!isPlainObject(spec) || !Array.isArray(spec["fields"])) {
-      return null;
-    }
-    let names: Set<string> | null = null;
-    for (let i = 0; i < spec["fields"].length; i++) {
-      const f = spec["fields"][i];
-      if (isPlainObject(f) && f["type"] === "timestamp" && typeof f["name"] === "string") {
-        if (names === null) {
-          names = new Set<string>();
-        }
-        names.add(f["name"]);
-      }
-    }
-    return names;
-  }
-
-  function applyPlainExpectTimestampNums(
-    expectObj: unknown,
+  function patchPlainExpectMap(
+    expectObj: Record<string, unknown>,
+    objStart: number,
     tsFields: ReadonlySet<string>,
   ): void {
-    if (!isPlainObject(expectObj)) return;
-    const rawNums = expectRawNums.get(expectObj);
-    if (rawNums === undefined) return;
-    for (const [fieldName, lexeme] of rawNums) {
-      if (tsFields.has(fieldName)) {
-        applyExactTimestampLexeme(expectObj, fieldName, lexeme);
-      }
+    if (!hasNumericTimestampExpectation(expectObj, tsFields)) return;
+    if (raw.charCodeAt(objStart) !== 0x7b) return;
+    const expMembers = scanJsonObjectMemberSpans(raw, objStart);
+    for (const [fieldName, valSpan] of expMembers) {
+      if (!tsFields.has(fieldName)) continue;
+      if (!hasOwn(expectObj, fieldName) || typeof expectObj[fieldName] !== "number") continue;
+      if (!isJsonNumberStart(raw.charCodeAt(valSpan.start))) continue;
+      applyExactTimestampLexeme(expectObj, fieldName, raw.slice(valSpan.start, valSpan.end));
     }
   }
 
-  function applyPlainExpectations(root: unknown): void {
-    if (Array.isArray(root)) {
-      for (let i = 0; i < root.length; i++) {
-        applyPlainExpectations(root[i]);
-      }
-      return;
-    }
-    if (!isPlainObject(root)) return;
+  function patchParserSpec(specObj: Record<string, unknown>, objStart: number): void {
+    const tsFields = collectTimestampFieldNames(specObj);
+    if (tsFields === null) return;
+    const tests = specObj["tests"];
+    if (!Array.isArray(tests) || tests.length === 0) return;
 
-    if (isParserSpecObject(root)) {
-      const tsFields = collectTimestampFieldNames(root);
-      if (tsFields !== null) {
-        for (let i = 0; i < root.tests.length; i++) {
-          const t = root.tests[i];
-          if (isPlainObject(t)) {
-            applyPlainExpectTimestampNums(t["expect"], tsFields);
-          }
-        }
+    let anyCandidate = false;
+    for (let i = 0; i < tests.length; i++) {
+      const t = tests[i];
+      if (isPlainObject(t) && isPlainObject(t["expect"]) && hasNumericTimestampExpectation(t["expect"], tsFields)) {
+        anyCandidate = true;
+        break;
       }
-      return;
     }
+    if (!anyCandidate) return;
+    if (raw.charCodeAt(objStart) !== 0x7b) return;
 
-    const list = Array.isArray(root["vectors"])
-      ? root["vectors"]
-      : Array.isArray(root["cases"])
-        ? root["cases"]
-        : undefined;
-    if (list !== undefined) {
-      for (let i = 0; i < list.length; i++) {
-        applyPlainExpectations(list[i]);
-      }
-      return;
-    }
+    const specMembers = scanJsonObjectMemberSpans(raw, objStart);
+    const testsSpan = specMembers.get("tests");
+    if (testsSpan === undefined || raw.charCodeAt(testsSpan.start) !== 0x5b) return;
 
-    if (isParserSpecObject(root["spec"])) {
-      applyPlainExpectations(root["spec"]);
-    }
-    const tsFields = collectTimestampFieldNames(root["spec"]);
-    if (tsFields !== null) {
-      const exp = root["expect"] ?? root["expected"];
-      if (isPlainObject(exp)) {
-        if (typeof exp["matched"] === "boolean") {
-          if (isPlainObject(exp["fields"])) {
-            applyPlainExpectTimestampNums(exp["fields"], tsFields);
-          }
-        } else {
-          applyPlainExpectTimestampNums(exp, tsFields);
-        }
-      }
+    const testSpans = scanJsonArrayElementSpans(raw, testsSpan.start);
+    for (let i = 0; i < tests.length && i < testSpans.length; i++) {
+      const t = tests[i];
+      if (!isPlainObject(t)) continue;
+      const exp = t["expect"];
+      if (!isPlainObject(exp) || !hasNumericTimestampExpectation(exp, tsFields)) continue;
+      const tSpan = testSpans[i]!;
+      if (raw.charCodeAt(tSpan.start) !== 0x7b) continue;
+      const tMembers = scanJsonObjectMemberSpans(raw, tSpan.start);
+      const expSpan = tMembers.get("expect");
+      if (expSpan === undefined) continue;
+      patchPlainExpectMap(exp, expSpan.start, tsFields);
     }
   }
 
-  const parsedRoot = parseValue(0).value;
-  applyPlainExpectations(parsedRoot);
-  return parsedRoot;
+  function patchVectorCase(caseVal: unknown, caseStart: number): void {
+    if (!isPlainObject(caseVal)) return;
+    if (raw.charCodeAt(caseStart) !== 0x7b) return;
+
+    const expKey =
+      caseVal["expect"] !== undefined && caseVal["expect"] !== null
+        ? "expect"
+        : caseVal["expected"] !== undefined && caseVal["expected"] !== null
+          ? "expected"
+          : undefined;
+    const specVal = caseVal["spec"];
+    const specIsParserSpec = isParserSpecObject(specVal);
+    const tsFields = collectTimestampFieldNames(specVal);
+
+    const exp = expKey !== undefined ? caseVal[expKey] : undefined;
+    const hasPlainExp = isPlainObject(exp);
+
+    let expMode: "none" | "vector_envelope" | "matched_plain_fields" | "plain_expect" = "none";
+    if (hasPlainExp) {
+      if (typeof exp["matched"] === "boolean") {
+        if (exp["matched"] && isPlainObject(exp["fields"])) {
+          const spans = isPlainObject(exp["spans"]) ? exp["spans"] : undefined;
+          const fields = exp["fields"];
+          const vals = Object.values(fields);
+          const isVectorEnvelope =
+            spans === undefined &&
+            vals.length > 0 &&
+            vals.every((v) => isVectorFieldResultShape(v));
+          if (isVectorEnvelope) {
+            const hasNumericTimestampField = vals.some(
+              (v) =>
+                isPlainObject(v) &&
+                v["status"] === "ok" &&
+                v["type"] === "timestamp" &&
+                typeof v["value"] === "number" &&
+                Object.keys(v).length === 3,
+            );
+            if (hasNumericTimestampField) {
+              expMode = "vector_envelope";
+            }
+          } else if (
+            !(vals.length > 0 && vals.every((v) => isCanonicalFieldResultShape(v))) &&
+            tsFields !== null &&
+            hasNumericTimestampExpectation(fields, tsFields)
+          ) {
+            expMode = "matched_plain_fields";
+          }
+        }
+      } else if (tsFields !== null && hasNumericTimestampExpectation(exp, tsFields)) {
+        expMode = "plain_expect";
+      }
+    }
+
+    const needSpecPatch =
+      specIsParserSpec && tsFields !== null && specVal.tests.length > 0;
+    if (!needSpecPatch && expMode === "none") return;
+
+    const caseMembers = scanJsonObjectMemberSpans(raw, caseStart);
+    if (needSpecPatch) {
+      const specSpan = caseMembers.get("spec");
+      if (specSpan !== undefined && isPlainObject(specVal)) {
+        patchParserSpec(specVal, specSpan.start);
+      }
+    }
+
+    if (expMode === "none" || expKey === undefined || !hasPlainExp) return;
+    const expSpan = caseMembers.get(expKey);
+    if (expSpan === undefined || raw.charCodeAt(expSpan.start) !== 0x7b) return;
+
+    if (expMode === "plain_expect") {
+      patchPlainExpectMap(exp, expSpan.start, tsFields!);
+      return;
+    }
+
+    const expMembers = scanJsonObjectMemberSpans(raw, expSpan.start);
+    const fieldsSpan = expMembers.get("fields");
+    if (fieldsSpan === undefined || raw.charCodeAt(fieldsSpan.start) !== 0x7b) return;
+    const fieldsObj = exp["fields"] as Record<string, unknown>;
+
+    if (expMode === "matched_plain_fields") {
+      patchPlainExpectMap(fieldsObj, fieldsSpan.start, tsFields!);
+      return;
+    }
+
+    const fieldMembers = scanJsonObjectMemberSpans(raw, fieldsSpan.start);
+    for (const [fieldName, fieldSpan] of fieldMembers) {
+      if (!hasOwn(fieldsObj, fieldName)) continue;
+      const fieldVal = fieldsObj[fieldName];
+      if (
+        !isPlainObject(fieldVal) ||
+        fieldVal["status"] !== "ok" ||
+        fieldVal["type"] !== "timestamp" ||
+        typeof fieldVal["value"] !== "number" ||
+        Object.keys(fieldVal).length !== 3
+      ) {
+        continue;
+      }
+      if (raw.charCodeAt(fieldSpan.start) !== 0x7b) continue;
+      const entryMembers = scanJsonObjectMemberSpans(raw, fieldSpan.start);
+      const valSpan = entryMembers.get("value");
+      if (valSpan === undefined || !isJsonNumberStart(raw.charCodeAt(valSpan.start))) {
+        continue;
+      }
+      applyExactTimestampLexeme(fieldVal, "value", raw.slice(valSpan.start, valSpan.end));
+    }
+  }
+
+  const rootStart = skipJsonWs(raw, 0);
+  if (Array.isArray(fast)) {
+    if (raw.charCodeAt(rootStart) === 0x5b) {
+      const elemSpans = scanJsonArrayElementSpans(raw, rootStart);
+      for (let i = 0; i < fast.length && i < elemSpans.length; i++) {
+        patchVectorCase(fast[i], elemSpans[i]!.start);
+      }
+    }
+    return fast;
+  }
+
+  if (!isPlainObject(fast)) {
+    return fast;
+  }
+
+  if (isParserSpecObject(fast)) {
+    patchParserSpec(fast, rootStart);
+    return fast;
+  }
+
+  const listKey = Array.isArray(fast["vectors"])
+    ? "vectors"
+    : Array.isArray(fast["cases"])
+      ? "cases"
+      : undefined;
+  if (listKey !== undefined) {
+    const list = fast[listKey] as unknown[];
+    if (raw.charCodeAt(rootStart) === 0x7b) {
+      const rootMembers = scanJsonObjectMemberSpans(raw, rootStart);
+      const listSpan = rootMembers.get(listKey);
+      if (listSpan !== undefined && raw.charCodeAt(listSpan.start) === 0x5b) {
+        const elemSpans = scanJsonArrayElementSpans(raw, listSpan.start);
+        for (let i = 0; i < list.length && i < elemSpans.length; i++) {
+          patchVectorCase(list[i], elemSpans[i]!.start);
+        }
+      }
+    }
+    return fast;
+  }
+
+  patchVectorCase(fast, rootStart);
+  return fast;
 }
 
 export function parseFixturePayload(rawText: string, sourceName = "fixture"): VectorCase[] {
