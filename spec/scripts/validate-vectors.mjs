@@ -3,6 +3,7 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { inspect } from "node:util";
 import Ajv2020 from "ajv/dist/2020.js";
 import addFormats from "ajv-formats";
 import { SCHEMAS_DIR, SPEC_ROOT, formatAjvErrors } from "./validate.mjs";
@@ -1618,6 +1619,29 @@ function deepEqual(rootA, rootB) {
   return true;
 }
 
+const DIAGNOSTIC_PREVIEW_MAX_CHARS = 512;
+const DIAGNOSTIC_PREVIEW_TRUNCATION_SUFFIX = "... (truncated)";
+const DIAGNOSTIC_INSPECT_OPTIONS = {
+  depth: 4,
+  maxArrayLength: 10,
+  maxStringLength: 120,
+  compact: true,
+  breakLength: Infinity,
+  colors: false,
+  customInspect: false,
+};
+
+export function formatDiagnosticPreview(value, maxChars = DIAGNOSTIC_PREVIEW_MAX_CHARS) {
+  const rendered = inspect(value, DIAGNOSTIC_INSPECT_OPTIONS).replace(/\r?\n/g, " ");
+  if (rendered.length <= maxChars) {
+    return rendered;
+  }
+  if (maxChars <= DIAGNOSTIC_PREVIEW_TRUNCATION_SUFFIX.length) {
+    return rendered.slice(0, Math.max(0, maxChars));
+  }
+  return `${rendered.slice(0, maxChars - DIAGNOSTIC_PREVIEW_TRUNCATION_SUFFIX.length)}${DIAGNOSTIC_PREVIEW_TRUNCATION_SUFFIX}`;
+}
+
 export function validateVectorSuiteDocument(suiteDoc, validator) {
   const errors = [];
   const schemaRes = validator.validateSuite(suiteDoc);
@@ -1710,7 +1734,7 @@ export function validateVectorSuiteDocument(suiteDoc, validator) {
     const actual = evaluateVector(vec.spec, vec.input, ctx);
     if (!deepEqual(actual, vec.expected)) {
       errors.push(
-        `${vec.id}: reference evaluator mismatch:\n  expected: ${JSON.stringify(vec.expected)}\n  actual:   ${JSON.stringify(actual)}`
+        `${vec.id}: reference evaluator mismatch:\n  expected: ${formatDiagnosticPreview(vec.expected)}\n  actual:   ${formatDiagnosticPreview(actual)}`
       );
     }
 
@@ -1734,7 +1758,7 @@ export function validateVectorSuiteDocument(suiteDoc, validator) {
       }
       if (!deepEqual(simplified, tc.expect)) {
         errors.push(
-          `${vec.id}: spec.tests[${ti}] expectation mismatch:\n  expected: ${JSON.stringify(tc.expect)}\n  actual:   ${JSON.stringify(simplified)}`
+          `${vec.id}: spec.tests[${ti}] expectation mismatch:\n  expected: ${formatDiagnosticPreview(tc.expect)}\n  actual:   ${formatDiagnosticPreview(simplified)}`
         );
       }
     }
@@ -1768,7 +1792,7 @@ function validateManifestShape(manifest) {
     );
   }
   if (manifest.schema_version !== 1) {
-    errors.push(`Manifest schema_version must be 1, got ${JSON.stringify(manifest.schema_version)}`);
+    errors.push(`Manifest schema_version must be 1, got ${formatDiagnosticPreview(manifest.schema_version)}`);
   }
   if (typeof manifest.description !== "string" || manifest.description.length === 0) {
     errors.push("Manifest description must be a non-empty string");
@@ -1835,11 +1859,10 @@ function validateManifestShape(manifest) {
         );
       }
       if (typeof entry.suite !== "string" || !/^[0-9]{2}-[a-z0-9-]+$/.test(entry.suite)) {
-        errors.push(`Manifest suites[${i}].suite is invalid: ${JSON.stringify(entry.suite)}`);
-      }
-      if (entry.file !== `suites/${entry.suite}.json`) {
+        errors.push(`Manifest suites[${i}].suite is invalid: ${formatDiagnosticPreview(entry.suite)}`);
+      } else if (entry.file !== `suites/${entry.suite}.json`) {
         errors.push(
-          `Manifest suites[${i}].file (${JSON.stringify(entry.file)}) must equal "suites/${entry.suite}.json"`
+          `Manifest suites[${i}].file (${formatDiagnosticPreview(entry.file)}) must equal "suites/${entry.suite}.json"`
         );
       }
       if (typeof entry.description !== "string" || entry.description.length === 0) {
@@ -1932,7 +1955,7 @@ export function validateAllVectors(options = {}) {
     }
     if (!deepEqual(suiteDoc.context, manifest.default_context)) {
       errors.push(
-        `Manifest default_context mismatch for ${entry.file}: manifest=${JSON.stringify(manifest.default_context)}, suite=${JSON.stringify(suiteDoc.context)}`
+        `Manifest default_context mismatch for ${entry.file}: manifest=${formatDiagnosticPreview(manifest.default_context)}, suite=${formatDiagnosticPreview(suiteDoc.context)}`
       );
     }
     if (!Array.isArray(suiteDoc.vectors)) {
