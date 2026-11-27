@@ -1,0 +1,4988 @@
+{
+  "schema_version": 1,
+  "suite": "03-holes-quoted-json-until-rest",
+  "description": "Golden conformance vectors covering quoted, json (with SQL refusal tags), until (before all literal kinds), and rest hole classes.",
+  "context": {
+    "hmac_keys": {
+      "edge": "bind-conformance-edge-key-v1",
+      "server": "bind-conformance-server-key-v1"
+    },
+    "reference_ts_ms": 1795701600000
+  },
+  "vectors": [
+    {
+      "id": "vec_hole_quoted_double_basic_001",
+      "description": "quoted hole extracts double-quoted string and strips outer quotes",
+      "tags": [
+        "hole:quoted",
+        "ambiguity:quoted_unquote",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01HOLEQUOT1",
+        "event": "test.hole.quoted",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "msg="
+            },
+            {
+              "hole": "msg",
+              "class": "quoted"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01QUOT0001",
+            "name": "msg",
+            "from": {
+              "hole": "msg"
+            },
+            "type": "string",
+            "semantic": "text"
+          }
+        ],
+        "tests": [
+          {
+            "line": "msg=\"hello world\"",
+            "expect": {
+              "msg": "hello world"
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "msg=\"hello world\""
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "msg": {
+            "status": "ok",
+            "type": "string",
+            "value": "hello world"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_hole_quoted_double_empty_002",
+      "description": "quoted hole matches empty double-quoted string",
+      "tags": [
+        "hole:quoted",
+        "boundary:empty",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01HOLEQUOT1",
+        "event": "test.hole.quoted",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "msg="
+            },
+            {
+              "hole": "msg",
+              "class": "quoted"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01QUOT0001",
+            "name": "msg",
+            "from": {
+              "hole": "msg"
+            },
+            "type": "string",
+            "semantic": "text"
+          }
+        ],
+        "tests": [
+          {
+            "line": "msg=\"hello world\"",
+            "expect": {
+              "msg": "hello world"
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "msg=\"\""
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "msg": {
+            "status": "ok",
+            "type": "string",
+            "value": ""
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_hole_quoted_double_escaped_quote_003",
+      "description": "quoted hole unescapes backslash-double-quote inside double quotes",
+      "tags": [
+        "hole:quoted",
+        "ambiguity:quoted_unquote",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01HOLEQUOT1",
+        "event": "test.hole.quoted",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "msg="
+            },
+            {
+              "hole": "msg",
+              "class": "quoted"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01QUOT0001",
+            "name": "msg",
+            "from": {
+              "hole": "msg"
+            },
+            "type": "string",
+            "semantic": "text"
+          }
+        ],
+        "tests": [
+          {
+            "line": "msg=\"hello world\"",
+            "expect": {
+              "msg": "hello world"
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "msg=\"say \\\"hi\\\"\""
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "msg": {
+            "status": "ok",
+            "type": "string",
+            "value": "say \"hi\""
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_hole_quoted_double_escaped_backslash_004",
+      "description": "quoted hole handles escaped backslash before closing quote",
+      "tags": [
+        "hole:quoted",
+        "ambiguity:quoted_unquote",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01HOLEQUOT1",
+        "event": "test.hole.quoted",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "msg="
+            },
+            {
+              "hole": "msg",
+              "class": "quoted"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01QUOT0001",
+            "name": "msg",
+            "from": {
+              "hole": "msg"
+            },
+            "type": "string",
+            "semantic": "text"
+          }
+        ],
+        "tests": [
+          {
+            "line": "msg=\"hello world\"",
+            "expect": {
+              "msg": "hello world"
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "msg=\"c:\\\\dir\\\\\""
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "msg": {
+            "status": "ok",
+            "type": "string",
+            "value": "c:\\dir\\"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_hole_quoted_double_escapes_nrt_005",
+      "description": "quoted hole unescapes \\n, \\r, and \\t sequences",
+      "tags": [
+        "hole:quoted",
+        "ambiguity:quoted_unquote",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01HOLEQUOT1",
+        "event": "test.hole.quoted",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "msg="
+            },
+            {
+              "hole": "msg",
+              "class": "quoted"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01QUOT0001",
+            "name": "msg",
+            "from": {
+              "hole": "msg"
+            },
+            "type": "string",
+            "semantic": "text"
+          }
+        ],
+        "tests": [
+          {
+            "line": "msg=\"hello world\"",
+            "expect": {
+              "msg": "hello world"
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "msg=\"line1\\n\\tline2\\r\""
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "msg": {
+            "status": "ok",
+            "type": "string",
+            "value": "line1\n\tline2\r"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_hole_quoted_single_basic_006",
+      "description": "quoted hole matches single-quoted string",
+      "tags": [
+        "hole:quoted",
+        "ambiguity:quoted_unquote",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01HOLEQUOT1",
+        "event": "test.hole.quoted",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "msg="
+            },
+            {
+              "hole": "msg",
+              "class": "quoted"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01QUOT0001",
+            "name": "msg",
+            "from": {
+              "hole": "msg"
+            },
+            "type": "string",
+            "semantic": "text"
+          }
+        ],
+        "tests": [
+          {
+            "line": "msg=\"hello world\"",
+            "expect": {
+              "msg": "hello world"
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "msg='hello world'"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "msg": {
+            "status": "ok",
+            "type": "string",
+            "value": "hello world"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_hole_quoted_single_empty_007",
+      "description": "quoted hole matches empty single-quoted string",
+      "tags": [
+        "hole:quoted",
+        "boundary:empty",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01HOLEQUOT1",
+        "event": "test.hole.quoted",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "msg="
+            },
+            {
+              "hole": "msg",
+              "class": "quoted"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01QUOT0001",
+            "name": "msg",
+            "from": {
+              "hole": "msg"
+            },
+            "type": "string",
+            "semantic": "text"
+          }
+        ],
+        "tests": [
+          {
+            "line": "msg=\"hello world\"",
+            "expect": {
+              "msg": "hello world"
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "msg=''"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "msg": {
+            "status": "ok",
+            "type": "string",
+            "value": ""
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_hole_quoted_single_escaped_apos_008",
+      "description": "quoted hole unescapes \\' inside single quotes",
+      "tags": [
+        "hole:quoted",
+        "ambiguity:quoted_unquote",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01HOLEQUOT1",
+        "event": "test.hole.quoted",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "msg="
+            },
+            {
+              "hole": "msg",
+              "class": "quoted"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01QUOT0001",
+            "name": "msg",
+            "from": {
+              "hole": "msg"
+            },
+            "type": "string",
+            "semantic": "text"
+          }
+        ],
+        "tests": [
+          {
+            "line": "msg=\"hello world\"",
+            "expect": {
+              "msg": "hello world"
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "msg='it\\'s fine'"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "msg": {
+            "status": "ok",
+            "type": "string",
+            "value": "it's fine"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_hole_quoted_mixed_quotes_inside_009",
+      "description": "double-quoted string contains literal single quote without escaping",
+      "tags": [
+        "hole:quoted",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01HOLEQUOT1",
+        "event": "test.hole.quoted",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "msg="
+            },
+            {
+              "hole": "msg",
+              "class": "quoted"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01QUOT0001",
+            "name": "msg",
+            "from": {
+              "hole": "msg"
+            },
+            "type": "string",
+            "semantic": "text"
+          }
+        ],
+        "tests": [
+          {
+            "line": "msg=\"hello world\"",
+            "expect": {
+              "msg": "hello world"
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "msg=\"it's ok\""
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "msg": {
+            "status": "ok",
+            "type": "string",
+            "value": "it's ok"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_hole_quoted_contains_next_literal_010",
+      "description": "quoted value containing the next literal does not prematurely terminate",
+      "tags": [
+        "hole:quoted",
+        "boundary:contains_next_lit",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01HOLEQUOT2",
+        "event": "test.hole.quoted_next_lit",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "msg="
+            },
+            {
+              "hole": "msg",
+              "class": "quoted"
+            },
+            {
+              "lit": " paid "
+            },
+            {
+              "hole": "amt",
+              "class": "int"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01QUOT0002",
+            "name": "msg",
+            "from": {
+              "hole": "msg"
+            },
+            "type": "string",
+            "semantic": "text"
+          },
+          {
+            "id": "fld_01QUOT0003",
+            "name": "amt",
+            "from": {
+              "hole": "amt"
+            },
+            "type": "int",
+            "semantic": "count"
+          }
+        ],
+        "tests": [
+          {
+            "line": "msg=\"ok\" paid 10",
+            "expect": {
+              "msg": "ok",
+              "amt": 10
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "msg=\"a paid b\" paid 42"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "msg": {
+            "status": "ok",
+            "type": "string",
+            "value": "a paid b"
+          },
+          "amt": {
+            "status": "ok",
+            "type": "int",
+            "value": "42"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_hole_quoted_unicode_and_nbsp_011",
+      "description": "quoted string preserves UTF-8 emoji, combining marks, and U+00A0",
+      "tags": [
+        "hole:quoted",
+        "unicode",
+        "unicode:nbsp",
+        "unicode:emoji",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01HOLEQUOT1",
+        "event": "test.hole.quoted",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "msg="
+            },
+            {
+              "hole": "msg",
+              "class": "quoted"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01QUOT0001",
+            "name": "msg",
+            "from": {
+              "hole": "msg"
+            },
+            "type": "string",
+            "semantic": "text"
+          }
+        ],
+        "tests": [
+          {
+            "line": "msg=\"hello world\"",
+            "expect": {
+              "msg": "hello world"
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "msg=\"café 🚀\""
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "msg": {
+            "status": "ok",
+            "type": "string",
+            "value": "café 🚀"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_hole_quoted_reject_unclosed_double_012",
+      "description": "quoted hole rejects unclosed double quote",
+      "tags": [
+        "hole:quoted",
+        "no_match",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01HOLEQUOT1",
+        "event": "test.hole.quoted",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "msg="
+            },
+            {
+              "hole": "msg",
+              "class": "quoted"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01QUOT0001",
+            "name": "msg",
+            "from": {
+              "hole": "msg"
+            },
+            "type": "string",
+            "semantic": "text"
+          }
+        ],
+        "tests": [
+          {
+            "line": "msg=\"hello world\"",
+            "expect": {
+              "msg": "hello world"
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "msg=\"hello"
+      },
+      "expected": {
+        "matched": false
+      }
+    },
+    {
+      "id": "vec_hole_quoted_reject_unclosed_single_013",
+      "description": "quoted hole rejects unclosed single quote",
+      "tags": [
+        "hole:quoted",
+        "no_match",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01HOLEQUOT1",
+        "event": "test.hole.quoted",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "msg="
+            },
+            {
+              "hole": "msg",
+              "class": "quoted"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01QUOT0001",
+            "name": "msg",
+            "from": {
+              "hole": "msg"
+            },
+            "type": "string",
+            "semantic": "text"
+          }
+        ],
+        "tests": [
+          {
+            "line": "msg=\"hello world\"",
+            "expect": {
+              "msg": "hello world"
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "msg='hello"
+      },
+      "expected": {
+        "matched": false
+      }
+    },
+    {
+      "id": "vec_hole_quoted_reject_mismatched_quotes_014",
+      "description": "quoted hole rejects mismatched opening and closing quotes",
+      "tags": [
+        "hole:quoted",
+        "no_match",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01HOLEQUOT1",
+        "event": "test.hole.quoted",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "msg="
+            },
+            {
+              "hole": "msg",
+              "class": "quoted"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01QUOT0001",
+            "name": "msg",
+            "from": {
+              "hole": "msg"
+            },
+            "type": "string",
+            "semantic": "text"
+          }
+        ],
+        "tests": [
+          {
+            "line": "msg=\"hello world\"",
+            "expect": {
+              "msg": "hello world"
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "msg=\"hello'"
+      },
+      "expected": {
+        "matched": false
+      }
+    },
+    {
+      "id": "vec_hole_quoted_reject_unquoted_015",
+      "description": "quoted hole rejects unquoted word",
+      "tags": [
+        "hole:quoted",
+        "no_match",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01HOLEQUOT1",
+        "event": "test.hole.quoted",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "msg="
+            },
+            {
+              "hole": "msg",
+              "class": "quoted"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01QUOT0001",
+            "name": "msg",
+            "from": {
+              "hole": "msg"
+            },
+            "type": "string",
+            "semantic": "text"
+          }
+        ],
+        "tests": [
+          {
+            "line": "msg=\"hello world\"",
+            "expect": {
+              "msg": "hello world"
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "msg=hello"
+      },
+      "expected": {
+        "matched": false
+      }
+    },
+    {
+      "id": "vec_hole_quoted_reject_escaped_closing_quote_016",
+      "description": "quoted hole rejects string whose final quote is escaped",
+      "tags": [
+        "hole:quoted",
+        "no_match",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01HOLEQUOT1",
+        "event": "test.hole.quoted",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "msg="
+            },
+            {
+              "hole": "msg",
+              "class": "quoted"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01QUOT0001",
+            "name": "msg",
+            "from": {
+              "hole": "msg"
+            },
+            "type": "string",
+            "semantic": "text"
+          }
+        ],
+        "tests": [
+          {
+            "line": "msg=\"hello world\"",
+            "expect": {
+              "msg": "hello world"
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "msg=\"hello\\\""
+      },
+      "expected": {
+        "matched": false
+      }
+    },
+    {
+      "id": "vec_hole_json_flat_object_001",
+      "description": "json hole parses flat JSON object (SQL compiler must refuse)",
+      "tags": [
+        "hole:json",
+        "type:json",
+        "match:text",
+        "sql:refuse",
+        "sql:refuse:json_hole"
+      ],
+      "sql": {
+        "supported": false,
+        "refusal_code": "unsupported_json_hole",
+        "reason": "Specs containing a text json hole are refused by the ClickHouse SQL compiler because balanced JSON text scanning is not supported in SQL compilation."
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01HOLEJSON1",
+        "event": "test.hole.json",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "payload="
+            },
+            {
+              "hole": "data",
+              "class": "json"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01JSON0001",
+            "name": "data",
+            "from": {
+              "hole": "data"
+            },
+            "type": "json",
+            "semantic": "unknown"
+          }
+        ],
+        "tests": [
+          {
+            "line": "payload={\"k\":1}",
+            "expect": {
+              "data": {
+                "k": 1
+              }
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "payload={\"k\":1,\"s\":\"v\"}"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "data": {
+            "status": "ok",
+            "type": "json",
+            "value": {
+              "k": 1,
+              "s": "v"
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_hole_json_empty_object_002",
+      "description": "json hole parses empty JSON object {}",
+      "tags": [
+        "hole:json",
+        "type:json",
+        "boundary:empty",
+        "match:text",
+        "sql:refuse",
+        "sql:refuse:json_hole"
+      ],
+      "sql": {
+        "supported": false,
+        "refusal_code": "unsupported_json_hole",
+        "reason": "Specs containing a text json hole are refused by the ClickHouse SQL compiler because balanced JSON text scanning is not supported in SQL compilation."
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01HOLEJSON1",
+        "event": "test.hole.json",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "payload="
+            },
+            {
+              "hole": "data",
+              "class": "json"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01JSON0001",
+            "name": "data",
+            "from": {
+              "hole": "data"
+            },
+            "type": "json",
+            "semantic": "unknown"
+          }
+        ],
+        "tests": [
+          {
+            "line": "payload={\"k\":1}",
+            "expect": {
+              "data": {
+                "k": 1
+              }
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "payload={}"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "data": {
+            "status": "ok",
+            "type": "json",
+            "value": {}
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_hole_json_empty_array_003",
+      "description": "json hole parses empty JSON array []",
+      "tags": [
+        "hole:json",
+        "type:json",
+        "boundary:empty",
+        "match:text",
+        "sql:refuse",
+        "sql:refuse:json_hole"
+      ],
+      "sql": {
+        "supported": false,
+        "refusal_code": "unsupported_json_hole",
+        "reason": "Specs containing a text json hole are refused by the ClickHouse SQL compiler because balanced JSON text scanning is not supported in SQL compilation."
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01HOLEJSON1",
+        "event": "test.hole.json",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "payload="
+            },
+            {
+              "hole": "data",
+              "class": "json"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01JSON0001",
+            "name": "data",
+            "from": {
+              "hole": "data"
+            },
+            "type": "json",
+            "semantic": "unknown"
+          }
+        ],
+        "tests": [
+          {
+            "line": "payload={\"k\":1}",
+            "expect": {
+              "data": {
+                "k": 1
+              }
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "payload=[]"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "data": {
+            "status": "ok",
+            "type": "json",
+            "value": []
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_hole_json_nested_mixed_004",
+      "description": "json hole balances nested objects and arrays",
+      "tags": [
+        "hole:json",
+        "type:json",
+        "match:text",
+        "sql:refuse",
+        "sql:refuse:json_hole"
+      ],
+      "sql": {
+        "supported": false,
+        "refusal_code": "unsupported_json_hole",
+        "reason": "Specs containing a text json hole are refused by the ClickHouse SQL compiler because balanced JSON text scanning is not supported in SQL compilation."
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01HOLEJSON1",
+        "event": "test.hole.json",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "payload="
+            },
+            {
+              "hole": "data",
+              "class": "json"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01JSON0001",
+            "name": "data",
+            "from": {
+              "hole": "data"
+            },
+            "type": "json",
+            "semantic": "unknown"
+          }
+        ],
+        "tests": [
+          {
+            "line": "payload={\"k\":1}",
+            "expect": {
+              "data": {
+                "k": 1
+              }
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "payload={\"a\":{\"b\":[1,2,{\"c\":true}]},\"d\":null}"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "data": {
+            "status": "ok",
+            "type": "json",
+            "value": {
+              "a": {
+                "b": [
+                  1,
+                  2,
+                  {
+                    "c": true
+                  }
+                ]
+              },
+              "d": null
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_hole_json_top_level_array_005",
+      "description": "json hole parses top-level heterogeneous JSON array",
+      "tags": [
+        "hole:json",
+        "type:json",
+        "match:text",
+        "sql:refuse",
+        "sql:refuse:json_hole"
+      ],
+      "sql": {
+        "supported": false,
+        "refusal_code": "unsupported_json_hole",
+        "reason": "Specs containing a text json hole are refused by the ClickHouse SQL compiler because balanced JSON text scanning is not supported in SQL compilation."
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01HOLEJSON1",
+        "event": "test.hole.json",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "payload="
+            },
+            {
+              "hole": "data",
+              "class": "json"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01JSON0001",
+            "name": "data",
+            "from": {
+              "hole": "data"
+            },
+            "type": "json",
+            "semantic": "unknown"
+          }
+        ],
+        "tests": [
+          {
+            "line": "payload={\"k\":1}",
+            "expect": {
+              "data": {
+                "k": 1
+              }
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "payload=[1,\"two\",{\"three\":3},false,null]"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "data": {
+            "status": "ok",
+            "type": "json",
+            "value": [
+              1,
+              "two",
+              {
+                "three": 3
+              },
+              false,
+              null
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_hole_json_braces_inside_string_006",
+      "description": "json hole ignores braces, brackets, and escaped quotes inside string literals",
+      "tags": [
+        "hole:json",
+        "type:json",
+        "boundary:escaped_delimiters",
+        "match:text",
+        "sql:refuse",
+        "sql:refuse:json_hole"
+      ],
+      "sql": {
+        "supported": false,
+        "refusal_code": "unsupported_json_hole",
+        "reason": "Specs containing a text json hole are refused by the ClickHouse SQL compiler because balanced JSON text scanning is not supported in SQL compilation."
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01HOLEJSON1",
+        "event": "test.hole.json",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "payload="
+            },
+            {
+              "hole": "data",
+              "class": "json"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01JSON0001",
+            "name": "data",
+            "from": {
+              "hole": "data"
+            },
+            "type": "json",
+            "semantic": "unknown"
+          }
+        ],
+        "tests": [
+          {
+            "line": "payload={\"k\":1}",
+            "expect": {
+              "data": {
+                "k": 1
+              }
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "payload={\"text\":\"} ] \\\" \\\\ { [\"}"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "data": {
+            "status": "ok",
+            "type": "json",
+            "value": {
+              "text": "} ] \" \\ { ["
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_hole_json_deep_nesting_007",
+      "description": "json hole balances 5-level nested JSON object",
+      "tags": [
+        "hole:json",
+        "type:json",
+        "match:text",
+        "sql:refuse",
+        "sql:refuse:json_hole"
+      ],
+      "sql": {
+        "supported": false,
+        "refusal_code": "unsupported_json_hole",
+        "reason": "Specs containing a text json hole are refused by the ClickHouse SQL compiler because balanced JSON text scanning is not supported in SQL compilation."
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01HOLEJSON1",
+        "event": "test.hole.json",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "payload="
+            },
+            {
+              "hole": "data",
+              "class": "json"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01JSON0001",
+            "name": "data",
+            "from": {
+              "hole": "data"
+            },
+            "type": "json",
+            "semantic": "unknown"
+          }
+        ],
+        "tests": [
+          {
+            "line": "payload={\"k\":1}",
+            "expect": {
+              "data": {
+                "k": 1
+              }
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "payload={\"l1\":{\"l2\":{\"l3\":{\"l4\":{\"l5\":42}}}}}"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "data": {
+            "status": "ok",
+            "type": "json",
+            "value": {
+              "l1": {
+                "l2": {
+                  "l3": {
+                    "l4": {
+                      "l5": 42
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_hole_json_contains_next_literal_008",
+      "description": "json hole containing the next literal inside a JSON string does not stop early",
+      "tags": [
+        "hole:json",
+        "type:json",
+        "boundary:contains_next_lit",
+        "match:text",
+        "sql:refuse",
+        "sql:refuse:json_hole"
+      ],
+      "sql": {
+        "supported": false,
+        "refusal_code": "unsupported_json_hole",
+        "reason": "Specs containing a text json hole are refused by the ClickHouse SQL compiler because balanced JSON text scanning is not supported in SQL compilation."
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01HOLEJSON2",
+        "event": "test.hole.json_mid",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "payload="
+            },
+            {
+              "hole": "data",
+              "class": "json"
+            },
+            {
+              "lit": " end"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01JSON0002",
+            "name": "data",
+            "from": {
+              "hole": "data"
+            },
+            "type": "json",
+            "semantic": "unknown"
+          }
+        ],
+        "tests": [
+          {
+            "line": "payload={\"ok\":true} end",
+            "expect": {
+              "data": {
+                "ok": true
+              }
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "payload={\"msg\":\" end \"} end"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "data": {
+            "status": "ok",
+            "type": "json",
+            "value": {
+              "msg": " end "
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_hole_json_unicode_and_escapes_009",
+      "description": "json hole decodes \\u00e9 and preserves UTF-8 emoji inside JSON strings",
+      "tags": [
+        "hole:json",
+        "type:json",
+        "unicode",
+        "unicode:emoji",
+        "match:text",
+        "sql:refuse",
+        "sql:refuse:json_hole"
+      ],
+      "sql": {
+        "supported": false,
+        "refusal_code": "unsupported_json_hole",
+        "reason": "Specs containing a text json hole are refused by the ClickHouse SQL compiler because balanced JSON text scanning is not supported in SQL compilation."
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01HOLEJSON1",
+        "event": "test.hole.json",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "payload="
+            },
+            {
+              "hole": "data",
+              "class": "json"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01JSON0001",
+            "name": "data",
+            "from": {
+              "hole": "data"
+            },
+            "type": "json",
+            "semantic": "unknown"
+          }
+        ],
+        "tests": [
+          {
+            "line": "payload={\"k\":1}",
+            "expect": {
+              "data": {
+                "k": 1
+              }
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "payload={\"label\":\"caf\\u00e9\",\"icon\":\"🚀\"}"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "data": {
+            "status": "ok",
+            "type": "json",
+            "value": {
+              "label": "café",
+              "icon": "🚀"
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_hole_json_numbers_bools_null_010",
+      "description": "json hole preserves negative ints, floats, booleans, and null",
+      "tags": [
+        "hole:json",
+        "type:json",
+        "match:text",
+        "sql:refuse",
+        "sql:refuse:json_hole"
+      ],
+      "sql": {
+        "supported": false,
+        "refusal_code": "unsupported_json_hole",
+        "reason": "Specs containing a text json hole are refused by the ClickHouse SQL compiler because balanced JSON text scanning is not supported in SQL compilation."
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01HOLEJSON1",
+        "event": "test.hole.json",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "payload="
+            },
+            {
+              "hole": "data",
+              "class": "json"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01JSON0001",
+            "name": "data",
+            "from": {
+              "hole": "data"
+            },
+            "type": "json",
+            "semantic": "unknown"
+          }
+        ],
+        "tests": [
+          {
+            "line": "payload={\"k\":1}",
+            "expect": {
+              "data": {
+                "k": 1
+              }
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "payload={\"neg\":-5,\"flt\":1.25,\"t\":true,\"f\":false,\"n\":null}"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "data": {
+            "status": "ok",
+            "type": "json",
+            "value": {
+              "neg": -5,
+              "flt": 1.25,
+              "t": true,
+              "f": false,
+              "n": null
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_hole_json_two_holes_011",
+      "description": "two json holes in one text spec parse independently",
+      "tags": [
+        "hole:json",
+        "type:json",
+        "match:text",
+        "sql:refuse",
+        "sql:refuse:json_hole"
+      ],
+      "sql": {
+        "supported": false,
+        "refusal_code": "unsupported_json_hole",
+        "reason": "Specs containing a text json hole are refused by the ClickHouse SQL compiler because balanced JSON text scanning is not supported in SQL compilation."
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01HOLEJSON3",
+        "event": "test.hole.json_two",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "req="
+            },
+            {
+              "hole": "req",
+              "class": "json"
+            },
+            {
+              "lit": " res="
+            },
+            {
+              "hole": "res",
+              "class": "json"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01JSON0003",
+            "name": "req",
+            "from": {
+              "hole": "req"
+            },
+            "type": "json",
+            "semantic": "unknown"
+          },
+          {
+            "id": "fld_01JSON0004",
+            "name": "res",
+            "from": {
+              "hole": "res"
+            },
+            "type": "json",
+            "semantic": "unknown"
+          }
+        ],
+        "tests": [
+          {
+            "line": "req={\"a\":1} res=[2,3]",
+            "expect": {
+              "req": {
+                "a": 1
+              },
+              "res": [
+                2,
+                3
+              ]
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "req={\"id\":1,\"tags\":[\"a\",\"b\"]} res=[{\"ok\":true}]"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "req": {
+            "status": "ok",
+            "type": "json",
+            "value": {
+              "id": 1,
+              "tags": [
+                "a",
+                "b"
+              ]
+            }
+          },
+          "res": {
+            "status": "ok",
+            "type": "json",
+            "value": [
+              {
+                "ok": true
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_hole_json_as_string_field_012",
+      "description": "json hole bound to string field stores exact raw JSON slice",
+      "tags": [
+        "hole:json",
+        "type:string",
+        "match:text",
+        "sql:refuse",
+        "sql:refuse:json_hole"
+      ],
+      "sql": {
+        "supported": false,
+        "refusal_code": "unsupported_json_hole",
+        "reason": "Specs containing a text json hole are refused by the ClickHouse SQL compiler because balanced JSON text scanning is not supported in SQL compilation."
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01HOLEJSON4",
+        "event": "test.hole.json_str",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "raw="
+            },
+            {
+              "hole": "raw",
+              "class": "json"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01JSON0005",
+            "name": "raw",
+            "from": {
+              "hole": "raw"
+            },
+            "type": "string",
+            "semantic": "text"
+          }
+        ],
+        "tests": [
+          {
+            "line": "raw={\"a\":1}",
+            "expect": {
+              "raw": "{\"a\":1}"
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "raw={\"b\":2, \"a\":1}"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "raw": {
+            "status": "ok",
+            "type": "string",
+            "value": "{\"b\":2, \"a\":1}"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_hole_json_reject_unclosed_object_013",
+      "description": "json hole rejects unclosed JSON object (still tagged sql:refuse)",
+      "tags": [
+        "hole:json",
+        "no_match",
+        "match:text",
+        "sql:refuse",
+        "sql:refuse:json_hole"
+      ],
+      "sql": {
+        "supported": false,
+        "refusal_code": "unsupported_json_hole",
+        "reason": "Specs containing a text json hole are refused by the ClickHouse SQL compiler because balanced JSON text scanning is not supported in SQL compilation."
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01HOLEJSON1",
+        "event": "test.hole.json",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "payload="
+            },
+            {
+              "hole": "data",
+              "class": "json"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01JSON0001",
+            "name": "data",
+            "from": {
+              "hole": "data"
+            },
+            "type": "json",
+            "semantic": "unknown"
+          }
+        ],
+        "tests": [
+          {
+            "line": "payload={\"k\":1}",
+            "expect": {
+              "data": {
+                "k": 1
+              }
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "payload={\"a\":1"
+      },
+      "expected": {
+        "matched": false
+      }
+    },
+    {
+      "id": "vec_hole_json_reject_unclosed_array_014",
+      "description": "json hole rejects unclosed JSON array",
+      "tags": [
+        "hole:json",
+        "no_match",
+        "match:text",
+        "sql:refuse",
+        "sql:refuse:json_hole"
+      ],
+      "sql": {
+        "supported": false,
+        "refusal_code": "unsupported_json_hole",
+        "reason": "Specs containing a text json hole are refused by the ClickHouse SQL compiler because balanced JSON text scanning is not supported in SQL compilation."
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01HOLEJSON1",
+        "event": "test.hole.json",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "payload="
+            },
+            {
+              "hole": "data",
+              "class": "json"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01JSON0001",
+            "name": "data",
+            "from": {
+              "hole": "data"
+            },
+            "type": "json",
+            "semantic": "unknown"
+          }
+        ],
+        "tests": [
+          {
+            "line": "payload={\"k\":1}",
+            "expect": {
+              "data": {
+                "k": 1
+              }
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "payload=[1,2"
+      },
+      "expected": {
+        "matched": false
+      }
+    },
+    {
+      "id": "vec_hole_json_reject_extra_closing_brace_015",
+      "description": "json hole stops at balanced brace so extra trailing brace fails match",
+      "tags": [
+        "hole:json",
+        "no_match",
+        "match:text",
+        "sql:refuse",
+        "sql:refuse:json_hole"
+      ],
+      "sql": {
+        "supported": false,
+        "refusal_code": "unsupported_json_hole",
+        "reason": "Specs containing a text json hole are refused by the ClickHouse SQL compiler because balanced JSON text scanning is not supported in SQL compilation."
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01HOLEJSON1",
+        "event": "test.hole.json",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "payload="
+            },
+            {
+              "hole": "data",
+              "class": "json"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01JSON0001",
+            "name": "data",
+            "from": {
+              "hole": "data"
+            },
+            "type": "json",
+            "semantic": "unknown"
+          }
+        ],
+        "tests": [
+          {
+            "line": "payload={\"k\":1}",
+            "expect": {
+              "data": {
+                "k": 1
+              }
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "payload={\"a\":1}}"
+      },
+      "expected": {
+        "matched": false
+      }
+    },
+    {
+      "id": "vec_hole_json_reject_unquoted_key_016",
+      "description": "json hole rejects invalid JSON with unquoted key",
+      "tags": [
+        "hole:json",
+        "no_match",
+        "match:text",
+        "sql:refuse",
+        "sql:refuse:json_hole"
+      ],
+      "sql": {
+        "supported": false,
+        "refusal_code": "unsupported_json_hole",
+        "reason": "Specs containing a text json hole are refused by the ClickHouse SQL compiler because balanced JSON text scanning is not supported in SQL compilation."
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01HOLEJSON1",
+        "event": "test.hole.json",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "payload="
+            },
+            {
+              "hole": "data",
+              "class": "json"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01JSON0001",
+            "name": "data",
+            "from": {
+              "hole": "data"
+            },
+            "type": "json",
+            "semantic": "unknown"
+          }
+        ],
+        "tests": [
+          {
+            "line": "payload={\"k\":1}",
+            "expect": {
+              "data": {
+                "k": 1
+              }
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "payload={a:1}"
+      },
+      "expected": {
+        "matched": false
+      }
+    },
+    {
+      "id": "vec_hole_json_reject_trailing_comma_017",
+      "description": "json hole rejects invalid JSON with trailing comma",
+      "tags": [
+        "hole:json",
+        "no_match",
+        "match:text",
+        "sql:refuse",
+        "sql:refuse:json_hole"
+      ],
+      "sql": {
+        "supported": false,
+        "refusal_code": "unsupported_json_hole",
+        "reason": "Specs containing a text json hole are refused by the ClickHouse SQL compiler because balanced JSON text scanning is not supported in SQL compilation."
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01HOLEJSON1",
+        "event": "test.hole.json",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "payload="
+            },
+            {
+              "hole": "data",
+              "class": "json"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01JSON0001",
+            "name": "data",
+            "from": {
+              "hole": "data"
+            },
+            "type": "json",
+            "semantic": "unknown"
+          }
+        ],
+        "tests": [
+          {
+            "line": "payload={\"k\":1}",
+            "expect": {
+              "data": {
+                "k": 1
+              }
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "payload={\"a\":1,}"
+      },
+      "expected": {
+        "matched": false
+      }
+    },
+    {
+      "id": "vec_hole_json_reject_bare_string_018",
+      "description": "json hole accepts only balanced JSON object or array, not bare string",
+      "tags": [
+        "hole:json",
+        "no_match",
+        "match:text",
+        "sql:refuse",
+        "sql:refuse:json_hole"
+      ],
+      "sql": {
+        "supported": false,
+        "refusal_code": "unsupported_json_hole",
+        "reason": "Specs containing a text json hole are refused by the ClickHouse SQL compiler because balanced JSON text scanning is not supported in SQL compilation."
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01HOLEJSON1",
+        "event": "test.hole.json",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "payload="
+            },
+            {
+              "hole": "data",
+              "class": "json"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01JSON0001",
+            "name": "data",
+            "from": {
+              "hole": "data"
+            },
+            "type": "json",
+            "semantic": "unknown"
+          }
+        ],
+        "tests": [
+          {
+            "line": "payload={\"k\":1}",
+            "expect": {
+              "data": {
+                "k": 1
+              }
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "payload=\"hello\""
+      },
+      "expected": {
+        "matched": false
+      }
+    },
+    {
+      "id": "vec_hole_json_reject_bare_number_019",
+      "description": "json hole accepts only balanced JSON object or array, not bare number",
+      "tags": [
+        "hole:json",
+        "no_match",
+        "match:text",
+        "sql:refuse",
+        "sql:refuse:json_hole"
+      ],
+      "sql": {
+        "supported": false,
+        "refusal_code": "unsupported_json_hole",
+        "reason": "Specs containing a text json hole are refused by the ClickHouse SQL compiler because balanced JSON text scanning is not supported in SQL compilation."
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01HOLEJSON1",
+        "event": "test.hole.json",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "payload="
+            },
+            {
+              "hole": "data",
+              "class": "json"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01JSON0001",
+            "name": "data",
+            "from": {
+              "hole": "data"
+            },
+            "type": "json",
+            "semantic": "unknown"
+          }
+        ],
+        "tests": [
+          {
+            "line": "payload={\"k\":1}",
+            "expect": {
+              "data": {
+                "k": 1
+              }
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "payload=123"
+      },
+      "expected": {
+        "matched": false
+      }
+    },
+    {
+      "id": "vec_hole_json_reject_empty_020",
+      "description": "json hole rejects empty value",
+      "tags": [
+        "hole:json",
+        "no_match",
+        "boundary:empty",
+        "match:text",
+        "sql:refuse",
+        "sql:refuse:json_hole"
+      ],
+      "sql": {
+        "supported": false,
+        "refusal_code": "unsupported_json_hole",
+        "reason": "Specs containing a text json hole are refused by the ClickHouse SQL compiler because balanced JSON text scanning is not supported in SQL compilation."
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01HOLEJSON1",
+        "event": "test.hole.json",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "payload="
+            },
+            {
+              "hole": "data",
+              "class": "json"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01JSON0001",
+            "name": "data",
+            "from": {
+              "hole": "data"
+            },
+            "type": "json",
+            "semantic": "unknown"
+          }
+        ],
+        "tests": [
+          {
+            "line": "payload={\"k\":1}",
+            "expect": {
+              "data": {
+                "k": 1
+              }
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "payload="
+      },
+      "expected": {
+        "matched": false
+      }
+    },
+    {
+      "id": "vec_hole_until_comma_001",
+      "description": "until hole stops at single-char comma literal",
+      "tags": [
+        "hole:until",
+        "until:single_char",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01UNTIL001",
+        "event": "test.hole.until",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "k="
+            },
+            {
+              "hole": "v",
+              "class": "until"
+            },
+            {
+              "lit": ","
+            },
+            {
+              "hole": "tail",
+              "class": "rest"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01UNT00001",
+            "name": "v",
+            "from": {
+              "hole": "v"
+            },
+            "type": "string",
+            "semantic": "text"
+          },
+          {
+            "id": "fld_01UNT00002",
+            "name": "tail",
+            "from": {
+              "hole": "tail"
+            },
+            "type": "string",
+            "semantic": "text"
+          }
+        ],
+        "tests": [
+          {
+            "line": "k=abc,xyz",
+            "expect": {
+              "v": "abc",
+              "tail": "xyz"
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "k=hello world,next=1"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "v": {
+            "status": "ok",
+            "type": "string",
+            "value": "hello world"
+          },
+          "tail": {
+            "status": "ok",
+            "type": "string",
+            "value": "next=1"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_hole_until_semicolon_002",
+      "description": "until hole stops at single-char semicolon literal",
+      "tags": [
+        "hole:until",
+        "until:single_char",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01UNTIL002",
+        "event": "test.hole.until",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "k="
+            },
+            {
+              "hole": "v",
+              "class": "until"
+            },
+            {
+              "lit": ";"
+            },
+            {
+              "hole": "tail",
+              "class": "rest"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01UNT00001",
+            "name": "v",
+            "from": {
+              "hole": "v"
+            },
+            "type": "string",
+            "semantic": "text"
+          },
+          {
+            "id": "fld_01UNT00002",
+            "name": "tail",
+            "from": {
+              "hole": "tail"
+            },
+            "type": "string",
+            "semantic": "text"
+          }
+        ],
+        "tests": [
+          {
+            "line": "k=abc;xyz",
+            "expect": {
+              "v": "abc",
+              "tail": "xyz"
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "k=part one;part two"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "v": {
+            "status": "ok",
+            "type": "string",
+            "value": "part one"
+          },
+          "tail": {
+            "status": "ok",
+            "type": "string",
+            "value": "part two"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_hole_until_pipe_003",
+      "description": "until hole stops at regex-special pipe literal |",
+      "tags": [
+        "hole:until",
+        "until:regex_meta",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01UNTIL003",
+        "event": "test.hole.until",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "k="
+            },
+            {
+              "hole": "v",
+              "class": "until"
+            },
+            {
+              "lit": "|"
+            },
+            {
+              "hole": "tail",
+              "class": "rest"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01UNT00001",
+            "name": "v",
+            "from": {
+              "hole": "v"
+            },
+            "type": "string",
+            "semantic": "text"
+          },
+          {
+            "id": "fld_01UNT00002",
+            "name": "tail",
+            "from": {
+              "hole": "tail"
+            },
+            "type": "string",
+            "semantic": "text"
+          }
+        ],
+        "tests": [
+          {
+            "line": "k=abc|xyz",
+            "expect": {
+              "v": "abc",
+              "tail": "xyz"
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "k=alpha beta|gamma"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "v": {
+            "status": "ok",
+            "type": "string",
+            "value": "alpha beta"
+          },
+          "tail": {
+            "status": "ok",
+            "type": "string",
+            "value": "gamma"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_hole_until_close_paren_004",
+      "description": "until hole stops at regex-special closing parenthesis )",
+      "tags": [
+        "hole:until",
+        "until:regex_meta",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01UNTIL004",
+        "event": "test.hole.until",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "k="
+            },
+            {
+              "hole": "v",
+              "class": "until"
+            },
+            {
+              "lit": ")"
+            },
+            {
+              "hole": "tail",
+              "class": "rest"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01UNT00001",
+            "name": "v",
+            "from": {
+              "hole": "v"
+            },
+            "type": "string",
+            "semantic": "text"
+          },
+          {
+            "id": "fld_01UNT00002",
+            "name": "tail",
+            "from": {
+              "hole": "tail"
+            },
+            "type": "string",
+            "semantic": "text"
+          }
+        ],
+        "tests": [
+          {
+            "line": "k=abc)xyz",
+            "expect": {
+              "v": "abc",
+              "tail": "xyz"
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "k=inner text) after"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "v": {
+            "status": "ok",
+            "type": "string",
+            "value": "inner text"
+          },
+          "tail": {
+            "status": "ok",
+            "type": "string",
+            "value": " after"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_hole_until_close_bracket_005",
+      "description": "until hole stops at regex-special closing bracket ]",
+      "tags": [
+        "hole:until",
+        "until:regex_meta",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01UNTIL005",
+        "event": "test.hole.until",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "k="
+            },
+            {
+              "hole": "v",
+              "class": "until"
+            },
+            {
+              "lit": "]"
+            },
+            {
+              "hole": "tail",
+              "class": "rest"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01UNT00001",
+            "name": "v",
+            "from": {
+              "hole": "v"
+            },
+            "type": "string",
+            "semantic": "text"
+          },
+          {
+            "id": "fld_01UNT00002",
+            "name": "tail",
+            "from": {
+              "hole": "tail"
+            },
+            "type": "string",
+            "semantic": "text"
+          }
+        ],
+        "tests": [
+          {
+            "line": "k=abc]xyz",
+            "expect": {
+              "v": "abc",
+              "tail": "xyz"
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "k=tag value] rest"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "v": {
+            "status": "ok",
+            "type": "string",
+            "value": "tag value"
+          },
+          "tail": {
+            "status": "ok",
+            "type": "string",
+            "value": " rest"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_hole_until_colon_006",
+      "description": "until hole stops at single-char colon literal",
+      "tags": [
+        "hole:until",
+        "until:single_char",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01UNTIL006",
+        "event": "test.hole.until",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "k="
+            },
+            {
+              "hole": "v",
+              "class": "until"
+            },
+            {
+              "lit": ":"
+            },
+            {
+              "hole": "tail",
+              "class": "rest"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01UNT00001",
+            "name": "v",
+            "from": {
+              "hole": "v"
+            },
+            "type": "string",
+            "semantic": "text"
+          },
+          {
+            "id": "fld_01UNT00002",
+            "name": "tail",
+            "from": {
+              "hole": "tail"
+            },
+            "type": "string",
+            "semantic": "text"
+          }
+        ],
+        "tests": [
+          {
+            "line": "k=abc:xyz",
+            "expect": {
+              "v": "abc",
+              "tail": "xyz"
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "k=host name:8080"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "v": {
+            "status": "ok",
+            "type": "string",
+            "value": "host name"
+          },
+          "tail": {
+            "status": "ok",
+            "type": "string",
+            "value": "8080"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_hole_until_multichar_arrow_007",
+      "description": "until hole stops at multi-char literal ' -> '",
+      "tags": [
+        "hole:until",
+        "until:multi_char",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01UNTIL007",
+        "event": "test.hole.until",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "k="
+            },
+            {
+              "hole": "v",
+              "class": "until"
+            },
+            {
+              "lit": " -> "
+            },
+            {
+              "hole": "tail",
+              "class": "rest"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01UNT00001",
+            "name": "v",
+            "from": {
+              "hole": "v"
+            },
+            "type": "string",
+            "semantic": "text"
+          },
+          {
+            "id": "fld_01UNT00002",
+            "name": "tail",
+            "from": {
+              "hole": "tail"
+            },
+            "type": "string",
+            "semantic": "text"
+          }
+        ],
+        "tests": [
+          {
+            "line": "k=abc -> xyz",
+            "expect": {
+              "v": "abc",
+              "tail": "xyz"
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "k=state-a -> state-b"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "v": {
+            "status": "ok",
+            "type": "string",
+            "value": "state-a"
+          },
+          "tail": {
+            "status": "ok",
+            "type": "string",
+            "value": "state-b"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_hole_until_multichar_word_008",
+      "description": "until hole stops at multi-char word literal ' completed'",
+      "tags": [
+        "hole:until",
+        "until:multi_char",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01UNTIL008",
+        "event": "test.hole.until",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "k="
+            },
+            {
+              "hole": "v",
+              "class": "until"
+            },
+            {
+              "lit": " completed"
+            },
+            {
+              "hole": "tail",
+              "class": "rest"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01UNT00001",
+            "name": "v",
+            "from": {
+              "hole": "v"
+            },
+            "type": "string",
+            "semantic": "text"
+          },
+          {
+            "id": "fld_01UNT00002",
+            "name": "tail",
+            "from": {
+              "hole": "tail"
+            },
+            "type": "string",
+            "semantic": "text"
+          }
+        ],
+        "tests": [
+          {
+            "line": "k=abc completedxyz",
+            "expect": {
+              "v": "abc",
+              "tail": "xyz"
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "k=job 42 completed in 5s"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "v": {
+            "status": "ok",
+            "type": "string",
+            "value": "job 42"
+          },
+          "tail": {
+            "status": "ok",
+            "type": "string",
+            "value": " in 5s"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_hole_until_regex_metachars_bracket_009",
+      "description": "until hole escapes RE2 metacharacters in literal [end]",
+      "tags": [
+        "hole:until",
+        "until:regex_meta",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01UNTIL009",
+        "event": "test.hole.until",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "k="
+            },
+            {
+              "hole": "v",
+              "class": "until"
+            },
+            {
+              "lit": "[end]"
+            },
+            {
+              "hole": "tail",
+              "class": "rest"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01UNT00001",
+            "name": "v",
+            "from": {
+              "hole": "v"
+            },
+            "type": "string",
+            "semantic": "text"
+          },
+          {
+            "id": "fld_01UNT00002",
+            "name": "tail",
+            "from": {
+              "hole": "tail"
+            },
+            "type": "string",
+            "semantic": "text"
+          }
+        ],
+        "tests": [
+          {
+            "line": "k=abc[end]xyz",
+            "expect": {
+              "v": "abc",
+              "tail": "xyz"
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "k=payload e n d [end] done"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "v": {
+            "status": "ok",
+            "type": "string",
+            "value": "payload e n d "
+          },
+          "tail": {
+            "status": "ok",
+            "type": "string",
+            "value": " done"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_hole_until_regex_metachars_quantifiers_010",
+      "description": "until hole escapes RE2 metacharacters $. * + ? in literal",
+      "tags": [
+        "hole:until",
+        "until:regex_meta",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01UNTIL010",
+        "event": "test.hole.until",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "k="
+            },
+            {
+              "hole": "v",
+              "class": "until"
+            },
+            {
+              "lit": "$.*+?"
+            },
+            {
+              "hole": "tail",
+              "class": "rest"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01UNT00001",
+            "name": "v",
+            "from": {
+              "hole": "v"
+            },
+            "type": "string",
+            "semantic": "text"
+          },
+          {
+            "id": "fld_01UNT00002",
+            "name": "tail",
+            "from": {
+              "hole": "tail"
+            },
+            "type": "string",
+            "semantic": "text"
+          }
+        ],
+        "tests": [
+          {
+            "line": "k=abc$.*+?xyz",
+            "expect": {
+              "v": "abc",
+              "tail": "xyz"
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "k=not-matched-by-dot$.*+?ok"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "v": {
+            "status": "ok",
+            "type": "string",
+            "value": "not-matched-by-dot"
+          },
+          "tail": {
+            "status": "ok",
+            "type": "string",
+            "value": "ok"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_hole_until_regex_metachars_backslash_011",
+      "description": "until hole escapes literal backslash \\done",
+      "tags": [
+        "hole:until",
+        "until:regex_meta",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01UNTIL011",
+        "event": "test.hole.until",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "k="
+            },
+            {
+              "hole": "v",
+              "class": "until"
+            },
+            {
+              "lit": "\\done"
+            },
+            {
+              "hole": "tail",
+              "class": "rest"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01UNT00001",
+            "name": "v",
+            "from": {
+              "hole": "v"
+            },
+            "type": "string",
+            "semantic": "text"
+          },
+          {
+            "id": "fld_01UNT00002",
+            "name": "tail",
+            "from": {
+              "hole": "tail"
+            },
+            "type": "string",
+            "semantic": "text"
+          }
+        ],
+        "tests": [
+          {
+            "line": "k=abc\\donexyz",
+            "expect": {
+              "v": "abc",
+              "tail": "xyz"
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "k=path\\to\\file\\done!"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "v": {
+            "status": "ok",
+            "type": "string",
+            "value": "path\\to\\file"
+          },
+          "tail": {
+            "status": "ok",
+            "type": "string",
+            "value": "!"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_hole_until_utf8_arrow_012",
+      "description": "until hole stops at multi-byte UTF-8 literal ' → '",
+      "tags": [
+        "hole:until",
+        "until:unicode",
+        "unicode",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01UNTIL012",
+        "event": "test.hole.until",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "k="
+            },
+            {
+              "hole": "v",
+              "class": "until"
+            },
+            {
+              "lit": " → "
+            },
+            {
+              "hole": "tail",
+              "class": "rest"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01UNT00001",
+            "name": "v",
+            "from": {
+              "hole": "v"
+            },
+            "type": "string",
+            "semantic": "text"
+          },
+          {
+            "id": "fld_01UNT00002",
+            "name": "tail",
+            "from": {
+              "hole": "tail"
+            },
+            "type": "string",
+            "semantic": "text"
+          }
+        ],
+        "tests": [
+          {
+            "line": "k=abc → xyz",
+            "expect": {
+              "v": "abc",
+              "tail": "xyz"
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "k=Tokyo → Osaka"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "v": {
+            "status": "ok",
+            "type": "string",
+            "value": "Tokyo"
+          },
+          "tail": {
+            "status": "ok",
+            "type": "string",
+            "value": "Osaka"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_hole_until_emoji_delim_013",
+      "description": "until hole stops at 4-byte UTF-8 emoji literal ' 🚀 '",
+      "tags": [
+        "hole:until",
+        "until:unicode",
+        "unicode:emoji",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01UNTIL013",
+        "event": "test.hole.until",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "k="
+            },
+            {
+              "hole": "v",
+              "class": "until"
+            },
+            {
+              "lit": " 🚀 "
+            },
+            {
+              "hole": "tail",
+              "class": "rest"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01UNT00001",
+            "name": "v",
+            "from": {
+              "hole": "v"
+            },
+            "type": "string",
+            "semantic": "text"
+          },
+          {
+            "id": "fld_01UNT00002",
+            "name": "tail",
+            "from": {
+              "hole": "tail"
+            },
+            "type": "string",
+            "semantic": "text"
+          }
+        ],
+        "tests": [
+          {
+            "line": "k=abc 🚀 xyz",
+            "expect": {
+              "v": "abc",
+              "tail": "xyz"
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "k=deploy v2 🚀 prod"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "v": {
+            "status": "ok",
+            "type": "string",
+            "value": "deploy v2"
+          },
+          "tail": {
+            "status": "ok",
+            "type": "string",
+            "value": "prod"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_hole_until_empty_match_014",
+      "description": "until hole matches empty string when followed immediately by literal",
+      "tags": [
+        "hole:until",
+        "boundary:empty",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01UNTIL014",
+        "event": "test.hole.until",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "k="
+            },
+            {
+              "hole": "v",
+              "class": "until"
+            },
+            {
+              "lit": ";"
+            },
+            {
+              "hole": "tail",
+              "class": "rest"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01UNT00001",
+            "name": "v",
+            "from": {
+              "hole": "v"
+            },
+            "type": "string",
+            "semantic": "text"
+          },
+          {
+            "id": "fld_01UNT00002",
+            "name": "tail",
+            "from": {
+              "hole": "tail"
+            },
+            "type": "string",
+            "semantic": "text"
+          }
+        ],
+        "tests": [
+          {
+            "line": "k=abc;xyz",
+            "expect": {
+              "v": "abc",
+              "tail": "xyz"
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "k=;after"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "v": {
+            "status": "ok",
+            "type": "string",
+            "value": ""
+          },
+          "tail": {
+            "status": "ok",
+            "type": "string",
+            "value": "after"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_hole_until_leftmost_non_greedy_015",
+      "description": "until hole stops at first (leftmost) occurrence when delimiter repeats",
+      "tags": [
+        "hole:until",
+        "boundary:leftmost",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01UNTIL015",
+        "event": "test.hole.until",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "k="
+            },
+            {
+              "hole": "v",
+              "class": "until"
+            },
+            {
+              "lit": ","
+            },
+            {
+              "hole": "tail",
+              "class": "rest"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01UNT00001",
+            "name": "v",
+            "from": {
+              "hole": "v"
+            },
+            "type": "string",
+            "semantic": "text"
+          },
+          {
+            "id": "fld_01UNT00002",
+            "name": "tail",
+            "from": {
+              "hole": "tail"
+            },
+            "type": "string",
+            "semantic": "text"
+          }
+        ],
+        "tests": [
+          {
+            "line": "k=abc,xyz",
+            "expect": {
+              "v": "abc",
+              "tail": "xyz"
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "k=foo,bar,baz"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "v": {
+            "status": "ok",
+            "type": "string",
+            "value": "foo"
+          },
+          "tail": {
+            "status": "ok",
+            "type": "string",
+            "value": "bar,baz"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_hole_until_spaces_tabs_unicode_016",
+      "description": "until hole captures spaces, tabs, U+00A0, U+3000, and emoji",
+      "tags": [
+        "hole:until",
+        "unicode:nbsp",
+        "unicode:ideographic_space",
+        "unicode:emoji",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01UNTIL016",
+        "event": "test.hole.until",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "k="
+            },
+            {
+              "hole": "v",
+              "class": "until"
+            },
+            {
+              "lit": ";"
+            },
+            {
+              "hole": "tail",
+              "class": "rest"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01UNT00001",
+            "name": "v",
+            "from": {
+              "hole": "v"
+            },
+            "type": "string",
+            "semantic": "text"
+          },
+          {
+            "id": "fld_01UNT00002",
+            "name": "tail",
+            "from": {
+              "hole": "tail"
+            },
+            "type": "string",
+            "semantic": "text"
+          }
+        ],
+        "tests": [
+          {
+            "line": "k=abc;xyz",
+            "expect": {
+              "v": "abc",
+              "tail": "xyz"
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "k=a b\tc d　🚀;end"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "v": {
+            "status": "ok",
+            "type": "string",
+            "value": "a b\tc d　🚀"
+          },
+          "tail": {
+            "status": "ok",
+            "type": "string",
+            "value": "end"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_hole_until_chained_three_017",
+      "description": "three chained until holes separated by distinct bracket literals",
+      "tags": [
+        "hole:until",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01UNTIL017",
+        "event": "test.hole.until_chain",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "["
+            },
+            {
+              "hole": "a",
+              "class": "until"
+            },
+            {
+              "lit": "] ["
+            },
+            {
+              "hole": "b",
+              "class": "until"
+            },
+            {
+              "lit": "] ["
+            },
+            {
+              "hole": "c",
+              "class": "until"
+            },
+            {
+              "lit": "]"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01UNT00011",
+            "name": "a",
+            "from": {
+              "hole": "a"
+            },
+            "type": "string",
+            "semantic": "text"
+          },
+          {
+            "id": "fld_01UNT00012",
+            "name": "b",
+            "from": {
+              "hole": "b"
+            },
+            "type": "string",
+            "semantic": "text"
+          },
+          {
+            "id": "fld_01UNT00013",
+            "name": "c",
+            "from": {
+              "hole": "c"
+            },
+            "type": "string",
+            "semantic": "text"
+          }
+        ],
+        "tests": [
+          {
+            "line": "[one] [two words] [three]",
+            "expect": {
+              "a": "one",
+              "b": "two words",
+              "c": "three"
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "[svc-a] [region us-east] [status ok]"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "a": {
+            "status": "ok",
+            "type": "string",
+            "value": "svc-a"
+          },
+          "b": {
+            "status": "ok",
+            "type": "string",
+            "value": "region us-east"
+          },
+          "c": {
+            "status": "ok",
+            "type": "string",
+            "value": "status ok"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_hole_until_reject_missing_delim_018",
+      "description": "until hole fails to match when following literal never appears",
+      "tags": [
+        "hole:until",
+        "no_match",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01UNTIL018",
+        "event": "test.hole.until",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "k="
+            },
+            {
+              "hole": "v",
+              "class": "until"
+            },
+            {
+              "lit": " -> "
+            },
+            {
+              "hole": "tail",
+              "class": "rest"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01UNT00001",
+            "name": "v",
+            "from": {
+              "hole": "v"
+            },
+            "type": "string",
+            "semantic": "text"
+          },
+          {
+            "id": "fld_01UNT00002",
+            "name": "tail",
+            "from": {
+              "hole": "tail"
+            },
+            "type": "string",
+            "semantic": "text"
+          }
+        ],
+        "tests": [
+          {
+            "line": "k=abc -> xyz",
+            "expect": {
+              "v": "abc",
+              "tail": "xyz"
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "k=state-a without arrow"
+      },
+      "expected": {
+        "matched": false
+      }
+    },
+    {
+      "id": "vec_hole_until_reject_partial_delim_019",
+      "description": "until hole fails to match when following multi-char literal is truncated",
+      "tags": [
+        "hole:until",
+        "no_match",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01UNTIL019",
+        "event": "test.hole.until",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "k="
+            },
+            {
+              "hole": "v",
+              "class": "until"
+            },
+            {
+              "lit": " -> "
+            },
+            {
+              "hole": "tail",
+              "class": "rest"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01UNT00001",
+            "name": "v",
+            "from": {
+              "hole": "v"
+            },
+            "type": "string",
+            "semantic": "text"
+          },
+          {
+            "id": "fld_01UNT00002",
+            "name": "tail",
+            "from": {
+              "hole": "tail"
+            },
+            "type": "string",
+            "semantic": "text"
+          }
+        ],
+        "tests": [
+          {
+            "line": "k=abc -> xyz",
+            "expect": {
+              "v": "abc",
+              "tail": "xyz"
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "k=state-a ->"
+      },
+      "expected": {
+        "matched": false
+      }
+    },
+    {
+      "id": "vec_hole_rest_basic_001",
+      "description": "rest hole captures multi-word tail to end of line",
+      "tags": [
+        "hole:rest",
+        "type:string",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01HOLEREST1",
+        "event": "test.hole.rest",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "note="
+            },
+            {
+              "hole": "note",
+              "class": "rest"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01REST0001",
+            "name": "note",
+            "from": {
+              "hole": "note"
+            },
+            "type": "string",
+            "semantic": "text"
+          }
+        ],
+        "tests": [
+          {
+            "line": "note=hello world",
+            "expect": {
+              "note": "hello world"
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "note=hello world 123"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "note": {
+            "status": "ok",
+            "type": "string",
+            "value": "hello world 123"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_hole_rest_empty_002",
+      "description": "rest hole matches empty string when preceding literal ends the line",
+      "tags": [
+        "hole:rest",
+        "boundary:empty",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01HOLEREST1",
+        "event": "test.hole.rest",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "note="
+            },
+            {
+              "hole": "note",
+              "class": "rest"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01REST0001",
+            "name": "note",
+            "from": {
+              "hole": "note"
+            },
+            "type": "string",
+            "semantic": "text"
+          }
+        ],
+        "tests": [
+          {
+            "line": "note=hello world",
+            "expect": {
+              "note": "hello world"
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "note="
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "note": {
+            "status": "ok",
+            "type": "string",
+            "value": ""
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_hole_rest_preserves_padding_003",
+      "description": "rest hole preserves leading and trailing whitespace",
+      "tags": [
+        "hole:rest",
+        "whitespace",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01HOLEREST1",
+        "event": "test.hole.rest",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "note="
+            },
+            {
+              "hole": "note",
+              "class": "rest"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01REST0001",
+            "name": "note",
+            "from": {
+              "hole": "note"
+            },
+            "type": "string",
+            "semantic": "text"
+          }
+        ],
+        "tests": [
+          {
+            "line": "note=hello world",
+            "expect": {
+              "note": "hello world"
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "note=  padded \t "
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "note": {
+            "status": "ok",
+            "type": "string",
+            "value": "  padded \t "
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_hole_rest_punctuation_and_json_004",
+      "description": "rest hole consumes quotes, brackets, and JSON text verbatim",
+      "tags": [
+        "hole:rest",
+        "type:string",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01HOLEREST1",
+        "event": "test.hole.rest",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "note="
+            },
+            {
+              "hole": "note",
+              "class": "rest"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01REST0001",
+            "name": "note",
+            "from": {
+              "hole": "note"
+            },
+            "type": "string",
+            "semantic": "text"
+          }
+        ],
+        "tests": [
+          {
+            "line": "note=hello world",
+            "expect": {
+              "note": "hello world"
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "note=\"quoted\" {\"a\":[1,2]} ; |"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "note": {
+            "status": "ok",
+            "type": "string",
+            "value": "\"quoted\" {\"a\":[1,2]} ; |"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_hole_rest_multiline_newlines_005",
+      "description": "rest hole consumes embedded LF and CRLF newlines in stack trace body",
+      "tags": [
+        "hole:rest",
+        "boundary:multiline",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01HOLEREST1",
+        "event": "test.hole.rest",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "note="
+            },
+            {
+              "hole": "note",
+              "class": "rest"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01REST0001",
+            "name": "note",
+            "from": {
+              "hole": "note"
+            },
+            "type": "string",
+            "semantic": "text"
+          }
+        ],
+        "tests": [
+          {
+            "line": "note=hello world",
+            "expect": {
+              "note": "hello world"
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "note=Error: boom\n  at foo (a.ts:1)\r\n  at bar (b.ts:2)"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "note": {
+            "status": "ok",
+            "type": "string",
+            "value": "Error: boom\n  at foo (a.ts:1)\r\n  at bar (b.ts:2)"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_hole_rest_unicode_006",
+      "description": "rest hole preserves U+00A0, U+3000, combining marks, and ZWJ emoji",
+      "tags": [
+        "hole:rest",
+        "unicode:nbsp",
+        "unicode:ideographic_space",
+        "unicode:combining",
+        "unicode:emoji",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01HOLEREST1",
+        "event": "test.hole.rest",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "note="
+            },
+            {
+              "hole": "note",
+              "class": "rest"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01REST0001",
+            "name": "note",
+            "from": {
+              "hole": "note"
+            },
+            "type": "string",
+            "semantic": "text"
+          }
+        ],
+        "tests": [
+          {
+            "line": "note=hello world",
+            "expect": {
+              "note": "hello world"
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "note=café 　👨‍👩‍👧‍👦"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "note": {
+            "status": "ok",
+            "type": "string",
+            "value": "café 　👨‍👩‍👧‍👦"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_hole_rest_solo_empty_line_007",
+      "description": "solo rest hole matches empty line",
+      "tags": [
+        "hole:rest",
+        "boundary:empty",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01HOLEREST2",
+        "event": "test.hole.rest_solo",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "hole": "raw",
+              "class": "rest"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01REST0002",
+            "name": "raw",
+            "from": {
+              "hole": "raw"
+            },
+            "type": "string",
+            "semantic": "text"
+          }
+        ],
+        "tests": [
+          {
+            "line": "anything goes",
+            "expect": {
+              "raw": "anything goes"
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": ""
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "raw": {
+            "status": "ok",
+            "type": "string",
+            "value": ""
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_hole_rest_int_valid_008",
+      "description": "rest hole bound to int field parses valid integer tail",
+      "tags": [
+        "hole:rest",
+        "type:int",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01HOLEREST3",
+        "event": "test.hole.rest_int",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "val="
+            },
+            {
+              "hole": "v",
+              "class": "rest"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01REST0003",
+            "name": "v",
+            "from": {
+              "hole": "v"
+            },
+            "type": "int",
+            "semantic": "count"
+          }
+        ],
+        "tests": [
+          {
+            "line": "val=42",
+            "expect": {
+              "v": 42
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "val=-99"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "v": {
+            "status": "ok",
+            "type": "int",
+            "value": "-99"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_hole_rest_int_parse_error_009",
+      "description": "rest hole bound to int field matches line and produces parse_error on non-integer tail",
+      "tags": [
+        "hole:rest",
+        "parse_error",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01HOLEREST3",
+        "event": "test.hole.rest_int",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "val="
+            },
+            {
+              "hole": "v",
+              "class": "rest"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01REST0003",
+            "name": "v",
+            "from": {
+              "hole": "v"
+            },
+            "type": "int",
+            "semantic": "count"
+          }
+        ],
+        "tests": [
+          {
+            "line": "val=42",
+            "expect": {
+              "v": 42
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "val=not an int"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "v": {
+            "status": "parse_error",
+            "code": "cast_failed"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_hole_rest_reject_prefix_mismatch_010",
+      "description": "rest hole fails to match when preceding literal does not match",
+      "tags": [
+        "hole:rest",
+        "no_match",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01HOLEREST1",
+        "event": "test.hole.rest",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "note="
+            },
+            {
+              "hole": "note",
+              "class": "rest"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01REST0001",
+            "name": "note",
+            "from": {
+              "hole": "note"
+            },
+            "type": "string",
+            "semantic": "text"
+          }
+        ],
+        "tests": [
+          {
+            "line": "note=hello world",
+            "expect": {
+              "note": "hello world"
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "other=hello"
+      },
+      "expected": {
+        "matched": false
+      }
+    }
+  ]
+}

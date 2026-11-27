@@ -1,0 +1,4697 @@
+{
+  "schema_version": 1,
+  "suite": "01-holes-word-int-float",
+  "description": "Golden conformance vectors covering word (including default class), int, and float hole classes with boundary values, overlapping literals, and overflow semantics.",
+  "context": {
+    "hmac_keys": {
+      "edge": "bind-conformance-edge-key-v1",
+      "server": "bind-conformance-server-key-v1"
+    },
+    "reference_ts_ms": 1795701600000
+  },
+  "vectors": [
+    {
+      "id": "vec_hole_word_basic_001",
+      "description": "word hole matches basic alphanumeric token with underscore",
+      "tags": [
+        "hole:word",
+        "type:string",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01HOLEWORD1",
+        "event": "test.hole.word",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "tok="
+            },
+            {
+              "hole": "val",
+              "class": "word"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01WORD0001",
+            "name": "val",
+            "from": {
+              "hole": "val"
+            },
+            "type": "string",
+            "semantic": "text"
+          }
+        ],
+        "tests": [
+          {
+            "line": "tok=ord_8f2a",
+            "expect": {
+              "val": "ord_8f2a"
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "tok=ord_8f2a"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "val": {
+            "status": "ok",
+            "type": "string",
+            "value": "ord_8f2a"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_hole_word_default_class_002",
+      "description": "omitted hole class defaults to word",
+      "tags": [
+        "hole:word",
+        "hole:default_class",
+        "type:string",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01HOLEWORD2",
+        "event": "test.hole.word_default",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "tok="
+            },
+            {
+              "hole": "val"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01WORD0002",
+            "name": "val",
+            "from": {
+              "hole": "val"
+            },
+            "type": "string",
+            "semantic": "text"
+          }
+        ],
+        "tests": [
+          {
+            "line": "tok=abc_123",
+            "expect": {
+              "val": "abc_123"
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "tok=svc-01.prod"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "val": {
+            "status": "ok",
+            "type": "string",
+            "value": "svc-01.prod"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_hole_word_url_punctuation_003",
+      "description": "word hole consumes punctuation, slashes, and query params",
+      "tags": [
+        "hole:word",
+        "type:string",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01HOLEWORD3",
+        "event": "test.hole.word_mid",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "GET "
+            },
+            {
+              "hole": "path",
+              "class": "word"
+            },
+            {
+              "lit": " HTTP/1.1"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01WORD0003",
+            "name": "path",
+            "from": {
+              "hole": "path"
+            },
+            "type": "string",
+            "semantic": "url.path"
+          }
+        ],
+        "tests": [
+          {
+            "line": "GET /v1/orders HTTP/1.1",
+            "expect": {
+              "path": "/v1/orders"
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "GET /v1/orders/42?expand=items&currency=USD HTTP/1.1"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "path": {
+            "status": "ok",
+            "type": "string",
+            "value": "/v1/orders/42?expand=items&currency=USD"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_hole_word_semver_004",
+      "description": "word hole consumes semver with prerelease and build metadata",
+      "tags": [
+        "hole:word",
+        "type:string",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01HOLEWORD1",
+        "event": "test.hole.word",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "tok="
+            },
+            {
+              "hole": "val",
+              "class": "word"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01WORD0001",
+            "name": "val",
+            "from": {
+              "hole": "val"
+            },
+            "type": "string",
+            "semantic": "text"
+          }
+        ],
+        "tests": [
+          {
+            "line": "tok=ord_8f2a",
+            "expect": {
+              "val": "ord_8f2a"
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "tok=v2.4.1-rc.1+build.99"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "val": {
+            "status": "ok",
+            "type": "string",
+            "value": "v2.4.1-rc.1+build.99"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_hole_word_leading_005",
+      "description": "leading word hole before literal suffix",
+      "tags": [
+        "hole:word",
+        "type:string",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01HOLEWORD4",
+        "event": "test.hole.word_lead",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "hole": "svc",
+              "class": "word"
+            },
+            {
+              "lit": " started"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01WORD0004",
+            "name": "svc",
+            "from": {
+              "hole": "svc"
+            },
+            "type": "string",
+            "semantic": "text"
+          }
+        ],
+        "tests": [
+          {
+            "line": "checkout-api started",
+            "expect": {
+              "svc": "checkout-api"
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "billing-worker started"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "svc": {
+            "status": "ok",
+            "type": "string",
+            "value": "billing-worker"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_hole_word_solo_006",
+      "description": "solo word hole matches single-token line",
+      "tags": [
+        "hole:word",
+        "type:string",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01HOLEWORD5",
+        "event": "test.hole.word_solo",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "hole": "token",
+              "class": "word"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01WORD0005",
+            "name": "token",
+            "from": {
+              "hole": "token"
+            },
+            "type": "string",
+            "semantic": "text"
+          }
+        ],
+        "tests": [
+          {
+            "line": "ready",
+            "expect": {
+              "token": "ready"
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "ok"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "token": {
+            "status": "ok",
+            "type": "string",
+            "value": "ok"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_hole_word_tab_separator_007",
+      "description": "word hole stops at ASCII tab delimiter",
+      "tags": [
+        "hole:word",
+        "whitespace",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01HOLEWORD6",
+        "event": "test.hole.word_tab",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "hole": "a",
+              "class": "word"
+            },
+            {
+              "lit": "\t"
+            },
+            {
+              "hole": "b",
+              "class": "word"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01WORD0006",
+            "name": "a",
+            "from": {
+              "hole": "a"
+            },
+            "type": "string",
+            "semantic": "text"
+          },
+          {
+            "id": "fld_01WORD0007",
+            "name": "b",
+            "from": {
+              "hole": "b"
+            },
+            "type": "string",
+            "semantic": "text"
+          }
+        ],
+        "tests": [
+          {
+            "line": "left\tright",
+            "expect": {
+              "a": "left",
+              "b": "right"
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "alpha\tbeta"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "a": {
+            "status": "ok",
+            "type": "string",
+            "value": "alpha"
+          },
+          "b": {
+            "status": "ok",
+            "type": "string",
+            "value": "beta"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_hole_word_single_char_008",
+      "description": "word hole matches single non-space character",
+      "tags": [
+        "hole:word",
+        "boundary:min_length",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01HOLEWORD1",
+        "event": "test.hole.word",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "tok="
+            },
+            {
+              "hole": "val",
+              "class": "word"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01WORD0001",
+            "name": "val",
+            "from": {
+              "hole": "val"
+            },
+            "type": "string",
+            "semantic": "text"
+          }
+        ],
+        "tests": [
+          {
+            "line": "tok=ord_8f2a",
+            "expect": {
+              "val": "ord_8f2a"
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "tok=x"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "val": {
+            "status": "ok",
+            "type": "string",
+            "value": "x"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_hole_word_long_4096_009",
+      "description": "word hole matches 4096-byte single token",
+      "tags": [
+        "hole:word",
+        "boundary:long",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01HOLEWORD1",
+        "event": "test.hole.word",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "tok="
+            },
+            {
+              "hole": "val",
+              "class": "word"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01WORD0001",
+            "name": "val",
+            "from": {
+              "hole": "val"
+            },
+            "type": "string",
+            "semantic": "text"
+          }
+        ],
+        "tests": [
+          {
+            "line": "tok=ord_8f2a",
+            "expect": {
+              "val": "ord_8f2a"
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "tok=wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "val": {
+            "status": "ok",
+            "type": "string",
+            "value": "wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_hole_word_reject_empty_010",
+      "description": "word hole rejects empty value at end of line",
+      "tags": [
+        "hole:word",
+        "no_match",
+        "boundary:empty",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01HOLEWORD1",
+        "event": "test.hole.word",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "tok="
+            },
+            {
+              "hole": "val",
+              "class": "word"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01WORD0001",
+            "name": "val",
+            "from": {
+              "hole": "val"
+            },
+            "type": "string",
+            "semantic": "text"
+          }
+        ],
+        "tests": [
+          {
+            "line": "tok=ord_8f2a",
+            "expect": {
+              "val": "ord_8f2a"
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "tok="
+      },
+      "expected": {
+        "matched": false
+      }
+    },
+    {
+      "id": "vec_hole_word_reject_empty_mid_011",
+      "description": "word hole rejects empty token between spaces",
+      "tags": [
+        "hole:word",
+        "no_match",
+        "boundary:empty",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01HOLEWORD3",
+        "event": "test.hole.word_mid",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "GET "
+            },
+            {
+              "hole": "path",
+              "class": "word"
+            },
+            {
+              "lit": " HTTP/1.1"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01WORD0003",
+            "name": "path",
+            "from": {
+              "hole": "path"
+            },
+            "type": "string",
+            "semantic": "url.path"
+          }
+        ],
+        "tests": [
+          {
+            "line": "GET /v1/orders HTTP/1.1",
+            "expect": {
+              "path": "/v1/orders"
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "GET  HTTP/1.1"
+      },
+      "expected": {
+        "matched": false
+      }
+    },
+    {
+      "id": "vec_hole_word_reject_embedded_space_012",
+      "description": "word hole stops at space causing trailing text mismatch",
+      "tags": [
+        "hole:word",
+        "no_match",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01HOLEWORD1",
+        "event": "test.hole.word",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "tok="
+            },
+            {
+              "hole": "val",
+              "class": "word"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01WORD0001",
+            "name": "val",
+            "from": {
+              "hole": "val"
+            },
+            "type": "string",
+            "semantic": "text"
+          }
+        ],
+        "tests": [
+          {
+            "line": "tok=ord_8f2a",
+            "expect": {
+              "val": "ord_8f2a"
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "tok=hello world"
+      },
+      "expected": {
+        "matched": false
+      }
+    },
+    {
+      "id": "vec_hole_word_reject_trailing_space_013",
+      "description": "word hole does not consume trailing ASCII space",
+      "tags": [
+        "hole:word",
+        "no_match",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01HOLEWORD1",
+        "event": "test.hole.word",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "tok="
+            },
+            {
+              "hole": "val",
+              "class": "word"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01WORD0001",
+            "name": "val",
+            "from": {
+              "hole": "val"
+            },
+            "type": "string",
+            "semantic": "text"
+          }
+        ],
+        "tests": [
+          {
+            "line": "tok=ord_8f2a",
+            "expect": {
+              "val": "ord_8f2a"
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "tok=abc "
+      },
+      "expected": {
+        "matched": false
+      }
+    },
+    {
+      "id": "vec_hole_word_reject_case_sensitive_lit_014",
+      "description": "literal prefix before word hole is case-sensitive",
+      "tags": [
+        "hole:word",
+        "no_match",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01HOLEWORD1",
+        "event": "test.hole.word",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "tok="
+            },
+            {
+              "hole": "val",
+              "class": "word"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01WORD0001",
+            "name": "val",
+            "from": {
+              "hole": "val"
+            },
+            "type": "string",
+            "semantic": "text"
+          }
+        ],
+        "tests": [
+          {
+            "line": "tok=ord_8f2a",
+            "expect": {
+              "val": "ord_8f2a"
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "TOK=ord_8f2a"
+      },
+      "expected": {
+        "matched": false
+      }
+    },
+    {
+      "id": "vec_hole_word_reject_empty_line_015",
+      "description": "solo word hole rejects empty input line",
+      "tags": [
+        "hole:word",
+        "no_match",
+        "boundary:empty",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01HOLEWORD5",
+        "event": "test.hole.word_solo",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "hole": "token",
+              "class": "word"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01WORD0005",
+            "name": "token",
+            "from": {
+              "hole": "token"
+            },
+            "type": "string",
+            "semantic": "text"
+          }
+        ],
+        "tests": [
+          {
+            "line": "ready",
+            "expect": {
+              "token": "ready"
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": ""
+      },
+      "expected": {
+        "matched": false
+      }
+    },
+    {
+      "id": "vec_hole_word_reject_whitespace_only_016",
+      "description": "solo word hole rejects whitespace-only line",
+      "tags": [
+        "hole:word",
+        "no_match",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01HOLEWORD5",
+        "event": "test.hole.word_solo",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "hole": "token",
+              "class": "word"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01WORD0005",
+            "name": "token",
+            "from": {
+              "hole": "token"
+            },
+            "type": "string",
+            "semantic": "text"
+          }
+        ],
+        "tests": [
+          {
+            "line": "ready",
+            "expect": {
+              "token": "ready"
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "   "
+      },
+      "expected": {
+        "matched": false
+      }
+    },
+    {
+      "id": "vec_hole_word_reject_missing_suffix_017",
+      "description": "word hole followed by space-delimited literal fails when suffix is missing",
+      "tags": [
+        "hole:word",
+        "no_match",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01HOLEWORD3",
+        "event": "test.hole.word_mid",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "GET "
+            },
+            {
+              "hole": "path",
+              "class": "word"
+            },
+            {
+              "lit": " HTTP/1.1"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01WORD0003",
+            "name": "path",
+            "from": {
+              "hole": "path"
+            },
+            "type": "string",
+            "semantic": "url.path"
+          }
+        ],
+        "tests": [
+          {
+            "line": "GET /v1/orders HTTP/1.1",
+            "expect": {
+              "path": "/v1/orders"
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "GET /v1/orders"
+      },
+      "expected": {
+        "matched": false
+      }
+    },
+    {
+      "id": "vec_hole_word_embedded_quotes_and_braces_018",
+      "description": "word hole consumes quotes and braces when no ASCII whitespace is present",
+      "tags": [
+        "hole:word",
+        "type:string",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01HOLEWORD1",
+        "event": "test.hole.word",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "tok="
+            },
+            {
+              "hole": "val",
+              "class": "word"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01WORD0001",
+            "name": "val",
+            "from": {
+              "hole": "val"
+            },
+            "type": "string",
+            "semantic": "text"
+          }
+        ],
+        "tests": [
+          {
+            "line": "tok=ord_8f2a",
+            "expect": {
+              "val": "ord_8f2a"
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "tok={\"a\":\"b\"}"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "val": {
+            "status": "ok",
+            "type": "string",
+            "value": "{\"a\":\"b\"}"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_hole_word_before_comma_id_lit_019",
+      "description": "word hole stops at leftmost following non-space literal ',id='",
+      "tags": [
+        "hole:word",
+        "boundary:following_literal",
+        "ambiguity:scanner_hole_boundary",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01HOLEWORD8",
+        "event": "test.hole.word_comma_id",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "tok="
+            },
+            {
+              "hole": "val",
+              "class": "word"
+            },
+            {
+              "lit": ",id="
+            },
+            {
+              "hole": "id",
+              "class": "int"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01WORD0009",
+            "name": "val",
+            "from": {
+              "hole": "val"
+            },
+            "type": "string",
+            "semantic": "text"
+          },
+          {
+            "id": "fld_01WORD0010",
+            "name": "id",
+            "from": {
+              "hole": "id"
+            },
+            "type": "int",
+            "semantic": "count"
+          }
+        ],
+        "tests": [
+          {
+            "line": "tok=ord_8f2a,id=42",
+            "expect": {
+              "val": "ord_8f2a",
+              "id": 42
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "tok=ord_8f2a,id=42"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "val": {
+            "status": "ok",
+            "type": "string",
+            "value": "ord_8f2a"
+          },
+          "id": {
+            "status": "ok",
+            "type": "int",
+            "value": "42"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_hole_word_before_comma_id_reject_space_020",
+      "description": "word hole bounded by ',id=' still rejects embedded ASCII space before literal",
+      "tags": [
+        "hole:word",
+        "boundary:following_literal",
+        "no_match",
+        "ambiguity:scanner_hole_boundary",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01HOLEWORD8",
+        "event": "test.hole.word_comma_id",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "tok="
+            },
+            {
+              "hole": "val",
+              "class": "word"
+            },
+            {
+              "lit": ",id="
+            },
+            {
+              "hole": "id",
+              "class": "int"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01WORD0009",
+            "name": "val",
+            "from": {
+              "hole": "val"
+            },
+            "type": "string",
+            "semantic": "text"
+          },
+          {
+            "id": "fld_01WORD0010",
+            "name": "id",
+            "from": {
+              "hole": "id"
+            },
+            "type": "int",
+            "semantic": "count"
+          }
+        ],
+        "tests": [
+          {
+            "line": "tok=ord_8f2a,id=42",
+            "expect": {
+              "val": "ord_8f2a",
+              "id": 42
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "tok=hello world,id=42"
+      },
+      "expected": {
+        "matched": false
+      }
+    },
+    {
+      "id": "vec_hole_word_before_comma_id_no_backtrack_021",
+      "description": "word hole stops at leftmost ',id=' occurrence and does not backtrack to a later ',id='",
+      "tags": [
+        "hole:word",
+        "boundary:following_literal",
+        "no_match",
+        "ambiguity:scanner_hole_boundary",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01HOLEWORD8",
+        "event": "test.hole.word_comma_id",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "tok="
+            },
+            {
+              "hole": "val",
+              "class": "word"
+            },
+            {
+              "lit": ",id="
+            },
+            {
+              "hole": "id",
+              "class": "int"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01WORD0009",
+            "name": "val",
+            "from": {
+              "hole": "val"
+            },
+            "type": "string",
+            "semantic": "text"
+          },
+          {
+            "id": "fld_01WORD0010",
+            "name": "id",
+            "from": {
+              "hole": "id"
+            },
+            "type": "int",
+            "semantic": "count"
+          }
+        ],
+        "tests": [
+          {
+            "line": "tok=ord_8f2a,id=42",
+            "expect": {
+              "val": "ord_8f2a",
+              "id": 42
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "tok=a,id=b,id=42"
+      },
+      "expected": {
+        "matched": false
+      }
+    },
+    {
+      "id": "vec_hole_word_before_comma_id_reject_empty_022",
+      "description": "word hole bounded by ',id=' rejects empty capture before literal",
+      "tags": [
+        "hole:word",
+        "boundary:following_literal",
+        "boundary:empty",
+        "no_match",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01HOLEWORD8",
+        "event": "test.hole.word_comma_id",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "tok="
+            },
+            {
+              "hole": "val",
+              "class": "word"
+            },
+            {
+              "lit": ",id="
+            },
+            {
+              "hole": "id",
+              "class": "int"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01WORD0009",
+            "name": "val",
+            "from": {
+              "hole": "val"
+            },
+            "type": "string",
+            "semantic": "text"
+          },
+          {
+            "id": "fld_01WORD0010",
+            "name": "id",
+            "from": {
+              "hole": "id"
+            },
+            "type": "int",
+            "semantic": "count"
+          }
+        ],
+        "tests": [
+          {
+            "line": "tok=ord_8f2a,id=42",
+            "expect": {
+              "val": "ord_8f2a",
+              "id": 42
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "tok=,id=42"
+      },
+      "expected": {
+        "matched": false
+      }
+    },
+    {
+      "id": "vec_hole_int_zero_001",
+      "description": "int hole matches zero",
+      "tags": [
+        "hole:int",
+        "type:int",
+        "boundary:zero",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01HOLEINT01",
+        "event": "test.hole.int",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "n="
+            },
+            {
+              "hole": "n",
+              "class": "int"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01INT00001",
+            "name": "n",
+            "from": {
+              "hole": "n"
+            },
+            "type": "int",
+            "semantic": "count"
+          }
+        ],
+        "tests": [
+          {
+            "line": "n=42",
+            "expect": {
+              "n": 42
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "n=0"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "n": {
+            "status": "ok",
+            "type": "int",
+            "value": "0"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_hole_int_positive_002",
+      "description": "int hole matches positive integer",
+      "tags": [
+        "hole:int",
+        "type:int",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01HOLEINT01",
+        "event": "test.hole.int",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "n="
+            },
+            {
+              "hole": "n",
+              "class": "int"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01INT00001",
+            "name": "n",
+            "from": {
+              "hole": "n"
+            },
+            "type": "int",
+            "semantic": "count"
+          }
+        ],
+        "tests": [
+          {
+            "line": "n=42",
+            "expect": {
+              "n": 42
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "n=1999"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "n": {
+            "status": "ok",
+            "type": "int",
+            "value": "1999"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_hole_int_negative_003",
+      "description": "int hole matches negative integer",
+      "tags": [
+        "hole:int",
+        "type:int",
+        "boundary:negative",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01HOLEINT01",
+        "event": "test.hole.int",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "n="
+            },
+            {
+              "hole": "n",
+              "class": "int"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01INT00001",
+            "name": "n",
+            "from": {
+              "hole": "n"
+            },
+            "type": "int",
+            "semantic": "count"
+          }
+        ],
+        "tests": [
+          {
+            "line": "n=42",
+            "expect": {
+              "n": 42
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "n=-42"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "n": {
+            "status": "ok",
+            "type": "int",
+            "value": "-42"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_hole_int_explicit_plus_004",
+      "description": "int hole accepts explicit leading plus sign",
+      "tags": [
+        "hole:int",
+        "type:int",
+        "boundary:signed",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01HOLEINT01",
+        "event": "test.hole.int",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "n="
+            },
+            {
+              "hole": "n",
+              "class": "int"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01INT00001",
+            "name": "n",
+            "from": {
+              "hole": "n"
+            },
+            "type": "int",
+            "semantic": "count"
+          }
+        ],
+        "tests": [
+          {
+            "line": "n=42",
+            "expect": {
+              "n": 42
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "n=+42"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "n": {
+            "status": "ok",
+            "type": "int",
+            "value": "42"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_hole_int_negative_zero_005",
+      "description": "int hole normalizes -0 to canonical decimal string 0",
+      "tags": [
+        "hole:int",
+        "type:int",
+        "boundary:zero",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01HOLEINT01",
+        "event": "test.hole.int",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "n="
+            },
+            {
+              "hole": "n",
+              "class": "int"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01INT00001",
+            "name": "n",
+            "from": {
+              "hole": "n"
+            },
+            "type": "int",
+            "semantic": "count"
+          }
+        ],
+        "tests": [
+          {
+            "line": "n=42",
+            "expect": {
+              "n": 42
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "n=-0"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "n": {
+            "status": "ok",
+            "type": "int",
+            "value": "0"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_hole_int_leading_zeros_006",
+      "description": "int hole strips leading zeros for int field",
+      "tags": [
+        "hole:int",
+        "type:int",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01HOLEINT01",
+        "event": "test.hole.int",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "n="
+            },
+            {
+              "hole": "n",
+              "class": "int"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01INT00001",
+            "name": "n",
+            "from": {
+              "hole": "n"
+            },
+            "type": "int",
+            "semantic": "count"
+          }
+        ],
+        "tests": [
+          {
+            "line": "n=42",
+            "expect": {
+              "n": 42
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "n=00042"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "n": {
+            "status": "ok",
+            "type": "int",
+            "value": "42"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_hole_int_leading_zeros_string_field_007",
+      "description": "int hole preserves raw lexeme with leading zeros when bound to string field",
+      "tags": [
+        "hole:int",
+        "type:string",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01HOLEINT03",
+        "event": "test.hole.int_str",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "code="
+            },
+            {
+              "hole": "code",
+              "class": "int"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01INT00003",
+            "name": "code",
+            "from": {
+              "hole": "code"
+            },
+            "type": "string",
+            "semantic": "text"
+          }
+        ],
+        "tests": [
+          {
+            "line": "code=007",
+            "expect": {
+              "code": "007"
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "code=007"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "code": {
+            "status": "ok",
+            "type": "string",
+            "value": "007"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_hole_int_max_int64_008",
+      "description": "int hole parses exact INT64_MAX as decimal string without precision loss",
+      "tags": [
+        "hole:int",
+        "type:int",
+        "boundary:int64",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01HOLEINT01",
+        "event": "test.hole.int",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "n="
+            },
+            {
+              "hole": "n",
+              "class": "int"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01INT00001",
+            "name": "n",
+            "from": {
+              "hole": "n"
+            },
+            "type": "int",
+            "semantic": "count"
+          }
+        ],
+        "tests": [
+          {
+            "line": "n=42",
+            "expect": {
+              "n": 42
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "n=9223372036854775807"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "n": {
+            "status": "ok",
+            "type": "int",
+            "value": "9223372036854775807"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_hole_int_min_int64_009",
+      "description": "int hole parses exact INT64_MIN as decimal string without precision loss",
+      "tags": [
+        "hole:int",
+        "type:int",
+        "boundary:int64",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01HOLEINT01",
+        "event": "test.hole.int",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "n="
+            },
+            {
+              "hole": "n",
+              "class": "int"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01INT00001",
+            "name": "n",
+            "from": {
+              "hole": "n"
+            },
+            "type": "int",
+            "semantic": "count"
+          }
+        ],
+        "tests": [
+          {
+            "line": "n=42",
+            "expect": {
+              "n": 42
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "n=-9223372036854775808"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "n": {
+            "status": "ok",
+            "type": "int",
+            "value": "-9223372036854775808"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_hole_int_beyond_js_safe_pos_010",
+      "description": "int hole preserves precision above 2^53 - 1",
+      "tags": [
+        "hole:int",
+        "type:int",
+        "boundary:int64",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01HOLEINT01",
+        "event": "test.hole.int",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "n="
+            },
+            {
+              "hole": "n",
+              "class": "int"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01INT00001",
+            "name": "n",
+            "from": {
+              "hole": "n"
+            },
+            "type": "int",
+            "semantic": "count"
+          }
+        ],
+        "tests": [
+          {
+            "line": "n=42",
+            "expect": {
+              "n": 42
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "n=9007199254740993"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "n": {
+            "status": "ok",
+            "type": "int",
+            "value": "9007199254740993"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_hole_int_beyond_js_safe_neg_011",
+      "description": "int hole preserves precision below -(2^53 - 1)",
+      "tags": [
+        "hole:int",
+        "type:int",
+        "boundary:int64",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01HOLEINT01",
+        "event": "test.hole.int",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "n="
+            },
+            {
+              "hole": "n",
+              "class": "int"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01INT00001",
+            "name": "n",
+            "from": {
+              "hole": "n"
+            },
+            "type": "int",
+            "semantic": "count"
+          }
+        ],
+        "tests": [
+          {
+            "line": "n=42",
+            "expect": {
+              "n": 42
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "n=-9007199254740993"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "n": {
+            "status": "ok",
+            "type": "int",
+            "value": "-9007199254740993"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_hole_int_overflow_pos_012",
+      "description": "int hole matches syntax of INT64_MAX+1 and reports int_overflow parse_error",
+      "tags": [
+        "hole:int",
+        "parse_error",
+        "boundary:int64_overflow",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01HOLEINT01",
+        "event": "test.hole.int",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "n="
+            },
+            {
+              "hole": "n",
+              "class": "int"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01INT00001",
+            "name": "n",
+            "from": {
+              "hole": "n"
+            },
+            "type": "int",
+            "semantic": "count"
+          }
+        ],
+        "tests": [
+          {
+            "line": "n=42",
+            "expect": {
+              "n": 42
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "n=9223372036854775808"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "n": {
+            "status": "parse_error",
+            "code": "int_overflow"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_hole_int_overflow_neg_013",
+      "description": "int hole matches syntax of INT64_MIN-1 and reports int_overflow parse_error",
+      "tags": [
+        "hole:int",
+        "parse_error",
+        "boundary:int64_overflow",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01HOLEINT01",
+        "event": "test.hole.int",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "n="
+            },
+            {
+              "hole": "n",
+              "class": "int"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01INT00001",
+            "name": "n",
+            "from": {
+              "hole": "n"
+            },
+            "type": "int",
+            "semantic": "count"
+          }
+        ],
+        "tests": [
+          {
+            "line": "n=42",
+            "expect": {
+              "n": 42
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "n=-9223372036854775809"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "n": {
+            "status": "parse_error",
+            "code": "int_overflow"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_hole_int_overflow_huge_014",
+      "description": "int hole reports int_overflow on 30-digit integer",
+      "tags": [
+        "hole:int",
+        "parse_error",
+        "boundary:int64_overflow",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01HOLEINT01",
+        "event": "test.hole.int",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "n="
+            },
+            {
+              "hole": "n",
+              "class": "int"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01INT00001",
+            "name": "n",
+            "from": {
+              "hole": "n"
+            },
+            "type": "int",
+            "semantic": "count"
+          }
+        ],
+        "tests": [
+          {
+            "line": "n=42",
+            "expect": {
+              "n": 42
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "n=999999999999999999999999999999"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "n": {
+            "status": "parse_error",
+            "code": "int_overflow"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_hole_int_adjacent_unit_suffix_015",
+      "description": "int hole stops cleanly before adjacent literal suffix ms",
+      "tags": [
+        "hole:int",
+        "type:int",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01HOLEINT02",
+        "event": "test.hole.int_suffix",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "elapsed="
+            },
+            {
+              "hole": "ms",
+              "class": "int"
+            },
+            {
+              "lit": "ms"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01INT00002",
+            "name": "ms",
+            "from": {
+              "hole": "ms"
+            },
+            "type": "int",
+            "semantic": "duration",
+            "unit": "ms"
+          }
+        ],
+        "tests": [
+          {
+            "line": "elapsed=212ms",
+            "expect": {
+              "ms": 212
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "elapsed=212ms"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "ms": {
+            "status": "ok",
+            "type": "int",
+            "value": "212"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_hole_int_to_float_field_016",
+      "description": "int hole converts cleanly into float field with exact IEEE-754 bits",
+      "tags": [
+        "hole:int",
+        "type:float",
+        "ieee754",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01HOLEINT04",
+        "event": "test.hole.int_float",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "qty="
+            },
+            {
+              "hole": "qty",
+              "class": "int"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01INT00004",
+            "name": "qty",
+            "from": {
+              "hole": "qty"
+            },
+            "type": "float",
+            "semantic": "count"
+          }
+        ],
+        "tests": [
+          {
+            "line": "qty=42",
+            "expect": {
+              "qty": 42
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "qty=-125"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "qty": {
+            "status": "ok",
+            "type": "float",
+            "value": "c05f400000000000"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_hole_int_reject_alpha_017",
+      "description": "int hole does not match alphabetic text",
+      "tags": [
+        "hole:int",
+        "no_match",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01HOLEINT01",
+        "event": "test.hole.int",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "n="
+            },
+            {
+              "hole": "n",
+              "class": "int"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01INT00001",
+            "name": "n",
+            "from": {
+              "hole": "n"
+            },
+            "type": "int",
+            "semantic": "count"
+          }
+        ],
+        "tests": [
+          {
+            "line": "n=42",
+            "expect": {
+              "n": 42
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "n=abc"
+      },
+      "expected": {
+        "matched": false
+      }
+    },
+    {
+      "id": "vec_hole_int_reject_decimal_018",
+      "description": "int hole does not match fractional float at end of line",
+      "tags": [
+        "hole:int",
+        "no_match",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01HOLEINT01",
+        "event": "test.hole.int",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "n="
+            },
+            {
+              "hole": "n",
+              "class": "int"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01INT00001",
+            "name": "n",
+            "from": {
+              "hole": "n"
+            },
+            "type": "int",
+            "semantic": "count"
+          }
+        ],
+        "tests": [
+          {
+            "line": "n=42",
+            "expect": {
+              "n": 42
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "n=12.34"
+      },
+      "expected": {
+        "matched": false
+      }
+    },
+    {
+      "id": "vec_hole_int_reject_bare_minus_019",
+      "description": "int hole rejects lone minus sign",
+      "tags": [
+        "hole:int",
+        "no_match",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01HOLEINT01",
+        "event": "test.hole.int",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "n="
+            },
+            {
+              "hole": "n",
+              "class": "int"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01INT00001",
+            "name": "n",
+            "from": {
+              "hole": "n"
+            },
+            "type": "int",
+            "semantic": "count"
+          }
+        ],
+        "tests": [
+          {
+            "line": "n=42",
+            "expect": {
+              "n": 42
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "n=-"
+      },
+      "expected": {
+        "matched": false
+      }
+    },
+    {
+      "id": "vec_hole_int_reject_bare_plus_020",
+      "description": "int hole rejects lone plus sign",
+      "tags": [
+        "hole:int",
+        "no_match",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01HOLEINT01",
+        "event": "test.hole.int",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "n="
+            },
+            {
+              "hole": "n",
+              "class": "int"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01INT00001",
+            "name": "n",
+            "from": {
+              "hole": "n"
+            },
+            "type": "int",
+            "semantic": "count"
+          }
+        ],
+        "tests": [
+          {
+            "line": "n=42",
+            "expect": {
+              "n": 42
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "n=+"
+      },
+      "expected": {
+        "matched": false
+      }
+    },
+    {
+      "id": "vec_hole_int_reject_empty_021",
+      "description": "int hole rejects empty input",
+      "tags": [
+        "hole:int",
+        "no_match",
+        "boundary:empty",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01HOLEINT01",
+        "event": "test.hole.int",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "n="
+            },
+            {
+              "hole": "n",
+              "class": "int"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01INT00001",
+            "name": "n",
+            "from": {
+              "hole": "n"
+            },
+            "type": "int",
+            "semantic": "count"
+          }
+        ],
+        "tests": [
+          {
+            "line": "n=42",
+            "expect": {
+              "n": 42
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "n="
+      },
+      "expected": {
+        "matched": false
+      }
+    },
+    {
+      "id": "vec_hole_int_reject_arabic_indic_digits_022",
+      "description": "int hole accepts ASCII digits only and rejects Arabic-Indic digits",
+      "tags": [
+        "hole:int",
+        "no_match",
+        "unicode",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01HOLEINT01",
+        "event": "test.hole.int",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "n="
+            },
+            {
+              "hole": "n",
+              "class": "int"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01INT00001",
+            "name": "n",
+            "from": {
+              "hole": "n"
+            },
+            "type": "int",
+            "semantic": "count"
+          }
+        ],
+        "tests": [
+          {
+            "line": "n=42",
+            "expect": {
+              "n": 42
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "n=١٢٣"
+      },
+      "expected": {
+        "matched": false
+      }
+    },
+    {
+      "id": "vec_hole_int_before_digit_lit_023",
+      "description": "int hole stops at leftmost following overlapping digit literal '0'",
+      "tags": [
+        "hole:int",
+        "boundary:following_literal",
+        "ambiguity:scanner_hole_boundary",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01HOLEINT05",
+        "event": "test.hole.int_before_zero",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "n="
+            },
+            {
+              "hole": "n",
+              "class": "int"
+            },
+            {
+              "lit": "0"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01INT00005",
+            "name": "n",
+            "from": {
+              "hole": "n"
+            },
+            "type": "int",
+            "semantic": "count"
+          }
+        ],
+        "tests": [
+          {
+            "line": "n=120",
+            "expect": {
+              "n": 12
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "n=120"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "n": {
+            "status": "ok",
+            "type": "int",
+            "value": "12"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_hole_int_before_digit_lit_no_backtrack_024",
+      "description": "int hole stops at leftmost '0' and does not backtrack to a trailing '0'",
+      "tags": [
+        "hole:int",
+        "boundary:following_literal",
+        "no_match",
+        "ambiguity:scanner_hole_boundary",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01HOLEINT05",
+        "event": "test.hole.int_before_zero",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "n="
+            },
+            {
+              "hole": "n",
+              "class": "int"
+            },
+            {
+              "lit": "0"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01INT00005",
+            "name": "n",
+            "from": {
+              "hole": "n"
+            },
+            "type": "int",
+            "semantic": "count"
+          }
+        ],
+        "tests": [
+          {
+            "line": "n=120",
+            "expect": {
+              "n": 12
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "n=1020"
+      },
+      "expected": {
+        "matched": false
+      }
+    },
+    {
+      "id": "vec_hole_float_zero_001",
+      "description": "float hole matches 0.0 with positive zero IEEE-754 bits",
+      "tags": [
+        "hole:float",
+        "type:float",
+        "ieee754",
+        "boundary:zero",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01HOLEFLT01",
+        "event": "test.hole.float",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "f="
+            },
+            {
+              "hole": "f",
+              "class": "float"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01FLT00001",
+            "name": "f",
+            "from": {
+              "hole": "f"
+            },
+            "type": "float",
+            "semantic": "ratio"
+          }
+        ],
+        "tests": [
+          {
+            "line": "f=0.75",
+            "expect": {
+              "f": 0.75
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "f=0.0"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "f": {
+            "status": "ok",
+            "type": "float",
+            "value": "0000000000000000"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_hole_float_integer_form_002",
+      "description": "float hole accepts integer syntax without decimal point",
+      "tags": [
+        "hole:float",
+        "type:float",
+        "ieee754",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01HOLEFLT01",
+        "event": "test.hole.float",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "f="
+            },
+            {
+              "hole": "f",
+              "class": "float"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01FLT00001",
+            "name": "f",
+            "from": {
+              "hole": "f"
+            },
+            "type": "float",
+            "semantic": "ratio"
+          }
+        ],
+        "tests": [
+          {
+            "line": "f=0.75",
+            "expect": {
+              "f": 0.75
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "f=42"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "f": {
+            "status": "ok",
+            "type": "float",
+            "value": "4045000000000000"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_hole_float_pi_003",
+      "description": "float hole matches full-precision pi literal",
+      "tags": [
+        "hole:float",
+        "type:float",
+        "ieee754",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01HOLEFLT01",
+        "event": "test.hole.float",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "f="
+            },
+            {
+              "hole": "f",
+              "class": "float"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01FLT00001",
+            "name": "f",
+            "from": {
+              "hole": "f"
+            },
+            "type": "float",
+            "semantic": "ratio"
+          }
+        ],
+        "tests": [
+          {
+            "line": "f=0.75",
+            "expect": {
+              "f": 0.75
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "f=3.141592653589793"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "f": {
+            "status": "ok",
+            "type": "float",
+            "value": "400921fb54442d18"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_hole_float_negative_004",
+      "description": "float hole matches negative decimal",
+      "tags": [
+        "hole:float",
+        "type:float",
+        "ieee754",
+        "boundary:negative",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01HOLEFLT01",
+        "event": "test.hole.float",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "f="
+            },
+            {
+              "hole": "f",
+              "class": "float"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01FLT00001",
+            "name": "f",
+            "from": {
+              "hole": "f"
+            },
+            "type": "float",
+            "semantic": "ratio"
+          }
+        ],
+        "tests": [
+          {
+            "line": "f=0.75",
+            "expect": {
+              "f": 0.75
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "f=-0.5"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "f": {
+            "status": "ok",
+            "type": "float",
+            "value": "bfe0000000000000"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_hole_float_explicit_plus_005",
+      "description": "float hole accepts explicit leading plus sign",
+      "tags": [
+        "hole:float",
+        "type:float",
+        "ieee754",
+        "boundary:signed",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01HOLEFLT01",
+        "event": "test.hole.float",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "f="
+            },
+            {
+              "hole": "f",
+              "class": "float"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01FLT00001",
+            "name": "f",
+            "from": {
+              "hole": "f"
+            },
+            "type": "float",
+            "semantic": "ratio"
+          }
+        ],
+        "tests": [
+          {
+            "line": "f=0.75",
+            "expect": {
+              "f": 0.75
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "f=+12.75"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "f": {
+            "status": "ok",
+            "type": "float",
+            "value": "4029800000000000"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_hole_float_point_one_006",
+      "description": "float hole pins exact binary64 representation of 0.1",
+      "tags": [
+        "hole:float",
+        "type:float",
+        "ieee754",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01HOLEFLT01",
+        "event": "test.hole.float",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "f="
+            },
+            {
+              "hole": "f",
+              "class": "float"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01FLT00001",
+            "name": "f",
+            "from": {
+              "hole": "f"
+            },
+            "type": "float",
+            "semantic": "ratio"
+          }
+        ],
+        "tests": [
+          {
+            "line": "f=0.75",
+            "expect": {
+              "f": 0.75
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "f=0.1"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "f": {
+            "status": "ok",
+            "type": "float",
+            "value": "3fb999999999999a"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_hole_float_sci_pos_007",
+      "description": "float hole matches lowercase scientific notation with positive exponent",
+      "tags": [
+        "hole:float",
+        "type:float",
+        "ieee754",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01HOLEFLT01",
+        "event": "test.hole.float",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "f="
+            },
+            {
+              "hole": "f",
+              "class": "float"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01FLT00001",
+            "name": "f",
+            "from": {
+              "hole": "f"
+            },
+            "type": "float",
+            "semantic": "ratio"
+          }
+        ],
+        "tests": [
+          {
+            "line": "f=0.75",
+            "expect": {
+              "f": 0.75
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "f=1e5"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "f": {
+            "status": "ok",
+            "type": "float",
+            "value": "40f86a0000000000"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_hole_float_sci_neg_008",
+      "description": "float hole matches scientific notation with negative exponent",
+      "tags": [
+        "hole:float",
+        "type:float",
+        "ieee754",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01HOLEFLT01",
+        "event": "test.hole.float",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "f="
+            },
+            {
+              "hole": "f",
+              "class": "float"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01FLT00001",
+            "name": "f",
+            "from": {
+              "hole": "f"
+            },
+            "type": "float",
+            "semantic": "ratio"
+          }
+        ],
+        "tests": [
+          {
+            "line": "f=0.75",
+            "expect": {
+              "f": 0.75
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "f=1.5e-3"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "f": {
+            "status": "ok",
+            "type": "float",
+            "value": "3f589374bc6a7efa"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_hole_float_sci_upper_plus_009",
+      "description": "float hole matches uppercase E with explicit + exponent",
+      "tags": [
+        "hole:float",
+        "type:float",
+        "ieee754",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01HOLEFLT01",
+        "event": "test.hole.float",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "f="
+            },
+            {
+              "hole": "f",
+              "class": "float"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01FLT00001",
+            "name": "f",
+            "from": {
+              "hole": "f"
+            },
+            "type": "float",
+            "semantic": "ratio"
+          }
+        ],
+        "tests": [
+          {
+            "line": "f=0.75",
+            "expect": {
+              "f": 0.75
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "f=-2.5E+10"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "f": {
+            "status": "ok",
+            "type": "float",
+            "value": "c2174876e8000000"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_hole_float_avogadro_010",
+      "description": "float hole matches large scientific notation value",
+      "tags": [
+        "hole:float",
+        "type:float",
+        "ieee754",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01HOLEFLT01",
+        "event": "test.hole.float",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "f="
+            },
+            {
+              "hole": "f",
+              "class": "float"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01FLT00001",
+            "name": "f",
+            "from": {
+              "hole": "f"
+            },
+            "type": "float",
+            "semantic": "ratio"
+          }
+        ],
+        "tests": [
+          {
+            "line": "f=0.75",
+            "expect": {
+              "f": 0.75
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "f=6.022e23"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "f": {
+            "status": "ok",
+            "type": "float",
+            "value": "44dfe154f457ea13"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_hole_float_tiny_normal_011",
+      "description": "float hole matches tiny positive IEEE-754 double 1e-308",
+      "tags": [
+        "hole:float",
+        "type:float",
+        "ieee754",
+        "boundary:float64",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01HOLEFLT01",
+        "event": "test.hole.float",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "f="
+            },
+            {
+              "hole": "f",
+              "class": "float"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01FLT00001",
+            "name": "f",
+            "from": {
+              "hole": "f"
+            },
+            "type": "float",
+            "semantic": "ratio"
+          }
+        ],
+        "tests": [
+          {
+            "line": "f=0.75",
+            "expect": {
+              "f": 0.75
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "f=1e-308"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "f": {
+            "status": "ok",
+            "type": "float",
+            "value": "000730d67819e8d2"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_hole_float_max_finite_012",
+      "description": "float hole matches maximum finite IEEE-754 double",
+      "tags": [
+        "hole:float",
+        "type:float",
+        "ieee754",
+        "boundary:float64",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01HOLEFLT01",
+        "event": "test.hole.float",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "f="
+            },
+            {
+              "hole": "f",
+              "class": "float"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01FLT00001",
+            "name": "f",
+            "from": {
+              "hole": "f"
+            },
+            "type": "float",
+            "semantic": "ratio"
+          }
+        ],
+        "tests": [
+          {
+            "line": "f=0.75",
+            "expect": {
+              "f": 0.75
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "f=1.7976931348623157e308"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "f": {
+            "status": "ok",
+            "type": "float",
+            "value": "7fefffffffffffff"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_hole_float_overflow_pos_013",
+      "description": "float hole matches 1e400 lexeme and reports float_overflow parse_error",
+      "tags": [
+        "hole:float",
+        "parse_error",
+        "boundary:float64_overflow",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01HOLEFLT01",
+        "event": "test.hole.float",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "f="
+            },
+            {
+              "hole": "f",
+              "class": "float"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01FLT00001",
+            "name": "f",
+            "from": {
+              "hole": "f"
+            },
+            "type": "float",
+            "semantic": "ratio"
+          }
+        ],
+        "tests": [
+          {
+            "line": "f=0.75",
+            "expect": {
+              "f": 0.75
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "f=1e400"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "f": {
+            "status": "parse_error",
+            "code": "float_overflow"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_hole_float_overflow_neg_014",
+      "description": "float hole matches -1e400 lexeme and reports float_overflow parse_error",
+      "tags": [
+        "hole:float",
+        "parse_error",
+        "boundary:float64_overflow",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01HOLEFLT01",
+        "event": "test.hole.float",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "f="
+            },
+            {
+              "hole": "f",
+              "class": "float"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01FLT00001",
+            "name": "f",
+            "from": {
+              "hole": "f"
+            },
+            "type": "float",
+            "semantic": "ratio"
+          }
+        ],
+        "tests": [
+          {
+            "line": "f=0.75",
+            "expect": {
+              "f": 0.75
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "f=-1e400"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "f": {
+            "status": "parse_error",
+            "code": "float_overflow"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_hole_float_as_string_preserves_lexeme_015",
+      "description": "float hole bound to string field preserves trailing zeros in lexeme",
+      "tags": [
+        "hole:float",
+        "type:string",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01HOLEFLT02",
+        "event": "test.hole.float_str",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "f="
+            },
+            {
+              "hole": "f",
+              "class": "float"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01FLT00002",
+            "name": "f",
+            "from": {
+              "hole": "f"
+            },
+            "type": "string",
+            "semantic": "text"
+          }
+        ],
+        "tests": [
+          {
+            "line": "f=1.50",
+            "expect": {
+              "f": "1.50"
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "f=19.90"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "f": {
+            "status": "ok",
+            "type": "string",
+            "value": "19.90"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_hole_float_reject_nan_016",
+      "description": "float hole rejects NaN literal",
+      "tags": [
+        "hole:float",
+        "no_match",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01HOLEFLT01",
+        "event": "test.hole.float",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "f="
+            },
+            {
+              "hole": "f",
+              "class": "float"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01FLT00001",
+            "name": "f",
+            "from": {
+              "hole": "f"
+            },
+            "type": "float",
+            "semantic": "ratio"
+          }
+        ],
+        "tests": [
+          {
+            "line": "f=0.75",
+            "expect": {
+              "f": 0.75
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "f=NaN"
+      },
+      "expected": {
+        "matched": false
+      }
+    },
+    {
+      "id": "vec_hole_float_reject_infinity_017",
+      "description": "float hole rejects Infinity literal",
+      "tags": [
+        "hole:float",
+        "no_match",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01HOLEFLT01",
+        "event": "test.hole.float",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "f="
+            },
+            {
+              "hole": "f",
+              "class": "float"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01FLT00001",
+            "name": "f",
+            "from": {
+              "hole": "f"
+            },
+            "type": "float",
+            "semantic": "ratio"
+          }
+        ],
+        "tests": [
+          {
+            "line": "f=0.75",
+            "expect": {
+              "f": 0.75
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "f=Infinity"
+      },
+      "expected": {
+        "matched": false
+      }
+    },
+    {
+      "id": "vec_hole_float_reject_neg_infinity_018",
+      "description": "float hole rejects -Infinity literal",
+      "tags": [
+        "hole:float",
+        "no_match",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01HOLEFLT01",
+        "event": "test.hole.float",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "f="
+            },
+            {
+              "hole": "f",
+              "class": "float"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01FLT00001",
+            "name": "f",
+            "from": {
+              "hole": "f"
+            },
+            "type": "float",
+            "semantic": "ratio"
+          }
+        ],
+        "tests": [
+          {
+            "line": "f=0.75",
+            "expect": {
+              "f": 0.75
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "f=-Infinity"
+      },
+      "expected": {
+        "matched": false
+      }
+    },
+    {
+      "id": "vec_hole_float_reject_bare_dot_019",
+      "description": "float hole rejects bare decimal point",
+      "tags": [
+        "hole:float",
+        "no_match",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01HOLEFLT01",
+        "event": "test.hole.float",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "f="
+            },
+            {
+              "hole": "f",
+              "class": "float"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01FLT00001",
+            "name": "f",
+            "from": {
+              "hole": "f"
+            },
+            "type": "float",
+            "semantic": "ratio"
+          }
+        ],
+        "tests": [
+          {
+            "line": "f=0.75",
+            "expect": {
+              "f": 0.75
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "f=."
+      },
+      "expected": {
+        "matched": false
+      }
+    },
+    {
+      "id": "vec_hole_float_reject_empty_020",
+      "description": "float hole rejects empty value",
+      "tags": [
+        "hole:float",
+        "no_match",
+        "boundary:empty",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01HOLEFLT01",
+        "event": "test.hole.float",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "f="
+            },
+            {
+              "hole": "f",
+              "class": "float"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01FLT00001",
+            "name": "f",
+            "from": {
+              "hole": "f"
+            },
+            "type": "float",
+            "semantic": "ratio"
+          }
+        ],
+        "tests": [
+          {
+            "line": "f=0.75",
+            "expect": {
+              "f": 0.75
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "f="
+      },
+      "expected": {
+        "matched": false
+      }
+    },
+    {
+      "id": "vec_hole_float_before_exponent_lit_021",
+      "description": "float hole stops before leftmost following literal 'e1' instead of consuming exponent",
+      "tags": [
+        "hole:float",
+        "boundary:following_literal",
+        "ieee754",
+        "ambiguity:scanner_hole_boundary",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01HOLEFLT03",
+        "event": "test.hole.float_before_exp",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "v="
+            },
+            {
+              "hole": "v",
+              "class": "float"
+            },
+            {
+              "lit": "e1"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01FLT00003",
+            "name": "v",
+            "from": {
+              "hole": "v"
+            },
+            "type": "float",
+            "semantic": "ratio"
+          }
+        ],
+        "tests": [
+          {
+            "line": "v=1.5e1",
+            "expect": {
+              "v": 1.5
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "v=1.5e1"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "v": {
+            "status": "ok",
+            "type": "float",
+            "value": "3ff8000000000000"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_hole_float_before_dot_zero_lit_022",
+      "description": "float hole stops before leftmost following literal '.0'",
+      "tags": [
+        "hole:float",
+        "boundary:following_literal",
+        "ieee754",
+        "ambiguity:scanner_hole_boundary",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01HOLEFLT04",
+        "event": "test.hole.float_before_dot_zero",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "v="
+            },
+            {
+              "hole": "v",
+              "class": "float"
+            },
+            {
+              "lit": ".0"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01FLT00004",
+            "name": "v",
+            "from": {
+              "hole": "v"
+            },
+            "type": "float",
+            "semantic": "ratio"
+          }
+        ],
+        "tests": [
+          {
+            "line": "v=42.0",
+            "expect": {
+              "v": 42
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "v=42.0"
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "v": {
+            "status": "ok",
+            "type": "float",
+            "value": "4045000000000000"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_hole_float_before_dot_zero_no_backtrack_023",
+      "description": "float hole stops at leftmost '.0' and does not backtrack to a trailing '.0'",
+      "tags": [
+        "hole:float",
+        "boundary:following_literal",
+        "no_match",
+        "ambiguity:scanner_hole_boundary",
+        "match:text"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_01HOLEFLT04",
+        "event": "test.hole.float_before_dot_zero",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "text",
+          "segments": [
+            {
+              "lit": "v="
+            },
+            {
+              "hole": "v",
+              "class": "float"
+            },
+            {
+              "lit": ".0"
+            }
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_01FLT00004",
+            "name": "v",
+            "from": {
+              "hole": "v"
+            },
+            "type": "float",
+            "semantic": "ratio"
+          }
+        ],
+        "tests": [
+          {
+            "line": "v=42.0",
+            "expect": {
+              "v": 42
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "text",
+        "line": "v=4.0.0"
+      },
+      "expected": {
+        "matched": false
+      }
+    }
+  ]
+}

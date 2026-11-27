@@ -1,0 +1,6420 @@
+{
+  "schema_version": 1,
+  "suite": "06-matchers-object-and-args",
+  "description": "Golden conformance vectors covering object (pure, nested, optional paths, message sub-patterns, SQL-refused message json holes) and args matchers.",
+  "context": {
+    "hmac_keys": {
+      "edge": "bind-conformance-edge-key-v1",
+      "server": "bind-conformance-server-key-v1"
+    },
+    "reference_ts_ms": 1795701600000
+  },
+  "vectors": [
+    {
+      "id": "vec_obj_pure_exact_shape_001",
+      "description": "pure object spec extracts nested keys with transforms",
+      "tags": [
+        "object:pure",
+        "match:object"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_06OBJ0001",
+        "event": "http.request.completed",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "object",
+          "shape": [
+            "req.method",
+            "req.path",
+            "res.statusCode",
+            "latency_s"
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_06OBJ0001",
+            "name": "http_method",
+            "from": {
+              "path": "req.method"
+            },
+            "type": "enum",
+            "semantic": "http.method",
+            "transforms": [
+              {
+                "op": "lower"
+              },
+              {
+                "op": "enum_map",
+                "map": {
+                  "get": "GET",
+                  "post": "POST",
+                  "put": "PUT",
+                  "delete": "DELETE"
+                },
+                "default": "OTHER"
+              }
+            ]
+          },
+          {
+            "id": "fld_06OBJ0002",
+            "name": "url_path",
+            "from": {
+              "path": "req.path"
+            },
+            "type": "string",
+            "semantic": "url.path"
+          },
+          {
+            "id": "fld_06OBJ0003",
+            "name": "status_code",
+            "from": {
+              "path": "res.statusCode"
+            },
+            "type": "int",
+            "semantic": "http.status"
+          },
+          {
+            "id": "fld_06OBJ0004",
+            "name": "duration_ms",
+            "from": {
+              "path": "latency_s"
+            },
+            "type": "float",
+            "semantic": "duration",
+            "unit": "ms",
+            "transforms": [
+              {
+                "op": "unit",
+                "from": "s",
+                "to": "ms"
+              }
+            ]
+          }
+        ],
+        "tests": [
+          {
+            "object": {
+              "req": {
+                "method": "post",
+                "path": "/v1/orders"
+              },
+              "res": {
+                "statusCode": 201
+              },
+              "latency_s": 0.145
+            },
+            "expect": {
+              "http_method": "POST",
+              "url_path": "/v1/orders",
+              "status_code": 201,
+              "duration_ms": 145
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "object",
+        "object": {
+          "req": {
+            "method": "POST",
+            "path": "/v1/checkout"
+          },
+          "res": {
+            "statusCode": 201
+          },
+          "latency_s": 0.145
+        }
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "http_method": {
+            "status": "ok",
+            "type": "enum",
+            "value": "POST"
+          },
+          "url_path": {
+            "status": "ok",
+            "type": "string",
+            "value": "/v1/checkout"
+          },
+          "status_code": {
+            "status": "ok",
+            "type": "int",
+            "value": "201"
+          },
+          "duration_ms": {
+            "status": "ok",
+            "type": "float",
+            "value": "4062200000000000"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_obj_pure_extra_keys_allowed_002",
+      "description": "object spec matches when input carries extra unreferenced keys beyond required shape",
+      "tags": [
+        "object:pure",
+        "ambiguity:object_subset_shape",
+        "match:object"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_06OBJ0001",
+        "event": "http.request.completed",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "object",
+          "shape": [
+            "req.method",
+            "req.path",
+            "res.statusCode",
+            "latency_s"
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_06OBJ0001",
+            "name": "http_method",
+            "from": {
+              "path": "req.method"
+            },
+            "type": "enum",
+            "semantic": "http.method",
+            "transforms": [
+              {
+                "op": "lower"
+              },
+              {
+                "op": "enum_map",
+                "map": {
+                  "get": "GET",
+                  "post": "POST",
+                  "put": "PUT",
+                  "delete": "DELETE"
+                },
+                "default": "OTHER"
+              }
+            ]
+          },
+          {
+            "id": "fld_06OBJ0002",
+            "name": "url_path",
+            "from": {
+              "path": "req.path"
+            },
+            "type": "string",
+            "semantic": "url.path"
+          },
+          {
+            "id": "fld_06OBJ0003",
+            "name": "status_code",
+            "from": {
+              "path": "res.statusCode"
+            },
+            "type": "int",
+            "semantic": "http.status"
+          },
+          {
+            "id": "fld_06OBJ0004",
+            "name": "duration_ms",
+            "from": {
+              "path": "latency_s"
+            },
+            "type": "float",
+            "semantic": "duration",
+            "unit": "ms",
+            "transforms": [
+              {
+                "op": "unit",
+                "from": "s",
+                "to": "ms"
+              }
+            ]
+          }
+        ],
+        "tests": [
+          {
+            "object": {
+              "req": {
+                "method": "post",
+                "path": "/v1/orders"
+              },
+              "res": {
+                "statusCode": 201
+              },
+              "latency_s": 0.145
+            },
+            "expect": {
+              "http_method": "POST",
+              "url_path": "/v1/orders",
+              "status_code": 201,
+              "duration_ms": 145
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "object",
+        "object": {
+          "req": {
+            "method": "get",
+            "path": "/health",
+            "extraHeader": "ignored"
+          },
+          "res": {
+            "statusCode": 200
+          },
+          "latency_s": 0.01,
+          "pid": 1234,
+          "hostname": "node-01"
+        }
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "http_method": {
+            "status": "ok",
+            "type": "enum",
+            "value": "GET"
+          },
+          "url_path": {
+            "status": "ok",
+            "type": "string",
+            "value": "/health"
+          },
+          "status_code": {
+            "status": "ok",
+            "type": "int",
+            "value": "200"
+          },
+          "duration_ms": {
+            "status": "ok",
+            "type": "float",
+            "value": "4024000000000000"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_obj_missing_required_top_key_003",
+      "description": "object spec fails match when top-level required shape key is missing",
+      "tags": [
+        "object:pure",
+        "no_match",
+        "match:object"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_06OBJ0001",
+        "event": "http.request.completed",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "object",
+          "shape": [
+            "req.method",
+            "req.path",
+            "res.statusCode",
+            "latency_s"
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_06OBJ0001",
+            "name": "http_method",
+            "from": {
+              "path": "req.method"
+            },
+            "type": "enum",
+            "semantic": "http.method",
+            "transforms": [
+              {
+                "op": "lower"
+              },
+              {
+                "op": "enum_map",
+                "map": {
+                  "get": "GET",
+                  "post": "POST",
+                  "put": "PUT",
+                  "delete": "DELETE"
+                },
+                "default": "OTHER"
+              }
+            ]
+          },
+          {
+            "id": "fld_06OBJ0002",
+            "name": "url_path",
+            "from": {
+              "path": "req.path"
+            },
+            "type": "string",
+            "semantic": "url.path"
+          },
+          {
+            "id": "fld_06OBJ0003",
+            "name": "status_code",
+            "from": {
+              "path": "res.statusCode"
+            },
+            "type": "int",
+            "semantic": "http.status"
+          },
+          {
+            "id": "fld_06OBJ0004",
+            "name": "duration_ms",
+            "from": {
+              "path": "latency_s"
+            },
+            "type": "float",
+            "semantic": "duration",
+            "unit": "ms",
+            "transforms": [
+              {
+                "op": "unit",
+                "from": "s",
+                "to": "ms"
+              }
+            ]
+          }
+        ],
+        "tests": [
+          {
+            "object": {
+              "req": {
+                "method": "post",
+                "path": "/v1/orders"
+              },
+              "res": {
+                "statusCode": 201
+              },
+              "latency_s": 0.145
+            },
+            "expect": {
+              "http_method": "POST",
+              "url_path": "/v1/orders",
+              "status_code": 201,
+              "duration_ms": 145
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "object",
+        "object": {
+          "req": {
+            "method": "get",
+            "path": "/v1"
+          },
+          "res": {
+            "statusCode": 200
+          }
+        }
+      },
+      "expected": {
+        "matched": false
+      }
+    },
+    {
+      "id": "vec_obj_missing_required_nested_key_004",
+      "description": "object spec fails match when nested required shape key is missing",
+      "tags": [
+        "object:pure",
+        "no_match",
+        "match:object"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_06OBJ0001",
+        "event": "http.request.completed",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "object",
+          "shape": [
+            "req.method",
+            "req.path",
+            "res.statusCode",
+            "latency_s"
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_06OBJ0001",
+            "name": "http_method",
+            "from": {
+              "path": "req.method"
+            },
+            "type": "enum",
+            "semantic": "http.method",
+            "transforms": [
+              {
+                "op": "lower"
+              },
+              {
+                "op": "enum_map",
+                "map": {
+                  "get": "GET",
+                  "post": "POST",
+                  "put": "PUT",
+                  "delete": "DELETE"
+                },
+                "default": "OTHER"
+              }
+            ]
+          },
+          {
+            "id": "fld_06OBJ0002",
+            "name": "url_path",
+            "from": {
+              "path": "req.path"
+            },
+            "type": "string",
+            "semantic": "url.path"
+          },
+          {
+            "id": "fld_06OBJ0003",
+            "name": "status_code",
+            "from": {
+              "path": "res.statusCode"
+            },
+            "type": "int",
+            "semantic": "http.status"
+          },
+          {
+            "id": "fld_06OBJ0004",
+            "name": "duration_ms",
+            "from": {
+              "path": "latency_s"
+            },
+            "type": "float",
+            "semantic": "duration",
+            "unit": "ms",
+            "transforms": [
+              {
+                "op": "unit",
+                "from": "s",
+                "to": "ms"
+              }
+            ]
+          }
+        ],
+        "tests": [
+          {
+            "object": {
+              "req": {
+                "method": "post",
+                "path": "/v1/orders"
+              },
+              "res": {
+                "statusCode": 201
+              },
+              "latency_s": 0.145
+            },
+            "expect": {
+              "http_method": "POST",
+              "url_path": "/v1/orders",
+              "status_code": 201,
+              "duration_ms": 145
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "object",
+        "object": {
+          "req": {
+            "method": "get"
+          },
+          "res": {
+            "statusCode": 200
+          },
+          "latency_s": 0.1
+        }
+      },
+      "expected": {
+        "matched": false
+      }
+    },
+    {
+      "id": "vec_obj_intermediate_primitive_005",
+      "description": "object spec fails match when intermediate path node is a primitive instead of object",
+      "tags": [
+        "object:pure",
+        "no_match",
+        "match:object"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_06OBJ0001",
+        "event": "http.request.completed",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "object",
+          "shape": [
+            "req.method",
+            "req.path",
+            "res.statusCode",
+            "latency_s"
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_06OBJ0001",
+            "name": "http_method",
+            "from": {
+              "path": "req.method"
+            },
+            "type": "enum",
+            "semantic": "http.method",
+            "transforms": [
+              {
+                "op": "lower"
+              },
+              {
+                "op": "enum_map",
+                "map": {
+                  "get": "GET",
+                  "post": "POST",
+                  "put": "PUT",
+                  "delete": "DELETE"
+                },
+                "default": "OTHER"
+              }
+            ]
+          },
+          {
+            "id": "fld_06OBJ0002",
+            "name": "url_path",
+            "from": {
+              "path": "req.path"
+            },
+            "type": "string",
+            "semantic": "url.path"
+          },
+          {
+            "id": "fld_06OBJ0003",
+            "name": "status_code",
+            "from": {
+              "path": "res.statusCode"
+            },
+            "type": "int",
+            "semantic": "http.status"
+          },
+          {
+            "id": "fld_06OBJ0004",
+            "name": "duration_ms",
+            "from": {
+              "path": "latency_s"
+            },
+            "type": "float",
+            "semantic": "duration",
+            "unit": "ms",
+            "transforms": [
+              {
+                "op": "unit",
+                "from": "s",
+                "to": "ms"
+              }
+            ]
+          }
+        ],
+        "tests": [
+          {
+            "object": {
+              "req": {
+                "method": "post",
+                "path": "/v1/orders"
+              },
+              "res": {
+                "statusCode": 201
+              },
+              "latency_s": 0.145
+            },
+            "expect": {
+              "http_method": "POST",
+              "url_path": "/v1/orders",
+              "status_code": 201,
+              "duration_ms": 145
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "object",
+        "object": {
+          "req": "not-an-object",
+          "res": {
+            "statusCode": 200
+          },
+          "latency_s": 0.1
+        }
+      },
+      "expected": {
+        "matched": false
+      }
+    },
+    {
+      "id": "vec_obj_intermediate_null_006",
+      "description": "object spec fails match when intermediate path node is null",
+      "tags": [
+        "object:pure",
+        "no_match",
+        "match:object"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_06OBJ0001",
+        "event": "http.request.completed",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "object",
+          "shape": [
+            "req.method",
+            "req.path",
+            "res.statusCode",
+            "latency_s"
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_06OBJ0001",
+            "name": "http_method",
+            "from": {
+              "path": "req.method"
+            },
+            "type": "enum",
+            "semantic": "http.method",
+            "transforms": [
+              {
+                "op": "lower"
+              },
+              {
+                "op": "enum_map",
+                "map": {
+                  "get": "GET",
+                  "post": "POST",
+                  "put": "PUT",
+                  "delete": "DELETE"
+                },
+                "default": "OTHER"
+              }
+            ]
+          },
+          {
+            "id": "fld_06OBJ0002",
+            "name": "url_path",
+            "from": {
+              "path": "req.path"
+            },
+            "type": "string",
+            "semantic": "url.path"
+          },
+          {
+            "id": "fld_06OBJ0003",
+            "name": "status_code",
+            "from": {
+              "path": "res.statusCode"
+            },
+            "type": "int",
+            "semantic": "http.status"
+          },
+          {
+            "id": "fld_06OBJ0004",
+            "name": "duration_ms",
+            "from": {
+              "path": "latency_s"
+            },
+            "type": "float",
+            "semantic": "duration",
+            "unit": "ms",
+            "transforms": [
+              {
+                "op": "unit",
+                "from": "s",
+                "to": "ms"
+              }
+            ]
+          }
+        ],
+        "tests": [
+          {
+            "object": {
+              "req": {
+                "method": "post",
+                "path": "/v1/orders"
+              },
+              "res": {
+                "statusCode": 201
+              },
+              "latency_s": 0.145
+            },
+            "expect": {
+              "http_method": "POST",
+              "url_path": "/v1/orders",
+              "status_code": 201,
+              "duration_ms": 145
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "object",
+        "object": {
+          "req": null,
+          "res": {
+            "statusCode": 200
+          },
+          "latency_s": 0.1
+        }
+      },
+      "expected": {
+        "matched": false
+      }
+    },
+    {
+      "id": "vec_obj_intermediate_array_007",
+      "description": "object spec fails match when intermediate path node is an array",
+      "tags": [
+        "object:pure",
+        "no_match",
+        "match:object"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_06OBJ0001",
+        "event": "http.request.completed",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "object",
+          "shape": [
+            "req.method",
+            "req.path",
+            "res.statusCode",
+            "latency_s"
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_06OBJ0001",
+            "name": "http_method",
+            "from": {
+              "path": "req.method"
+            },
+            "type": "enum",
+            "semantic": "http.method",
+            "transforms": [
+              {
+                "op": "lower"
+              },
+              {
+                "op": "enum_map",
+                "map": {
+                  "get": "GET",
+                  "post": "POST",
+                  "put": "PUT",
+                  "delete": "DELETE"
+                },
+                "default": "OTHER"
+              }
+            ]
+          },
+          {
+            "id": "fld_06OBJ0002",
+            "name": "url_path",
+            "from": {
+              "path": "req.path"
+            },
+            "type": "string",
+            "semantic": "url.path"
+          },
+          {
+            "id": "fld_06OBJ0003",
+            "name": "status_code",
+            "from": {
+              "path": "res.statusCode"
+            },
+            "type": "int",
+            "semantic": "http.status"
+          },
+          {
+            "id": "fld_06OBJ0004",
+            "name": "duration_ms",
+            "from": {
+              "path": "latency_s"
+            },
+            "type": "float",
+            "semantic": "duration",
+            "unit": "ms",
+            "transforms": [
+              {
+                "op": "unit",
+                "from": "s",
+                "to": "ms"
+              }
+            ]
+          }
+        ],
+        "tests": [
+          {
+            "object": {
+              "req": {
+                "method": "post",
+                "path": "/v1/orders"
+              },
+              "res": {
+                "statusCode": 201
+              },
+              "latency_s": 0.145
+            },
+            "expect": {
+              "http_method": "POST",
+              "url_path": "/v1/orders",
+              "status_code": 201,
+              "duration_ms": 145
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "object",
+        "object": {
+          "req": [
+            "get",
+            "/v1"
+          ],
+          "res": {
+            "statusCode": 200
+          },
+          "latency_s": 0.1
+        }
+      },
+      "expected": {
+        "matched": false
+      }
+    },
+    {
+      "id": "vec_obj_deep_hyphenated_path_008",
+      "description": "object spec traverses 4-level nested path and hyphenated key name",
+      "tags": [
+        "object:pure",
+        "object:nested",
+        "match:object"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_06OBJ0006",
+        "event": "http.header.seen",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "object",
+          "shape": [
+            "req.headers.user-agent",
+            "a.b.c.d"
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_06OBJ0051",
+            "name": "ua",
+            "from": {
+              "path": "req.headers.user-agent"
+            },
+            "type": "string",
+            "semantic": "user_agent"
+          },
+          {
+            "id": "fld_06OBJ0052",
+            "name": "depth_val",
+            "from": {
+              "path": "a.b.c.d"
+            },
+            "type": "int",
+            "semantic": "count"
+          }
+        ],
+        "tests": [
+          {
+            "object": {
+              "req": {
+                "headers": {
+                  "user-agent": "bind/1.0"
+                }
+              },
+              "a": {
+                "b": {
+                  "c": {
+                    "d": 7
+                  }
+                }
+              }
+            },
+            "expect": {
+              "ua": "bind/1.0",
+              "depth_val": 7
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "object",
+        "object": {
+          "req": {
+            "headers": {
+              "user-agent": "curl/8.6.0"
+            }
+          },
+          "a": {
+            "b": {
+              "c": {
+                "d": 99
+              }
+            }
+          }
+        }
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "ua": {
+            "status": "ok",
+            "type": "string",
+            "value": "curl/8.6.0"
+          },
+          "depth_val": {
+            "status": "ok",
+            "type": "int",
+            "value": "99"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_obj_optional_paths_absent_missing_009",
+      "description": "optional object field paths absent from input yield missing status and short-circuit transforms",
+      "tags": [
+        "object:pure",
+        "missing",
+        "match:object"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_06OBJ0004",
+        "event": "order.checked",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "object",
+          "shape": [
+            "order.id"
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_06OBJ0031",
+            "name": "order_id",
+            "from": {
+              "path": "order.id"
+            },
+            "type": "string",
+            "semantic": "id.order"
+          },
+          {
+            "id": "fld_06OBJ0032",
+            "name": "discount_usd",
+            "from": {
+              "path": "order.discount_cents"
+            },
+            "type": "float",
+            "semantic": "money",
+            "transforms": [
+              {
+                "op": "scale",
+                "div": 100
+              }
+            ]
+          },
+          {
+            "id": "fld_06OBJ0033",
+            "name": "coupon",
+            "from": {
+              "path": "order.coupon"
+            },
+            "type": "string",
+            "semantic": "unknown",
+            "transforms": [
+              {
+                "op": "lower"
+              }
+            ]
+          }
+        ],
+        "tests": [
+          {
+            "object": {
+              "order": {
+                "id": "ord_1",
+                "discount_cents": 500,
+                "coupon": "SAVE5"
+              }
+            },
+            "expect": {
+              "order_id": "ord_1",
+              "discount_usd": 5,
+              "coupon": "save5"
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "object",
+        "object": {
+          "order": {
+            "id": "ord_99"
+          }
+        }
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "order_id": {
+            "status": "ok",
+            "type": "string",
+            "value": "ord_99"
+          },
+          "discount_usd": {
+            "status": "missing"
+          },
+          "coupon": {
+            "status": "missing"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_obj_required_key_null_missing_010",
+      "description": "present object key with JSON null value matches shape and yields missing status",
+      "tags": [
+        "object:pure",
+        "missing",
+        "match:object"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_06OBJ0004",
+        "event": "order.checked",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "object",
+          "shape": [
+            "order.id"
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_06OBJ0031",
+            "name": "order_id",
+            "from": {
+              "path": "order.id"
+            },
+            "type": "string",
+            "semantic": "id.order"
+          },
+          {
+            "id": "fld_06OBJ0032",
+            "name": "discount_usd",
+            "from": {
+              "path": "order.discount_cents"
+            },
+            "type": "float",
+            "semantic": "money",
+            "transforms": [
+              {
+                "op": "scale",
+                "div": 100
+              }
+            ]
+          },
+          {
+            "id": "fld_06OBJ0033",
+            "name": "coupon",
+            "from": {
+              "path": "order.coupon"
+            },
+            "type": "string",
+            "semantic": "unknown",
+            "transforms": [
+              {
+                "op": "lower"
+              }
+            ]
+          }
+        ],
+        "tests": [
+          {
+            "object": {
+              "order": {
+                "id": "ord_1",
+                "discount_cents": 500,
+                "coupon": "SAVE5"
+              }
+            },
+            "expect": {
+              "order_id": "ord_1",
+              "discount_usd": 5,
+              "coupon": "save5"
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "object",
+        "object": {
+          "order": {
+            "id": null,
+            "discount_cents": null,
+            "coupon": null
+          }
+        }
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "order_id": {
+            "status": "missing"
+          },
+          "discount_usd": {
+            "status": "missing"
+          },
+          "coupon": {
+            "status": "missing"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_obj_with_message_subpattern_011",
+      "description": "object spec with message sub-pattern extracts both from.path and from.hole fields",
+      "tags": [
+        "object:message",
+        "hole:uuid",
+        "match:object"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_06OBJ0002",
+        "event": "http.request.completed",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "callsite",
+          "repo": "github.com/acme/shop",
+          "path": "src/http/middleware.ts",
+          "line": 88,
+          "symbol": "logRequest",
+          "logger": "pino.info",
+          "valid_from_commit": "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678"
+        },
+        "match": {
+          "kind": "object",
+          "shape": [
+            "msg",
+            "req.method",
+            "res.statusCode"
+          ],
+          "message": {
+            "path": "msg",
+            "segments": [
+              {
+                "lit": "request "
+              },
+              {
+                "hole": "req_id",
+                "class": "uuid"
+              },
+              {
+                "lit": " completed"
+              }
+            ]
+          }
+        },
+        "fields": [
+          {
+            "id": "fld_06OBJ0011",
+            "name": "request_id",
+            "from": {
+              "hole": "req_id"
+            },
+            "type": "string",
+            "semantic": "id.request"
+          },
+          {
+            "id": "fld_06OBJ0012",
+            "name": "http_method",
+            "from": {
+              "path": "req.method"
+            },
+            "type": "string",
+            "semantic": "http.method"
+          },
+          {
+            "id": "fld_06OBJ0013",
+            "name": "status_code",
+            "from": {
+              "path": "res.statusCode"
+            },
+            "type": "int",
+            "semantic": "http.status"
+          }
+        ],
+        "tests": [
+          {
+            "object": {
+              "msg": "request 550e8400-e29b-41d4-a716-446655440000 completed",
+              "req": {
+                "method": "GET"
+              },
+              "res": {
+                "statusCode": 200
+              }
+            },
+            "expect": {
+              "request_id": "550e8400-e29b-41d4-a716-446655440000",
+              "http_method": "GET",
+              "status_code": 200
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "object",
+        "object": {
+          "msg": "request 01936a8b-7c4d-7e20-9a1b-3c4d5e6f7081 completed",
+          "req": {
+            "method": "DELETE"
+          },
+          "res": {
+            "statusCode": 204
+          }
+        }
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "request_id": {
+            "status": "ok",
+            "type": "string",
+            "value": "01936a8b-7c4d-7e20-9a1b-3c4d5e6f7081"
+          },
+          "http_method": {
+            "status": "ok",
+            "type": "string",
+            "value": "DELETE"
+          },
+          "status_code": {
+            "status": "ok",
+            "type": "int",
+            "value": "204"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_obj_with_message_text_mismatch_012",
+      "description": "object spec fails match when message sub-pattern does not match msg text",
+      "tags": [
+        "object:message",
+        "no_match",
+        "match:object"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_06OBJ0002",
+        "event": "http.request.completed",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "callsite",
+          "repo": "github.com/acme/shop",
+          "path": "src/http/middleware.ts",
+          "line": 88,
+          "symbol": "logRequest",
+          "logger": "pino.info",
+          "valid_from_commit": "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678"
+        },
+        "match": {
+          "kind": "object",
+          "shape": [
+            "msg",
+            "req.method",
+            "res.statusCode"
+          ],
+          "message": {
+            "path": "msg",
+            "segments": [
+              {
+                "lit": "request "
+              },
+              {
+                "hole": "req_id",
+                "class": "uuid"
+              },
+              {
+                "lit": " completed"
+              }
+            ]
+          }
+        },
+        "fields": [
+          {
+            "id": "fld_06OBJ0011",
+            "name": "request_id",
+            "from": {
+              "hole": "req_id"
+            },
+            "type": "string",
+            "semantic": "id.request"
+          },
+          {
+            "id": "fld_06OBJ0012",
+            "name": "http_method",
+            "from": {
+              "path": "req.method"
+            },
+            "type": "string",
+            "semantic": "http.method"
+          },
+          {
+            "id": "fld_06OBJ0013",
+            "name": "status_code",
+            "from": {
+              "path": "res.statusCode"
+            },
+            "type": "int",
+            "semantic": "http.status"
+          }
+        ],
+        "tests": [
+          {
+            "object": {
+              "msg": "request 550e8400-e29b-41d4-a716-446655440000 completed",
+              "req": {
+                "method": "GET"
+              },
+              "res": {
+                "statusCode": 200
+              }
+            },
+            "expect": {
+              "request_id": "550e8400-e29b-41d4-a716-446655440000",
+              "http_method": "GET",
+              "status_code": 200
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "object",
+        "object": {
+          "msg": "request not-a-uuid completed",
+          "req": {
+            "method": "GET"
+          },
+          "res": {
+            "statusCode": 200
+          }
+        }
+      },
+      "expected": {
+        "matched": false
+      }
+    },
+    {
+      "id": "vec_obj_with_message_non_string_number_013",
+      "description": "object spec fails match when message sub-pattern path holds a number",
+      "tags": [
+        "object:message",
+        "no_match",
+        "match:object"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_06OBJ0002",
+        "event": "http.request.completed",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "callsite",
+          "repo": "github.com/acme/shop",
+          "path": "src/http/middleware.ts",
+          "line": 88,
+          "symbol": "logRequest",
+          "logger": "pino.info",
+          "valid_from_commit": "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678"
+        },
+        "match": {
+          "kind": "object",
+          "shape": [
+            "msg",
+            "req.method",
+            "res.statusCode"
+          ],
+          "message": {
+            "path": "msg",
+            "segments": [
+              {
+                "lit": "request "
+              },
+              {
+                "hole": "req_id",
+                "class": "uuid"
+              },
+              {
+                "lit": " completed"
+              }
+            ]
+          }
+        },
+        "fields": [
+          {
+            "id": "fld_06OBJ0011",
+            "name": "request_id",
+            "from": {
+              "hole": "req_id"
+            },
+            "type": "string",
+            "semantic": "id.request"
+          },
+          {
+            "id": "fld_06OBJ0012",
+            "name": "http_method",
+            "from": {
+              "path": "req.method"
+            },
+            "type": "string",
+            "semantic": "http.method"
+          },
+          {
+            "id": "fld_06OBJ0013",
+            "name": "status_code",
+            "from": {
+              "path": "res.statusCode"
+            },
+            "type": "int",
+            "semantic": "http.status"
+          }
+        ],
+        "tests": [
+          {
+            "object": {
+              "msg": "request 550e8400-e29b-41d4-a716-446655440000 completed",
+              "req": {
+                "method": "GET"
+              },
+              "res": {
+                "statusCode": 200
+              }
+            },
+            "expect": {
+              "request_id": "550e8400-e29b-41d4-a716-446655440000",
+              "http_method": "GET",
+              "status_code": 200
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "object",
+        "object": {
+          "msg": 12345,
+          "req": {
+            "method": "GET"
+          },
+          "res": {
+            "statusCode": 200
+          }
+        }
+      },
+      "expected": {
+        "matched": false
+      }
+    },
+    {
+      "id": "vec_obj_with_message_non_string_null_014",
+      "description": "object spec fails match when message sub-pattern path holds null",
+      "tags": [
+        "object:message",
+        "no_match",
+        "match:object"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_06OBJ0002",
+        "event": "http.request.completed",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "callsite",
+          "repo": "github.com/acme/shop",
+          "path": "src/http/middleware.ts",
+          "line": 88,
+          "symbol": "logRequest",
+          "logger": "pino.info",
+          "valid_from_commit": "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678"
+        },
+        "match": {
+          "kind": "object",
+          "shape": [
+            "msg",
+            "req.method",
+            "res.statusCode"
+          ],
+          "message": {
+            "path": "msg",
+            "segments": [
+              {
+                "lit": "request "
+              },
+              {
+                "hole": "req_id",
+                "class": "uuid"
+              },
+              {
+                "lit": " completed"
+              }
+            ]
+          }
+        },
+        "fields": [
+          {
+            "id": "fld_06OBJ0011",
+            "name": "request_id",
+            "from": {
+              "hole": "req_id"
+            },
+            "type": "string",
+            "semantic": "id.request"
+          },
+          {
+            "id": "fld_06OBJ0012",
+            "name": "http_method",
+            "from": {
+              "path": "req.method"
+            },
+            "type": "string",
+            "semantic": "http.method"
+          },
+          {
+            "id": "fld_06OBJ0013",
+            "name": "status_code",
+            "from": {
+              "path": "res.statusCode"
+            },
+            "type": "int",
+            "semantic": "http.status"
+          }
+        ],
+        "tests": [
+          {
+            "object": {
+              "msg": "request 550e8400-e29b-41d4-a716-446655440000 completed",
+              "req": {
+                "method": "GET"
+              },
+              "res": {
+                "statusCode": 200
+              }
+            },
+            "expect": {
+              "request_id": "550e8400-e29b-41d4-a716-446655440000",
+              "http_method": "GET",
+              "status_code": 200
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "object",
+        "object": {
+          "msg": null,
+          "req": {
+            "method": "GET"
+          },
+          "res": {
+            "statusCode": 200
+          }
+        }
+      },
+      "expected": {
+        "matched": false
+      }
+    },
+    {
+      "id": "vec_obj_with_message_json_hole_sql_refused_015",
+      "description": "object spec whose message sub-pattern contains a json hole is SQL-refused",
+      "tags": [
+        "object:message",
+        "hole:json",
+        "type:json",
+        "match:object",
+        "sql:refuse",
+        "sql:refuse:json_hole"
+      ],
+      "sql": {
+        "supported": false,
+        "refusal_code": "unsupported_json_hole",
+        "reason": "Specs containing a text json hole are refused by the ClickHouse SQL compiler because balanced JSON text scanning is not supported in SQL compilation."
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_06OBJ0003",
+        "event": "worker.payload.logged",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "object",
+          "shape": [
+            "msg",
+            "worker"
+          ],
+          "message": {
+            "path": "msg",
+            "segments": [
+              {
+                "lit": "payload="
+              },
+              {
+                "hole": "payload",
+                "class": "json"
+              }
+            ]
+          }
+        },
+        "fields": [
+          {
+            "id": "fld_06OBJ0021",
+            "name": "worker",
+            "from": {
+              "path": "worker"
+            },
+            "type": "string",
+            "semantic": "text"
+          },
+          {
+            "id": "fld_06OBJ0022",
+            "name": "payload",
+            "from": {
+              "hole": "payload"
+            },
+            "type": "json",
+            "semantic": "unknown"
+          }
+        ],
+        "tests": [
+          {
+            "object": {
+              "worker": "w1",
+              "msg": "payload={\"ok\":true}"
+            },
+            "expect": {
+              "worker": "w1",
+              "payload": {
+                "ok": true
+              }
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "object",
+        "object": {
+          "worker": "w-eu-1",
+          "msg": "payload={\"nested\":[1,{\"x\":true}]}"
+        }
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "worker": {
+            "status": "ok",
+            "type": "string",
+            "value": "w-eu-1"
+          },
+          "payload": {
+            "status": "ok",
+            "type": "json",
+            "value": {
+              "nested": [
+                1,
+                {
+                  "x": true
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_obj_with_message_json_hole_nonmatch_sql_refused_016",
+      "description": "object spec with message json hole fails match on invalid JSON in msg (still SQL-refused)",
+      "tags": [
+        "object:message",
+        "hole:json",
+        "no_match",
+        "match:object",
+        "sql:refuse",
+        "sql:refuse:json_hole"
+      ],
+      "sql": {
+        "supported": false,
+        "refusal_code": "unsupported_json_hole",
+        "reason": "Specs containing a text json hole are refused by the ClickHouse SQL compiler because balanced JSON text scanning is not supported in SQL compilation."
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_06OBJ0003",
+        "event": "worker.payload.logged",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "object",
+          "shape": [
+            "msg",
+            "worker"
+          ],
+          "message": {
+            "path": "msg",
+            "segments": [
+              {
+                "lit": "payload="
+              },
+              {
+                "hole": "payload",
+                "class": "json"
+              }
+            ]
+          }
+        },
+        "fields": [
+          {
+            "id": "fld_06OBJ0021",
+            "name": "worker",
+            "from": {
+              "path": "worker"
+            },
+            "type": "string",
+            "semantic": "text"
+          },
+          {
+            "id": "fld_06OBJ0022",
+            "name": "payload",
+            "from": {
+              "hole": "payload"
+            },
+            "type": "json",
+            "semantic": "unknown"
+          }
+        ],
+        "tests": [
+          {
+            "object": {
+              "worker": "w1",
+              "msg": "payload={\"ok\":true}"
+            },
+            "expect": {
+              "worker": "w1",
+              "payload": {
+                "ok": true
+              }
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "object",
+        "object": {
+          "worker": "w-eu-1",
+          "msg": "payload={unclosed"
+        }
+      },
+      "expected": {
+        "matched": false
+      }
+    },
+    {
+      "id": "vec_obj_from_path_json_field_sql_supported_017",
+      "description": "object spec reading type:json via from.path (no json hole) IS SQL-supported",
+      "tags": [
+        "object:pure",
+        "type:json",
+        "sql:supported_json_path",
+        "match:object"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_06OBJ0005",
+        "event": "audit.metadata",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "object",
+          "shape": [
+            "meta",
+            "items"
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_06OBJ0041",
+            "name": "meta",
+            "from": {
+              "path": "meta"
+            },
+            "type": "json",
+            "semantic": "unknown"
+          },
+          {
+            "id": "fld_06OBJ0042",
+            "name": "items",
+            "from": {
+              "path": "items"
+            },
+            "type": "json",
+            "semantic": "unknown"
+          }
+        ],
+        "tests": [
+          {
+            "object": {
+              "meta": {
+                "a": 1
+              },
+              "items": [
+                1,
+                2
+              ]
+            },
+            "expect": {
+              "meta": {
+                "a": 1
+              },
+              "items": [
+                1,
+                2
+              ]
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "object",
+        "object": {
+          "meta": {
+            "region": "us-east",
+            "retries": 2
+          },
+          "items": [
+            "sku_1",
+            {
+              "qty": 3
+            }
+          ]
+        }
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "meta": {
+            "status": "ok",
+            "type": "json",
+            "value": {
+              "region": "us-east",
+              "retries": 2
+            }
+          },
+          "items": {
+            "status": "ok",
+            "type": "json",
+            "value": [
+              "sku_1",
+              {
+                "qty": 3
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_obj_all_field_types_018",
+      "description": "object spec extracts string, int, float, bool, timestamp, and json fields together",
+      "tags": [
+        "object:pure",
+        "type:string",
+        "type:int",
+        "type:float",
+        "type:bool",
+        "type:timestamp",
+        "type:json",
+        "match:object"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_06OBJ0007",
+        "event": "conformance.obj.types",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "object",
+          "shape": [
+            "s",
+            "i",
+            "f",
+            "b",
+            "ts",
+            "j"
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_06OBJ0061",
+            "name": "s",
+            "from": {
+              "path": "s"
+            },
+            "type": "string",
+            "semantic": "unknown"
+          },
+          {
+            "id": "fld_06OBJ0062",
+            "name": "i",
+            "from": {
+              "path": "i"
+            },
+            "type": "int",
+            "semantic": "unknown"
+          },
+          {
+            "id": "fld_06OBJ0063",
+            "name": "f",
+            "from": {
+              "path": "f"
+            },
+            "type": "float",
+            "semantic": "unknown"
+          },
+          {
+            "id": "fld_06OBJ0064",
+            "name": "b",
+            "from": {
+              "path": "b"
+            },
+            "type": "bool",
+            "semantic": "unknown"
+          },
+          {
+            "id": "fld_06OBJ0065",
+            "name": "ts",
+            "from": {
+              "path": "ts"
+            },
+            "type": "timestamp",
+            "semantic": "unknown",
+            "transforms": [
+              {
+                "op": "parse_time",
+                "format": "unix_ms"
+              }
+            ]
+          },
+          {
+            "id": "fld_06OBJ0066",
+            "name": "j",
+            "from": {
+              "path": "j"
+            },
+            "type": "json",
+            "semantic": "unknown"
+          }
+        ],
+        "tests": [
+          {
+            "object": {
+              "s": "hi",
+              "i": 10,
+              "f": 2.5,
+              "b": true,
+              "ts": 1795701600000,
+              "j": {
+                "k": "v"
+              }
+            },
+            "expect": {
+              "s": "hi",
+              "i": 10,
+              "f": 2.5,
+              "b": true,
+              "ts": 1795701600000,
+              "j": {
+                "k": "v"
+              }
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "object",
+        "object": {
+          "s": "ok",
+          "i": -42,
+          "f": 0.25,
+          "b": false,
+          "ts": 1795701600500,
+          "j": [
+            1,
+            true,
+            null
+          ]
+        }
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "s": {
+            "status": "ok",
+            "type": "string",
+            "value": "ok"
+          },
+          "i": {
+            "status": "ok",
+            "type": "int",
+            "value": "-42"
+          },
+          "f": {
+            "status": "ok",
+            "type": "float",
+            "value": "3fd0000000000000"
+          },
+          "b": {
+            "status": "ok",
+            "type": "bool",
+            "value": false
+          },
+          "ts": {
+            "status": "ok",
+            "type": "timestamp",
+            "value": 1795701600500
+          },
+          "j": {
+            "status": "ok",
+            "type": "json",
+            "value": [
+              1,
+              true,
+              null
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_obj_type_mismatch_string_for_int_019",
+      "description": "object field expecting int produces type_mismatch parse_error on string value without cast",
+      "tags": [
+        "object:pure",
+        "parse_error",
+        "match:object"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_06OBJ0001",
+        "event": "http.request.completed",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "object",
+          "shape": [
+            "req.method",
+            "req.path",
+            "res.statusCode",
+            "latency_s"
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_06OBJ0001",
+            "name": "http_method",
+            "from": {
+              "path": "req.method"
+            },
+            "type": "enum",
+            "semantic": "http.method",
+            "transforms": [
+              {
+                "op": "lower"
+              },
+              {
+                "op": "enum_map",
+                "map": {
+                  "get": "GET",
+                  "post": "POST",
+                  "put": "PUT",
+                  "delete": "DELETE"
+                },
+                "default": "OTHER"
+              }
+            ]
+          },
+          {
+            "id": "fld_06OBJ0002",
+            "name": "url_path",
+            "from": {
+              "path": "req.path"
+            },
+            "type": "string",
+            "semantic": "url.path"
+          },
+          {
+            "id": "fld_06OBJ0003",
+            "name": "status_code",
+            "from": {
+              "path": "res.statusCode"
+            },
+            "type": "int",
+            "semantic": "http.status"
+          },
+          {
+            "id": "fld_06OBJ0004",
+            "name": "duration_ms",
+            "from": {
+              "path": "latency_s"
+            },
+            "type": "float",
+            "semantic": "duration",
+            "unit": "ms",
+            "transforms": [
+              {
+                "op": "unit",
+                "from": "s",
+                "to": "ms"
+              }
+            ]
+          }
+        ],
+        "tests": [
+          {
+            "object": {
+              "req": {
+                "method": "post",
+                "path": "/v1/orders"
+              },
+              "res": {
+                "statusCode": 201
+              },
+              "latency_s": 0.145
+            },
+            "expect": {
+              "http_method": "POST",
+              "url_path": "/v1/orders",
+              "status_code": 201,
+              "duration_ms": 145
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "object",
+        "object": {
+          "req": {
+            "method": "get",
+            "path": "/v1"
+          },
+          "res": {
+            "statusCode": "200"
+          },
+          "latency_s": 0.5
+        }
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "http_method": {
+            "status": "ok",
+            "type": "enum",
+            "value": "GET"
+          },
+          "url_path": {
+            "status": "ok",
+            "type": "string",
+            "value": "/v1"
+          },
+          "status_code": {
+            "status": "parse_error",
+            "code": "type_mismatch"
+          },
+          "duration_ms": {
+            "status": "ok",
+            "type": "float",
+            "value": "407f400000000000"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_obj_type_mismatch_float_for_int_020",
+      "description": "object field expecting int rejects fractional float 3.5 with type_mismatch",
+      "tags": [
+        "object:pure",
+        "parse_error",
+        "match:object"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_06OBJ0001",
+        "event": "http.request.completed",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "object",
+          "shape": [
+            "req.method",
+            "req.path",
+            "res.statusCode",
+            "latency_s"
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_06OBJ0001",
+            "name": "http_method",
+            "from": {
+              "path": "req.method"
+            },
+            "type": "enum",
+            "semantic": "http.method",
+            "transforms": [
+              {
+                "op": "lower"
+              },
+              {
+                "op": "enum_map",
+                "map": {
+                  "get": "GET",
+                  "post": "POST",
+                  "put": "PUT",
+                  "delete": "DELETE"
+                },
+                "default": "OTHER"
+              }
+            ]
+          },
+          {
+            "id": "fld_06OBJ0002",
+            "name": "url_path",
+            "from": {
+              "path": "req.path"
+            },
+            "type": "string",
+            "semantic": "url.path"
+          },
+          {
+            "id": "fld_06OBJ0003",
+            "name": "status_code",
+            "from": {
+              "path": "res.statusCode"
+            },
+            "type": "int",
+            "semantic": "http.status"
+          },
+          {
+            "id": "fld_06OBJ0004",
+            "name": "duration_ms",
+            "from": {
+              "path": "latency_s"
+            },
+            "type": "float",
+            "semantic": "duration",
+            "unit": "ms",
+            "transforms": [
+              {
+                "op": "unit",
+                "from": "s",
+                "to": "ms"
+              }
+            ]
+          }
+        ],
+        "tests": [
+          {
+            "object": {
+              "req": {
+                "method": "post",
+                "path": "/v1/orders"
+              },
+              "res": {
+                "statusCode": 201
+              },
+              "latency_s": 0.145
+            },
+            "expect": {
+              "http_method": "POST",
+              "url_path": "/v1/orders",
+              "status_code": 201,
+              "duration_ms": 145
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "object",
+        "object": {
+          "req": {
+            "method": "get",
+            "path": "/v1"
+          },
+          "res": {
+            "statusCode": 3.5
+          },
+          "latency_s": 0.5
+        }
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "http_method": {
+            "status": "ok",
+            "type": "enum",
+            "value": "GET"
+          },
+          "url_path": {
+            "status": "ok",
+            "type": "string",
+            "value": "/v1"
+          },
+          "status_code": {
+            "status": "parse_error",
+            "code": "type_mismatch"
+          },
+          "duration_ms": {
+            "status": "ok",
+            "type": "float",
+            "value": "407f400000000000"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_obj_type_mismatch_object_for_string_021",
+      "description": "object field expecting string rejects nested object value with type_mismatch",
+      "tags": [
+        "object:pure",
+        "parse_error",
+        "match:object"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_06OBJ0001",
+        "event": "http.request.completed",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "object",
+          "shape": [
+            "req.method",
+            "req.path",
+            "res.statusCode",
+            "latency_s"
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_06OBJ0001",
+            "name": "http_method",
+            "from": {
+              "path": "req.method"
+            },
+            "type": "enum",
+            "semantic": "http.method",
+            "transforms": [
+              {
+                "op": "lower"
+              },
+              {
+                "op": "enum_map",
+                "map": {
+                  "get": "GET",
+                  "post": "POST",
+                  "put": "PUT",
+                  "delete": "DELETE"
+                },
+                "default": "OTHER"
+              }
+            ]
+          },
+          {
+            "id": "fld_06OBJ0002",
+            "name": "url_path",
+            "from": {
+              "path": "req.path"
+            },
+            "type": "string",
+            "semantic": "url.path"
+          },
+          {
+            "id": "fld_06OBJ0003",
+            "name": "status_code",
+            "from": {
+              "path": "res.statusCode"
+            },
+            "type": "int",
+            "semantic": "http.status"
+          },
+          {
+            "id": "fld_06OBJ0004",
+            "name": "duration_ms",
+            "from": {
+              "path": "latency_s"
+            },
+            "type": "float",
+            "semantic": "duration",
+            "unit": "ms",
+            "transforms": [
+              {
+                "op": "unit",
+                "from": "s",
+                "to": "ms"
+              }
+            ]
+          }
+        ],
+        "tests": [
+          {
+            "object": {
+              "req": {
+                "method": "post",
+                "path": "/v1/orders"
+              },
+              "res": {
+                "statusCode": 201
+              },
+              "latency_s": 0.145
+            },
+            "expect": {
+              "http_method": "POST",
+              "url_path": "/v1/orders",
+              "status_code": 201,
+              "duration_ms": 145
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "object",
+        "object": {
+          "req": {
+            "method": "get",
+            "path": {
+              "raw": "/v1"
+            }
+          },
+          "res": {
+            "statusCode": 200
+          },
+          "latency_s": 0.5
+        }
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "http_method": {
+            "status": "ok",
+            "type": "enum",
+            "value": "GET"
+          },
+          "url_path": {
+            "status": "parse_error",
+            "code": "type_mismatch"
+          },
+          "status_code": {
+            "status": "ok",
+            "type": "int",
+            "value": "200"
+          },
+          "duration_ms": {
+            "status": "ok",
+            "type": "float",
+            "value": "407f400000000000"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_obj_type_mismatch_string_for_bool_022",
+      "description": "object field expecting bool rejects string 'true' without cast transform",
+      "tags": [
+        "object:pure",
+        "parse_error",
+        "match:object"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_06OBJ0007",
+        "event": "conformance.obj.types",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "object",
+          "shape": [
+            "s",
+            "i",
+            "f",
+            "b",
+            "ts",
+            "j"
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_06OBJ0061",
+            "name": "s",
+            "from": {
+              "path": "s"
+            },
+            "type": "string",
+            "semantic": "unknown"
+          },
+          {
+            "id": "fld_06OBJ0062",
+            "name": "i",
+            "from": {
+              "path": "i"
+            },
+            "type": "int",
+            "semantic": "unknown"
+          },
+          {
+            "id": "fld_06OBJ0063",
+            "name": "f",
+            "from": {
+              "path": "f"
+            },
+            "type": "float",
+            "semantic": "unknown"
+          },
+          {
+            "id": "fld_06OBJ0064",
+            "name": "b",
+            "from": {
+              "path": "b"
+            },
+            "type": "bool",
+            "semantic": "unknown"
+          },
+          {
+            "id": "fld_06OBJ0065",
+            "name": "ts",
+            "from": {
+              "path": "ts"
+            },
+            "type": "timestamp",
+            "semantic": "unknown",
+            "transforms": [
+              {
+                "op": "parse_time",
+                "format": "unix_ms"
+              }
+            ]
+          },
+          {
+            "id": "fld_06OBJ0066",
+            "name": "j",
+            "from": {
+              "path": "j"
+            },
+            "type": "json",
+            "semantic": "unknown"
+          }
+        ],
+        "tests": [
+          {
+            "object": {
+              "s": "hi",
+              "i": 10,
+              "f": 2.5,
+              "b": true,
+              "ts": 1795701600000,
+              "j": {
+                "k": "v"
+              }
+            },
+            "expect": {
+              "s": "hi",
+              "i": 10,
+              "f": 2.5,
+              "b": true,
+              "ts": 1795701600000,
+              "j": {
+                "k": "v"
+              }
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "object",
+        "object": {
+          "s": "ok",
+          "i": 1,
+          "f": 1,
+          "b": "true",
+          "ts": 1795701600000,
+          "j": {}
+        }
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "s": {
+            "status": "ok",
+            "type": "string",
+            "value": "ok"
+          },
+          "i": {
+            "status": "ok",
+            "type": "int",
+            "value": "1"
+          },
+          "f": {
+            "status": "ok",
+            "type": "float",
+            "value": "3ff0000000000000"
+          },
+          "b": {
+            "status": "parse_error",
+            "code": "type_mismatch"
+          },
+          "ts": {
+            "status": "ok",
+            "type": "timestamp",
+            "value": 1795701600000
+          },
+          "j": {
+            "status": "ok",
+            "type": "json",
+            "value": {}
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_obj_privacy_transforms_023",
+      "description": "object spec applies hash, ip_prefix mask, token mask, and drop across fields",
+      "tags": [
+        "object:pure",
+        "transform:hash",
+        "transform:mask",
+        "transform:drop",
+        "match:object"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_06OBJ0008",
+        "event": "user.updated",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "object",
+          "shape": [
+            "email",
+            "ip",
+            "name",
+            "secret"
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_06OBJ0071",
+            "name": "email",
+            "from": {
+              "path": "email"
+            },
+            "type": "string",
+            "semantic": "unknown",
+            "pii": "email",
+            "transforms": [
+              {
+                "op": "lower"
+              },
+              {
+                "op": "hash",
+                "kind": "email"
+              }
+            ]
+          },
+          {
+            "id": "fld_06OBJ0072",
+            "name": "ip",
+            "from": {
+              "path": "ip"
+            },
+            "type": "string",
+            "semantic": "unknown",
+            "pii": "ip",
+            "transforms": [
+              {
+                "op": "mask",
+                "mode": "ip_prefix"
+              }
+            ]
+          },
+          {
+            "id": "fld_06OBJ0073",
+            "name": "name",
+            "from": {
+              "path": "name"
+            },
+            "type": "string",
+            "semantic": "unknown",
+            "pii": "name",
+            "transforms": [
+              {
+                "op": "mask",
+                "mode": "token",
+                "kind": "name"
+              }
+            ]
+          },
+          {
+            "id": "fld_06OBJ0074",
+            "name": "secret",
+            "from": {
+              "path": "secret"
+            },
+            "type": "string",
+            "semantic": "unknown",
+            "pii": "secret",
+            "transforms": [
+              {
+                "op": "drop"
+              }
+            ]
+          }
+        ],
+        "tests": [
+          {
+            "object": {
+              "email": "Alice@Example.COM",
+              "ip": "203.0.113.42",
+              "name": "Alice",
+              "secret": "tok_1"
+            },
+            "expect": {
+              "email": "<email:21fef8bcaef44b62>",
+              "ip": "203.0.113.0/24",
+              "name": null,
+              "secret": null
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "object",
+        "object": {
+          "email": "Bob@Example.COM",
+          "ip": "2001:db8::1",
+          "name": "Bob",
+          "secret": "sk_live_123"
+        }
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "email": {
+            "status": "ok",
+            "type": "string",
+            "value": "<email:aa81a05bc4248f9a>"
+          },
+          "ip": {
+            "status": "ok",
+            "type": "string",
+            "value": "2001:db8::/48"
+          },
+          "name": {
+            "status": "redacted",
+            "token": "<name>"
+          },
+          "secret": {
+            "status": "dropped"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_obj_redaction_tokens_in_leaves_024",
+      "description": "pre-scrubbed redaction tokens inside object string leaves follow pseudonym and mask rules",
+      "tags": [
+        "object:pure",
+        "redaction:mask",
+        "redaction:pseudonym",
+        "match:object"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_06OBJ0007",
+        "event": "conformance.obj.types",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "object",
+          "shape": [
+            "s",
+            "i",
+            "f",
+            "b",
+            "ts",
+            "j"
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_06OBJ0061",
+            "name": "s",
+            "from": {
+              "path": "s"
+            },
+            "type": "string",
+            "semantic": "unknown"
+          },
+          {
+            "id": "fld_06OBJ0062",
+            "name": "i",
+            "from": {
+              "path": "i"
+            },
+            "type": "int",
+            "semantic": "unknown"
+          },
+          {
+            "id": "fld_06OBJ0063",
+            "name": "f",
+            "from": {
+              "path": "f"
+            },
+            "type": "float",
+            "semantic": "unknown"
+          },
+          {
+            "id": "fld_06OBJ0064",
+            "name": "b",
+            "from": {
+              "path": "b"
+            },
+            "type": "bool",
+            "semantic": "unknown"
+          },
+          {
+            "id": "fld_06OBJ0065",
+            "name": "ts",
+            "from": {
+              "path": "ts"
+            },
+            "type": "timestamp",
+            "semantic": "unknown",
+            "transforms": [
+              {
+                "op": "parse_time",
+                "format": "unix_ms"
+              }
+            ]
+          },
+          {
+            "id": "fld_06OBJ0066",
+            "name": "j",
+            "from": {
+              "path": "j"
+            },
+            "type": "json",
+            "semantic": "unknown"
+          }
+        ],
+        "tests": [
+          {
+            "object": {
+              "s": "hi",
+              "i": 10,
+              "f": 2.5,
+              "b": true,
+              "ts": 1795701600000,
+              "j": {
+                "k": "v"
+              }
+            },
+            "expect": {
+              "s": "hi",
+              "i": 10,
+              "f": 2.5,
+              "b": true,
+              "ts": 1795701600000,
+              "j": {
+                "k": "v"
+              }
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "object",
+        "object": {
+          "s": "<email:9f2c41d07a3b55e1>",
+          "i": "<card>",
+          "f": "<email:9f2c41d07a3b55e1>",
+          "b": "<secret:kv>",
+          "ts": "<card>",
+          "j": "<secret:jwt>"
+        }
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "s": {
+            "status": "ok",
+            "type": "string",
+            "value": "<email:9f2c41d07a3b55e1>"
+          },
+          "i": {
+            "status": "redacted",
+            "token": "<card>"
+          },
+          "f": {
+            "status": "redacted",
+            "token": "<email:9f2c41d07a3b55e1>"
+          },
+          "b": {
+            "status": "redacted",
+            "token": "<secret:kv>"
+          },
+          "ts": {
+            "status": "redacted",
+            "token": "<card>"
+          },
+          "j": {
+            "status": "redacted",
+            "token": "<secret:jwt>"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_obj_zero_fields_match_025",
+      "description": "zero-field pure object spec matches required shape and returns empty fields map",
+      "tags": [
+        "object:pure",
+        "boundary:zero_fields",
+        "match:object"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_06OBJ0009",
+        "event": "health.ping",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "object",
+          "shape": [
+            "ok",
+            "service"
+          ]
+        },
+        "fields": [],
+        "tests": [
+          {
+            "object": {
+              "ok": true,
+              "service": "api"
+            },
+            "expect": {}
+          }
+        ]
+      },
+      "input": {
+        "kind": "object",
+        "object": {
+          "ok": true,
+          "service": "gateway"
+        }
+      },
+      "expected": {
+        "matched": true,
+        "fields": {}
+      }
+    },
+    {
+      "id": "vec_obj_zero_fields_mismatch_026",
+      "description": "zero-field pure object spec rejects object missing required shape key",
+      "tags": [
+        "object:pure",
+        "boundary:zero_fields",
+        "no_match",
+        "match:object"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_06OBJ0009",
+        "event": "health.ping",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "object",
+          "shape": [
+            "ok",
+            "service"
+          ]
+        },
+        "fields": [],
+        "tests": [
+          {
+            "object": {
+              "ok": true,
+              "service": "api"
+            },
+            "expect": {}
+          }
+        ]
+      },
+      "input": {
+        "kind": "object",
+        "object": {
+          "ok": true
+        }
+      },
+      "expected": {
+        "matched": false
+      }
+    },
+    {
+      "id": "vec_obj_scale_ieee754_027",
+      "description": "object spec scale div:100 pins exact IEEE-754 double 1999/100",
+      "tags": [
+        "object:pure",
+        "transform:scale",
+        "ieee754",
+        "match:object"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_06OBJ0004",
+        "event": "order.checked",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "object",
+          "shape": [
+            "order.id"
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_06OBJ0031",
+            "name": "order_id",
+            "from": {
+              "path": "order.id"
+            },
+            "type": "string",
+            "semantic": "id.order"
+          },
+          {
+            "id": "fld_06OBJ0032",
+            "name": "discount_usd",
+            "from": {
+              "path": "order.discount_cents"
+            },
+            "type": "float",
+            "semantic": "money",
+            "transforms": [
+              {
+                "op": "scale",
+                "div": 100
+              }
+            ]
+          },
+          {
+            "id": "fld_06OBJ0033",
+            "name": "coupon",
+            "from": {
+              "path": "order.coupon"
+            },
+            "type": "string",
+            "semantic": "unknown",
+            "transforms": [
+              {
+                "op": "lower"
+              }
+            ]
+          }
+        ],
+        "tests": [
+          {
+            "object": {
+              "order": {
+                "id": "ord_1",
+                "discount_cents": 500,
+                "coupon": "SAVE5"
+              }
+            },
+            "expect": {
+              "order_id": "ord_1",
+              "discount_usd": 5,
+              "coupon": "save5"
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "object",
+        "object": {
+          "order": {
+            "id": "ord_2",
+            "discount_cents": 1999,
+            "coupon": "VIP"
+          }
+        }
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "order_id": {
+            "status": "ok",
+            "type": "string",
+            "value": "ord_2"
+          },
+          "discount_usd": {
+            "status": "ok",
+            "type": "float",
+            "value": "4033fd70a3d70a3d"
+          },
+          "coupon": {
+            "status": "ok",
+            "type": "string",
+            "value": "vip"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_obj_cast_string_int64_028",
+      "description": "object spec uses cast(to:int) to parse string-encoded 64-bit integer without JSON precision loss",
+      "tags": [
+        "object:pure",
+        "transform:cast",
+        "boundary:int64",
+        "match:object"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_06OBJ0028",
+        "event": "ledger.entry",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "object",
+          "shape": [
+            "seq"
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_06OBJ0081",
+            "name": "seq",
+            "from": {
+              "path": "seq"
+            },
+            "type": "int",
+            "semantic": "unknown",
+            "transforms": [
+              {
+                "op": "cast",
+                "to": "int"
+              }
+            ]
+          }
+        ],
+        "tests": [
+          {
+            "object": {
+              "seq": "42"
+            },
+            "expect": {
+              "seq": 42
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "object",
+        "object": {
+          "seq": "9223372036854775807"
+        }
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "seq": {
+            "status": "ok",
+            "type": "int",
+            "value": "9223372036854775807"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_obj_message_redaction_token_in_uuid_hole_029",
+      "description": "object message sub-pattern accepts mask token inside uuid hole",
+      "tags": [
+        "object:message",
+        "hole:uuid",
+        "redaction:mask",
+        "match:object"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_06OBJ0002",
+        "event": "http.request.completed",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "callsite",
+          "repo": "github.com/acme/shop",
+          "path": "src/http/middleware.ts",
+          "line": 88,
+          "symbol": "logRequest",
+          "logger": "pino.info",
+          "valid_from_commit": "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678"
+        },
+        "match": {
+          "kind": "object",
+          "shape": [
+            "msg",
+            "req.method",
+            "res.statusCode"
+          ],
+          "message": {
+            "path": "msg",
+            "segments": [
+              {
+                "lit": "request "
+              },
+              {
+                "hole": "req_id",
+                "class": "uuid"
+              },
+              {
+                "lit": " completed"
+              }
+            ]
+          }
+        },
+        "fields": [
+          {
+            "id": "fld_06OBJ0011",
+            "name": "request_id",
+            "from": {
+              "hole": "req_id"
+            },
+            "type": "string",
+            "semantic": "id.request"
+          },
+          {
+            "id": "fld_06OBJ0012",
+            "name": "http_method",
+            "from": {
+              "path": "req.method"
+            },
+            "type": "string",
+            "semantic": "http.method"
+          },
+          {
+            "id": "fld_06OBJ0013",
+            "name": "status_code",
+            "from": {
+              "path": "res.statusCode"
+            },
+            "type": "int",
+            "semantic": "http.status"
+          }
+        ],
+        "tests": [
+          {
+            "object": {
+              "msg": "request 550e8400-e29b-41d4-a716-446655440000 completed",
+              "req": {
+                "method": "GET"
+              },
+              "res": {
+                "statusCode": 200
+              }
+            },
+            "expect": {
+              "request_id": "550e8400-e29b-41d4-a716-446655440000",
+              "http_method": "GET",
+              "status_code": 200
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "object",
+        "object": {
+          "msg": "request <secret:kv> completed",
+          "req": {
+            "method": "GET"
+          },
+          "res": {
+            "statusCode": 200
+          }
+        }
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "request_id": {
+            "status": "redacted",
+            "token": "<secret:kv>"
+          },
+          "http_method": {
+            "status": "ok",
+            "type": "string",
+            "value": "GET"
+          },
+          "status_code": {
+            "status": "ok",
+            "type": "int",
+            "value": "200"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_obj_unicode_values_030",
+      "description": "object spec preserves UTF-8 emoji, combining marks, and U+00A0 in string values",
+      "tags": [
+        "object:pure",
+        "unicode:nbsp",
+        "unicode:combining",
+        "unicode:emoji",
+        "match:object"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_06OBJ0004",
+        "event": "order.checked",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "mined"
+        },
+        "match": {
+          "kind": "object",
+          "shape": [
+            "order.id"
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_06OBJ0031",
+            "name": "order_id",
+            "from": {
+              "path": "order.id"
+            },
+            "type": "string",
+            "semantic": "id.order"
+          },
+          {
+            "id": "fld_06OBJ0032",
+            "name": "discount_usd",
+            "from": {
+              "path": "order.discount_cents"
+            },
+            "type": "float",
+            "semantic": "money",
+            "transforms": [
+              {
+                "op": "scale",
+                "div": 100
+              }
+            ]
+          },
+          {
+            "id": "fld_06OBJ0033",
+            "name": "coupon",
+            "from": {
+              "path": "order.coupon"
+            },
+            "type": "string",
+            "semantic": "unknown",
+            "transforms": [
+              {
+                "op": "lower"
+              }
+            ]
+          }
+        ],
+        "tests": [
+          {
+            "object": {
+              "order": {
+                "id": "ord_1",
+                "discount_cents": 500,
+                "coupon": "SAVE5"
+              }
+            },
+            "expect": {
+              "order_id": "ord_1",
+              "discount_usd": 5,
+              "coupon": "save5"
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "object",
+        "object": {
+          "order": {
+            "id": "ord_café 🚀",
+            "discount_cents": 100,
+            "coupon": "OK"
+          }
+        }
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "order_id": {
+            "status": "ok",
+            "type": "string",
+            "value": "ord_café 🚀"
+          },
+          "discount_usd": {
+            "status": "ok",
+            "type": "float",
+            "value": "3ff0000000000000"
+          },
+          "coupon": {
+            "status": "ok",
+            "type": "string",
+            "value": "ok"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_args_order_paid_canonical_001",
+      "description": "args matcher extracts canonical order.paid SDK template with exact IEEE-754 scale",
+      "tags": [
+        "args:basic",
+        "transform:scale",
+        "ieee754",
+        "match:args"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_06ARG0001",
+        "event": "order.paid",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "sdk_template",
+          "repo": "github.com/acme/shop",
+          "path": "src/orders/checkout.ts",
+          "line": 142,
+          "logger": "bind.log"
+        },
+        "match": {
+          "kind": "args",
+          "strings": [
+            "",
+            " paid ",
+            " in ",
+            "ms"
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_06ARG0001",
+            "name": "order_id",
+            "from": {
+              "arg": 0
+            },
+            "type": "string",
+            "semantic": "id.order",
+            "entity": "order"
+          },
+          {
+            "id": "fld_06ARG0002",
+            "name": "amount_usd",
+            "from": {
+              "arg": 1
+            },
+            "type": "float",
+            "semantic": "money",
+            "unit": "USD",
+            "transforms": [
+              {
+                "op": "scale",
+                "div": 100
+              }
+            ]
+          },
+          {
+            "id": "fld_06ARG0003",
+            "name": "duration_ms",
+            "from": {
+              "arg": 2
+            },
+            "type": "int",
+            "semantic": "duration",
+            "unit": "ms"
+          }
+        ],
+        "tests": [
+          {
+            "args": [
+              "ord_8f2a",
+              1999,
+              212
+            ],
+            "expect": {
+              "order_id": "ord_8f2a",
+              "amount_usd": 19.99,
+              "duration_ms": 212
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "args",
+        "strings": [
+          "",
+          " paid ",
+          " in ",
+          "ms"
+        ],
+        "args": [
+          "ord_8f2a",
+          1999,
+          212
+        ]
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "order_id": {
+            "status": "ok",
+            "type": "string",
+            "value": "ord_8f2a"
+          },
+          "amount_usd": {
+            "status": "ok",
+            "type": "float",
+            "value": "4033fd70a3d70a3d"
+          },
+          "duration_ms": {
+            "status": "ok",
+            "type": "int",
+            "value": "212"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_args_adjacent_empty_strings_002",
+      "description": "args matcher permits adjacent empty string literals ['', '', '']",
+      "tags": [
+        "args:empty_strings",
+        "match:args"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_06ARG0002",
+        "event": "sdk.adjacent",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "sdk_template"
+        },
+        "match": {
+          "kind": "args",
+          "strings": [
+            "",
+            "",
+            ""
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_06ARG0011",
+            "name": "first",
+            "from": {
+              "arg": 0
+            },
+            "type": "string",
+            "semantic": "unknown"
+          },
+          {
+            "id": "fld_06ARG0012",
+            "name": "second",
+            "from": {
+              "arg": 1
+            },
+            "type": "int",
+            "semantic": "unknown"
+          }
+        ],
+        "tests": [
+          {
+            "args": [
+              "a",
+              1
+            ],
+            "expect": {
+              "first": "a",
+              "second": 1
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "args",
+        "strings": [
+          "",
+          "",
+          ""
+        ],
+        "args": [
+          "hello",
+          99
+        ]
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "first": {
+            "status": "ok",
+            "type": "string",
+            "value": "hello"
+          },
+          "second": {
+            "status": "ok",
+            "type": "int",
+            "value": "99"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_args_zero_args_match_003",
+      "description": "zero-argument SDK template matches empty args array",
+      "tags": [
+        "args:zero_args",
+        "boundary:zero_fields",
+        "match:args"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_06ARG0003",
+        "event": "service.started",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "sdk_template"
+        },
+        "match": {
+          "kind": "args",
+          "strings": [
+            "server ready"
+          ]
+        },
+        "fields": [],
+        "tests": [
+          {
+            "args": [],
+            "expect": {}
+          }
+        ]
+      },
+      "input": {
+        "kind": "args",
+        "strings": [
+          "server ready"
+        ],
+        "args": []
+      },
+      "expected": {
+        "matched": true,
+        "fields": {}
+      }
+    },
+    {
+      "id": "vec_args_reject_strings_text_mismatch_004",
+      "description": "args matcher rejects differing literal template string",
+      "tags": [
+        "args:basic",
+        "no_match",
+        "match:args"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_06ARG0001",
+        "event": "order.paid",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "sdk_template",
+          "repo": "github.com/acme/shop",
+          "path": "src/orders/checkout.ts",
+          "line": 142,
+          "logger": "bind.log"
+        },
+        "match": {
+          "kind": "args",
+          "strings": [
+            "",
+            " paid ",
+            " in ",
+            "ms"
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_06ARG0001",
+            "name": "order_id",
+            "from": {
+              "arg": 0
+            },
+            "type": "string",
+            "semantic": "id.order",
+            "entity": "order"
+          },
+          {
+            "id": "fld_06ARG0002",
+            "name": "amount_usd",
+            "from": {
+              "arg": 1
+            },
+            "type": "float",
+            "semantic": "money",
+            "unit": "USD",
+            "transforms": [
+              {
+                "op": "scale",
+                "div": 100
+              }
+            ]
+          },
+          {
+            "id": "fld_06ARG0003",
+            "name": "duration_ms",
+            "from": {
+              "arg": 2
+            },
+            "type": "int",
+            "semantic": "duration",
+            "unit": "ms"
+          }
+        ],
+        "tests": [
+          {
+            "args": [
+              "ord_8f2a",
+              1999,
+              212
+            ],
+            "expect": {
+              "order_id": "ord_8f2a",
+              "amount_usd": 19.99,
+              "duration_ms": 212
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "args",
+        "strings": [
+          "",
+          " refunded ",
+          " in ",
+          "ms"
+        ],
+        "args": [
+          "ord_8f2a",
+          1999,
+          212
+        ]
+      },
+      "expected": {
+        "matched": false
+      }
+    },
+    {
+      "id": "vec_args_reject_strings_length_mismatch_005",
+      "description": "args matcher rejects strings array with wrong length",
+      "tags": [
+        "args:basic",
+        "no_match",
+        "match:args"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_06ARG0001",
+        "event": "order.paid",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "sdk_template",
+          "repo": "github.com/acme/shop",
+          "path": "src/orders/checkout.ts",
+          "line": 142,
+          "logger": "bind.log"
+        },
+        "match": {
+          "kind": "args",
+          "strings": [
+            "",
+            " paid ",
+            " in ",
+            "ms"
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_06ARG0001",
+            "name": "order_id",
+            "from": {
+              "arg": 0
+            },
+            "type": "string",
+            "semantic": "id.order",
+            "entity": "order"
+          },
+          {
+            "id": "fld_06ARG0002",
+            "name": "amount_usd",
+            "from": {
+              "arg": 1
+            },
+            "type": "float",
+            "semantic": "money",
+            "unit": "USD",
+            "transforms": [
+              {
+                "op": "scale",
+                "div": 100
+              }
+            ]
+          },
+          {
+            "id": "fld_06ARG0003",
+            "name": "duration_ms",
+            "from": {
+              "arg": 2
+            },
+            "type": "int",
+            "semantic": "duration",
+            "unit": "ms"
+          }
+        ],
+        "tests": [
+          {
+            "args": [
+              "ord_8f2a",
+              1999,
+              212
+            ],
+            "expect": {
+              "order_id": "ord_8f2a",
+              "amount_usd": 19.99,
+              "duration_ms": 212
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "args",
+        "strings": [
+          "",
+          " paid ",
+          "ms"
+        ],
+        "args": [
+          "ord_8f2a",
+          1999
+        ]
+      },
+      "expected": {
+        "matched": false
+      }
+    },
+    {
+      "id": "vec_args_reject_too_few_args_006",
+      "description": "args matcher rejects args.length < strings.length - 1",
+      "tags": [
+        "args:arity",
+        "no_match",
+        "match:args"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_06ARG0001",
+        "event": "order.paid",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "sdk_template",
+          "repo": "github.com/acme/shop",
+          "path": "src/orders/checkout.ts",
+          "line": 142,
+          "logger": "bind.log"
+        },
+        "match": {
+          "kind": "args",
+          "strings": [
+            "",
+            " paid ",
+            " in ",
+            "ms"
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_06ARG0001",
+            "name": "order_id",
+            "from": {
+              "arg": 0
+            },
+            "type": "string",
+            "semantic": "id.order",
+            "entity": "order"
+          },
+          {
+            "id": "fld_06ARG0002",
+            "name": "amount_usd",
+            "from": {
+              "arg": 1
+            },
+            "type": "float",
+            "semantic": "money",
+            "unit": "USD",
+            "transforms": [
+              {
+                "op": "scale",
+                "div": 100
+              }
+            ]
+          },
+          {
+            "id": "fld_06ARG0003",
+            "name": "duration_ms",
+            "from": {
+              "arg": 2
+            },
+            "type": "int",
+            "semantic": "duration",
+            "unit": "ms"
+          }
+        ],
+        "tests": [
+          {
+            "args": [
+              "ord_8f2a",
+              1999,
+              212
+            ],
+            "expect": {
+              "order_id": "ord_8f2a",
+              "amount_usd": 19.99,
+              "duration_ms": 212
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "args",
+        "strings": [
+          "",
+          " paid ",
+          " in ",
+          "ms"
+        ],
+        "args": [
+          "ord_8f2a",
+          1999
+        ]
+      },
+      "expected": {
+        "matched": false
+      }
+    },
+    {
+      "id": "vec_args_reject_too_many_args_007",
+      "description": "args matcher rejects args.length > strings.length - 1",
+      "tags": [
+        "args:arity",
+        "no_match",
+        "match:args"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_06ARG0001",
+        "event": "order.paid",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "sdk_template",
+          "repo": "github.com/acme/shop",
+          "path": "src/orders/checkout.ts",
+          "line": 142,
+          "logger": "bind.log"
+        },
+        "match": {
+          "kind": "args",
+          "strings": [
+            "",
+            " paid ",
+            " in ",
+            "ms"
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_06ARG0001",
+            "name": "order_id",
+            "from": {
+              "arg": 0
+            },
+            "type": "string",
+            "semantic": "id.order",
+            "entity": "order"
+          },
+          {
+            "id": "fld_06ARG0002",
+            "name": "amount_usd",
+            "from": {
+              "arg": 1
+            },
+            "type": "float",
+            "semantic": "money",
+            "unit": "USD",
+            "transforms": [
+              {
+                "op": "scale",
+                "div": 100
+              }
+            ]
+          },
+          {
+            "id": "fld_06ARG0003",
+            "name": "duration_ms",
+            "from": {
+              "arg": 2
+            },
+            "type": "int",
+            "semantic": "duration",
+            "unit": "ms"
+          }
+        ],
+        "tests": [
+          {
+            "args": [
+              "ord_8f2a",
+              1999,
+              212
+            ],
+            "expect": {
+              "order_id": "ord_8f2a",
+              "amount_usd": 19.99,
+              "duration_ms": 212
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "args",
+        "strings": [
+          "",
+          " paid ",
+          " in ",
+          "ms"
+        ],
+        "args": [
+          "ord_8f2a",
+          1999,
+          212,
+          "extra"
+        ]
+      },
+      "expected": {
+        "matched": false
+      }
+    },
+    {
+      "id": "vec_args_zero_args_reject_nonempty_args_008",
+      "description": "zero-argument template rejects non-empty args array",
+      "tags": [
+        "args:arity",
+        "no_match",
+        "match:args"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_06ARG0003",
+        "event": "service.started",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "sdk_template"
+        },
+        "match": {
+          "kind": "args",
+          "strings": [
+            "server ready"
+          ]
+        },
+        "fields": [],
+        "tests": [
+          {
+            "args": [],
+            "expect": {}
+          }
+        ]
+      },
+      "input": {
+        "kind": "args",
+        "strings": [
+          "server ready"
+        ],
+        "args": [
+          "unexpected"
+        ]
+      },
+      "expected": {
+        "matched": false
+      }
+    },
+    {
+      "id": "vec_args_all_field_types_sql_supported_009",
+      "description": "args matcher extracts string, int, float, bool, timestamp, and json (SQL-supported)",
+      "tags": [
+        "args:types",
+        "type:json",
+        "sql:supported_json_arg",
+        "match:args"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_06ARG0004",
+        "event": "conformance.args.types",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "sdk_template"
+        },
+        "match": {
+          "kind": "args",
+          "strings": [
+            "s=",
+            " i=",
+            " f=",
+            " b=",
+            " ts=",
+            " j=",
+            ""
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_06ARG0021",
+            "name": "s",
+            "from": {
+              "arg": 0
+            },
+            "type": "string",
+            "semantic": "unknown"
+          },
+          {
+            "id": "fld_06ARG0022",
+            "name": "i",
+            "from": {
+              "arg": 1
+            },
+            "type": "int",
+            "semantic": "unknown"
+          },
+          {
+            "id": "fld_06ARG0023",
+            "name": "f",
+            "from": {
+              "arg": 2
+            },
+            "type": "float",
+            "semantic": "unknown"
+          },
+          {
+            "id": "fld_06ARG0024",
+            "name": "b",
+            "from": {
+              "arg": 3
+            },
+            "type": "bool",
+            "semantic": "unknown"
+          },
+          {
+            "id": "fld_06ARG0025",
+            "name": "ts",
+            "from": {
+              "arg": 4
+            },
+            "type": "timestamp",
+            "semantic": "unknown",
+            "transforms": [
+              {
+                "op": "parse_time",
+                "format": "unix_s"
+              }
+            ]
+          },
+          {
+            "id": "fld_06ARG0026",
+            "name": "j",
+            "from": {
+              "arg": 5
+            },
+            "type": "json",
+            "semantic": "unknown"
+          }
+        ],
+        "tests": [
+          {
+            "args": [
+              "ok",
+              7,
+              1.5,
+              true,
+              1795701600,
+              {
+                "a": [
+                  1,
+                  2
+                ]
+              }
+            ],
+            "expect": {
+              "s": "ok",
+              "i": 7,
+              "f": 1.5,
+              "b": true,
+              "ts": 1795701600000,
+              "j": {
+                "a": [
+                  1,
+                  2
+                ]
+              }
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "args",
+        "strings": [
+          "s=",
+          " i=",
+          " f=",
+          " b=",
+          " ts=",
+          " j=",
+          ""
+        ],
+        "args": [
+          "hi",
+          -12,
+          3.25,
+          false,
+          "1795701600.5",
+          {
+            "ok": true,
+            "n": [
+              1,
+              2
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "s": {
+            "status": "ok",
+            "type": "string",
+            "value": "hi"
+          },
+          "i": {
+            "status": "ok",
+            "type": "int",
+            "value": "-12"
+          },
+          "f": {
+            "status": "ok",
+            "type": "float",
+            "value": "400a000000000000"
+          },
+          "b": {
+            "status": "ok",
+            "type": "bool",
+            "value": false
+          },
+          "ts": {
+            "status": "ok",
+            "type": "timestamp",
+            "value": 1795701600500
+          },
+          "j": {
+            "status": "ok",
+            "type": "json",
+            "value": {
+              "ok": true,
+              "n": [
+                1,
+                2
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_args_null_values_yield_missing_010",
+      "description": "null args elements yield missing status and short-circuit transforms",
+      "tags": [
+        "args:missing",
+        "missing",
+        "match:args"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_06ARG0001",
+        "event": "order.paid",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "sdk_template",
+          "repo": "github.com/acme/shop",
+          "path": "src/orders/checkout.ts",
+          "line": 142,
+          "logger": "bind.log"
+        },
+        "match": {
+          "kind": "args",
+          "strings": [
+            "",
+            " paid ",
+            " in ",
+            "ms"
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_06ARG0001",
+            "name": "order_id",
+            "from": {
+              "arg": 0
+            },
+            "type": "string",
+            "semantic": "id.order",
+            "entity": "order"
+          },
+          {
+            "id": "fld_06ARG0002",
+            "name": "amount_usd",
+            "from": {
+              "arg": 1
+            },
+            "type": "float",
+            "semantic": "money",
+            "unit": "USD",
+            "transforms": [
+              {
+                "op": "scale",
+                "div": 100
+              }
+            ]
+          },
+          {
+            "id": "fld_06ARG0003",
+            "name": "duration_ms",
+            "from": {
+              "arg": 2
+            },
+            "type": "int",
+            "semantic": "duration",
+            "unit": "ms"
+          }
+        ],
+        "tests": [
+          {
+            "args": [
+              "ord_8f2a",
+              1999,
+              212
+            ],
+            "expect": {
+              "order_id": "ord_8f2a",
+              "amount_usd": 19.99,
+              "duration_ms": 212
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "args",
+        "strings": [
+          "",
+          " paid ",
+          " in ",
+          "ms"
+        ],
+        "args": [
+          null,
+          null,
+          null
+        ]
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "order_id": {
+            "status": "missing"
+          },
+          "amount_usd": {
+            "status": "missing"
+          },
+          "duration_ms": {
+            "status": "missing"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_args_type_mismatch_string_for_int_011",
+      "description": "args field expecting int reports type_mismatch on string arg without cast",
+      "tags": [
+        "args:error",
+        "parse_error",
+        "match:args"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_06ARG0001",
+        "event": "order.paid",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "sdk_template",
+          "repo": "github.com/acme/shop",
+          "path": "src/orders/checkout.ts",
+          "line": 142,
+          "logger": "bind.log"
+        },
+        "match": {
+          "kind": "args",
+          "strings": [
+            "",
+            " paid ",
+            " in ",
+            "ms"
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_06ARG0001",
+            "name": "order_id",
+            "from": {
+              "arg": 0
+            },
+            "type": "string",
+            "semantic": "id.order",
+            "entity": "order"
+          },
+          {
+            "id": "fld_06ARG0002",
+            "name": "amount_usd",
+            "from": {
+              "arg": 1
+            },
+            "type": "float",
+            "semantic": "money",
+            "unit": "USD",
+            "transforms": [
+              {
+                "op": "scale",
+                "div": 100
+              }
+            ]
+          },
+          {
+            "id": "fld_06ARG0003",
+            "name": "duration_ms",
+            "from": {
+              "arg": 2
+            },
+            "type": "int",
+            "semantic": "duration",
+            "unit": "ms"
+          }
+        ],
+        "tests": [
+          {
+            "args": [
+              "ord_8f2a",
+              1999,
+              212
+            ],
+            "expect": {
+              "order_id": "ord_8f2a",
+              "amount_usd": 19.99,
+              "duration_ms": 212
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "args",
+        "strings": [
+          "",
+          " paid ",
+          " in ",
+          "ms"
+        ],
+        "args": [
+          "ord_1",
+          100,
+          "two-hundred"
+        ]
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "order_id": {
+            "status": "ok",
+            "type": "string",
+            "value": "ord_1"
+          },
+          "amount_usd": {
+            "status": "ok",
+            "type": "float",
+            "value": "3ff0000000000000"
+          },
+          "duration_ms": {
+            "status": "parse_error",
+            "code": "type_mismatch"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_args_type_mismatch_float_for_int_012",
+      "description": "args field expecting int reports type_mismatch on non-integer float 2.5",
+      "tags": [
+        "args:error",
+        "parse_error",
+        "match:args"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_06ARG0001",
+        "event": "order.paid",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "sdk_template",
+          "repo": "github.com/acme/shop",
+          "path": "src/orders/checkout.ts",
+          "line": 142,
+          "logger": "bind.log"
+        },
+        "match": {
+          "kind": "args",
+          "strings": [
+            "",
+            " paid ",
+            " in ",
+            "ms"
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_06ARG0001",
+            "name": "order_id",
+            "from": {
+              "arg": 0
+            },
+            "type": "string",
+            "semantic": "id.order",
+            "entity": "order"
+          },
+          {
+            "id": "fld_06ARG0002",
+            "name": "amount_usd",
+            "from": {
+              "arg": 1
+            },
+            "type": "float",
+            "semantic": "money",
+            "unit": "USD",
+            "transforms": [
+              {
+                "op": "scale",
+                "div": 100
+              }
+            ]
+          },
+          {
+            "id": "fld_06ARG0003",
+            "name": "duration_ms",
+            "from": {
+              "arg": 2
+            },
+            "type": "int",
+            "semantic": "duration",
+            "unit": "ms"
+          }
+        ],
+        "tests": [
+          {
+            "args": [
+              "ord_8f2a",
+              1999,
+              212
+            ],
+            "expect": {
+              "order_id": "ord_8f2a",
+              "amount_usd": 19.99,
+              "duration_ms": 212
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "args",
+        "strings": [
+          "",
+          " paid ",
+          " in ",
+          "ms"
+        ],
+        "args": [
+          "ord_1",
+          100,
+          2.5
+        ]
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "order_id": {
+            "status": "ok",
+            "type": "string",
+            "value": "ord_1"
+          },
+          "amount_usd": {
+            "status": "ok",
+            "type": "float",
+            "value": "3ff0000000000000"
+          },
+          "duration_ms": {
+            "status": "parse_error",
+            "code": "type_mismatch"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_args_type_mismatch_object_for_string_013",
+      "description": "args field expecting string reports type_mismatch on object arg",
+      "tags": [
+        "args:error",
+        "parse_error",
+        "match:args"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_06ARG0001",
+        "event": "order.paid",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "sdk_template",
+          "repo": "github.com/acme/shop",
+          "path": "src/orders/checkout.ts",
+          "line": 142,
+          "logger": "bind.log"
+        },
+        "match": {
+          "kind": "args",
+          "strings": [
+            "",
+            " paid ",
+            " in ",
+            "ms"
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_06ARG0001",
+            "name": "order_id",
+            "from": {
+              "arg": 0
+            },
+            "type": "string",
+            "semantic": "id.order",
+            "entity": "order"
+          },
+          {
+            "id": "fld_06ARG0002",
+            "name": "amount_usd",
+            "from": {
+              "arg": 1
+            },
+            "type": "float",
+            "semantic": "money",
+            "unit": "USD",
+            "transforms": [
+              {
+                "op": "scale",
+                "div": 100
+              }
+            ]
+          },
+          {
+            "id": "fld_06ARG0003",
+            "name": "duration_ms",
+            "from": {
+              "arg": 2
+            },
+            "type": "int",
+            "semantic": "duration",
+            "unit": "ms"
+          }
+        ],
+        "tests": [
+          {
+            "args": [
+              "ord_8f2a",
+              1999,
+              212
+            ],
+            "expect": {
+              "order_id": "ord_8f2a",
+              "amount_usd": 19.99,
+              "duration_ms": 212
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "args",
+        "strings": [
+          "",
+          " paid ",
+          " in ",
+          "ms"
+        ],
+        "args": [
+          {
+            "id": "ord_1"
+          },
+          100,
+          50
+        ]
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "order_id": {
+            "status": "parse_error",
+            "code": "type_mismatch"
+          },
+          "amount_usd": {
+            "status": "ok",
+            "type": "float",
+            "value": "3ff0000000000000"
+          },
+          "duration_ms": {
+            "status": "ok",
+            "type": "int",
+            "value": "50"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_args_scale_non_numeric_error_014",
+      "description": "args scale transform on non-numeric string reports type_mismatch",
+      "tags": [
+        "args:error",
+        "transform:scale",
+        "parse_error",
+        "match:args"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_06ARG0001",
+        "event": "order.paid",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "sdk_template",
+          "repo": "github.com/acme/shop",
+          "path": "src/orders/checkout.ts",
+          "line": 142,
+          "logger": "bind.log"
+        },
+        "match": {
+          "kind": "args",
+          "strings": [
+            "",
+            " paid ",
+            " in ",
+            "ms"
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_06ARG0001",
+            "name": "order_id",
+            "from": {
+              "arg": 0
+            },
+            "type": "string",
+            "semantic": "id.order",
+            "entity": "order"
+          },
+          {
+            "id": "fld_06ARG0002",
+            "name": "amount_usd",
+            "from": {
+              "arg": 1
+            },
+            "type": "float",
+            "semantic": "money",
+            "unit": "USD",
+            "transforms": [
+              {
+                "op": "scale",
+                "div": 100
+              }
+            ]
+          },
+          {
+            "id": "fld_06ARG0003",
+            "name": "duration_ms",
+            "from": {
+              "arg": 2
+            },
+            "type": "int",
+            "semantic": "duration",
+            "unit": "ms"
+          }
+        ],
+        "tests": [
+          {
+            "args": [
+              "ord_8f2a",
+              1999,
+              212
+            ],
+            "expect": {
+              "order_id": "ord_8f2a",
+              "amount_usd": 19.99,
+              "duration_ms": 212
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "args",
+        "strings": [
+          "",
+          " paid ",
+          " in ",
+          "ms"
+        ],
+        "args": [
+          "ord_1",
+          "nineteen",
+          50
+        ]
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "order_id": {
+            "status": "ok",
+            "type": "string",
+            "value": "ord_1"
+          },
+          "amount_usd": {
+            "status": "parse_error",
+            "code": "type_mismatch"
+          },
+          "duration_ms": {
+            "status": "ok",
+            "type": "int",
+            "value": "50"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_args_redaction_mask_and_pseudonym_015",
+      "description": "args matcher honors mask tokens and pseudonym tokens across field types",
+      "tags": [
+        "args:redaction",
+        "redaction:mask",
+        "redaction:pseudonym",
+        "match:args"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_06ARG0001",
+        "event": "order.paid",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "sdk_template",
+          "repo": "github.com/acme/shop",
+          "path": "src/orders/checkout.ts",
+          "line": 142,
+          "logger": "bind.log"
+        },
+        "match": {
+          "kind": "args",
+          "strings": [
+            "",
+            " paid ",
+            " in ",
+            "ms"
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_06ARG0001",
+            "name": "order_id",
+            "from": {
+              "arg": 0
+            },
+            "type": "string",
+            "semantic": "id.order",
+            "entity": "order"
+          },
+          {
+            "id": "fld_06ARG0002",
+            "name": "amount_usd",
+            "from": {
+              "arg": 1
+            },
+            "type": "float",
+            "semantic": "money",
+            "unit": "USD",
+            "transforms": [
+              {
+                "op": "scale",
+                "div": 100
+              }
+            ]
+          },
+          {
+            "id": "fld_06ARG0003",
+            "name": "duration_ms",
+            "from": {
+              "arg": 2
+            },
+            "type": "int",
+            "semantic": "duration",
+            "unit": "ms"
+          }
+        ],
+        "tests": [
+          {
+            "args": [
+              "ord_8f2a",
+              1999,
+              212
+            ],
+            "expect": {
+              "order_id": "ord_8f2a",
+              "amount_usd": 19.99,
+              "duration_ms": 212
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "args",
+        "strings": [
+          "",
+          " paid ",
+          " in ",
+          "ms"
+        ],
+        "args": [
+          "<email:9f2c41d07a3b55e1>",
+          "<card>",
+          "<email:9f2c41d07a3b55e1>"
+        ]
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "order_id": {
+            "status": "ok",
+            "type": "string",
+            "value": "<email:9f2c41d07a3b55e1>"
+          },
+          "amount_usd": {
+            "status": "redacted",
+            "token": "<card>"
+          },
+          "duration_ms": {
+            "status": "redacted",
+            "token": "<email:9f2c41d07a3b55e1>"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_args_privacy_transforms_016",
+      "description": "args matcher applies lower+hash, ip_prefix, token mask, and drop",
+      "tags": [
+        "args:privacy",
+        "transform:hash",
+        "transform:mask",
+        "transform:drop",
+        "match:args"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_06ARG0005",
+        "event": "user.login",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "sdk_template"
+        },
+        "match": {
+          "kind": "args",
+          "strings": [
+            "email=",
+            " ip=",
+            " name=",
+            " token=",
+            ""
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_06ARG0031",
+            "name": "email",
+            "from": {
+              "arg": 0
+            },
+            "type": "string",
+            "semantic": "unknown",
+            "pii": "email",
+            "transforms": [
+              {
+                "op": "lower"
+              },
+              {
+                "op": "hash",
+                "kind": "email"
+              }
+            ]
+          },
+          {
+            "id": "fld_06ARG0032",
+            "name": "ip",
+            "from": {
+              "arg": 1
+            },
+            "type": "string",
+            "semantic": "unknown",
+            "pii": "ip",
+            "transforms": [
+              {
+                "op": "mask",
+                "mode": "ip_prefix"
+              }
+            ]
+          },
+          {
+            "id": "fld_06ARG0033",
+            "name": "name",
+            "from": {
+              "arg": 2
+            },
+            "type": "string",
+            "semantic": "unknown",
+            "pii": "name",
+            "transforms": [
+              {
+                "op": "mask",
+                "mode": "token",
+                "kind": "name"
+              }
+            ]
+          },
+          {
+            "id": "fld_06ARG0034",
+            "name": "token",
+            "from": {
+              "arg": 3
+            },
+            "type": "string",
+            "semantic": "unknown",
+            "pii": "secret",
+            "transforms": [
+              {
+                "op": "drop"
+              }
+            ]
+          }
+        ],
+        "tests": [
+          {
+            "args": [
+              "Alice@Example.COM",
+              "203.0.113.42",
+              "Alice",
+              "tok_abc"
+            ],
+            "expect": {
+              "email": "<email:21fef8bcaef44b62>",
+              "ip": "203.0.113.0/24",
+              "name": null,
+              "token": null
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "args",
+        "strings": [
+          "email=",
+          " ip=",
+          " name=",
+          " token=",
+          ""
+        ],
+        "args": [
+          "Carol@Example.COM",
+          "10.0.5.99",
+          "Carol",
+          "ghp_secret"
+        ]
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "email": {
+            "status": "ok",
+            "type": "string",
+            "value": "<email:56e78c10db8bf83b>"
+          },
+          "ip": {
+            "status": "ok",
+            "type": "string",
+            "value": "10.0.5.0/24"
+          },
+          "name": {
+            "status": "redacted",
+            "token": "<name>"
+          },
+          "token": {
+            "status": "dropped"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_args_subset_bindings_skip_middle_arg_017",
+      "description": "args spec may bind a subset of argument indices (0 and 2, ignoring 1)",
+      "tags": [
+        "args:subset",
+        "transform:unit",
+        "match:args"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_06ARG0006",
+        "event": "job.step",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "sdk_template"
+        },
+        "match": {
+          "kind": "args",
+          "strings": [
+            "job ",
+            " step ",
+            " took ",
+            "s"
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_06ARG0041",
+            "name": "job_id",
+            "from": {
+              "arg": 0
+            },
+            "type": "string",
+            "semantic": "unknown"
+          },
+          {
+            "id": "fld_06ARG0042",
+            "name": "duration_ms",
+            "from": {
+              "arg": 2
+            },
+            "type": "float",
+            "semantic": "unknown",
+            "unit": "ms",
+            "transforms": [
+              {
+                "op": "unit",
+                "from": "s",
+                "to": "ms"
+              }
+            ]
+          }
+        ],
+        "tests": [
+          {
+            "args": [
+              "j1",
+              "ignored_middle",
+              1.25
+            ],
+            "expect": {
+              "job_id": "j1",
+              "duration_ms": 1250
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "args",
+        "strings": [
+          "job ",
+          " step ",
+          " took ",
+          "s"
+        ],
+        "args": [
+          "job_77",
+          {
+            "debug": true
+          },
+          0.25
+        ]
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "job_id": {
+            "status": "ok",
+            "type": "string",
+            "value": "job_77"
+          },
+          "duration_ms": {
+            "status": "ok",
+            "type": "float",
+            "value": "406f400000000000"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_args_cast_string_to_int64_018",
+      "description": "args spec casts string-encoded INT64_MIN to int without precision loss",
+      "tags": [
+        "args:cast",
+        "transform:cast",
+        "boundary:int64",
+        "match:args"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_06ARG0018",
+        "event": "counter.delta",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "sdk_template"
+        },
+        "match": {
+          "kind": "args",
+          "strings": [
+            "delta=",
+            ""
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_06ARG0051",
+            "name": "delta",
+            "from": {
+              "arg": 0
+            },
+            "type": "int",
+            "semantic": "unknown",
+            "transforms": [
+              {
+                "op": "cast",
+                "to": "int"
+              }
+            ]
+          }
+        ],
+        "tests": [
+          {
+            "args": [
+              "-10"
+            ],
+            "expect": {
+              "delta": -10
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "args",
+        "strings": [
+          "delta=",
+          ""
+        ],
+        "args": [
+          "-9223372036854775808"
+        ]
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "delta": {
+            "status": "ok",
+            "type": "int",
+            "value": "-9223372036854775808"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_args_cast_string_to_bool_019",
+      "description": "args spec casts string '0' to boolean false",
+      "tags": [
+        "args:cast",
+        "transform:cast",
+        "type:bool",
+        "match:args"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_06ARG0019",
+        "event": "flag.eval",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "sdk_template"
+        },
+        "match": {
+          "kind": "args",
+          "strings": [
+            "enabled=",
+            ""
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_06ARG0052",
+            "name": "enabled",
+            "from": {
+              "arg": 0
+            },
+            "type": "bool",
+            "semantic": "unknown",
+            "transforms": [
+              {
+                "op": "cast",
+                "to": "bool"
+              }
+            ]
+          }
+        ],
+        "tests": [
+          {
+            "args": [
+              "1"
+            ],
+            "expect": {
+              "enabled": true
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "args",
+        "strings": [
+          "enabled=",
+          ""
+        ],
+        "args": [
+          "0"
+        ]
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "enabled": {
+            "status": "ok",
+            "type": "bool",
+            "value": false
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_args_parse_time_iso_020",
+      "description": "args spec parses ISO 8601 string argument into timestamp ms",
+      "tags": [
+        "args:time",
+        "transform:parse_time",
+        "type:timestamp",
+        "match:args"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_06ARG0020",
+        "event": "job.scheduled",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "sdk_template"
+        },
+        "match": {
+          "kind": "args",
+          "strings": [
+            "run_at=",
+            ""
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_06ARG0053",
+            "name": "run_at",
+            "from": {
+              "arg": 0
+            },
+            "type": "timestamp",
+            "semantic": "unknown",
+            "transforms": [
+              {
+                "op": "parse_time",
+                "format": "iso8601"
+              }
+            ]
+          }
+        ],
+        "tests": [
+          {
+            "args": [
+              "2026-11-26T14:00:00Z"
+            ],
+            "expect": {
+              "run_at": 1795701600000
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "args",
+        "strings": [
+          "run_at=",
+          ""
+        ],
+        "args": [
+          "2026-11-26T09:00:00.250-05:00"
+        ]
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "run_at": {
+            "status": "ok",
+            "type": "timestamp",
+            "value": 1795701600250
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_args_parse_time_invalid_021",
+      "description": "args spec reports invalid_time on malformed timestamp arg",
+      "tags": [
+        "args:time",
+        "transform:parse_time",
+        "parse_error",
+        "match:args"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_06ARG0004",
+        "event": "conformance.args.types",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "sdk_template"
+        },
+        "match": {
+          "kind": "args",
+          "strings": [
+            "s=",
+            " i=",
+            " f=",
+            " b=",
+            " ts=",
+            " j=",
+            ""
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_06ARG0021",
+            "name": "s",
+            "from": {
+              "arg": 0
+            },
+            "type": "string",
+            "semantic": "unknown"
+          },
+          {
+            "id": "fld_06ARG0022",
+            "name": "i",
+            "from": {
+              "arg": 1
+            },
+            "type": "int",
+            "semantic": "unknown"
+          },
+          {
+            "id": "fld_06ARG0023",
+            "name": "f",
+            "from": {
+              "arg": 2
+            },
+            "type": "float",
+            "semantic": "unknown"
+          },
+          {
+            "id": "fld_06ARG0024",
+            "name": "b",
+            "from": {
+              "arg": 3
+            },
+            "type": "bool",
+            "semantic": "unknown"
+          },
+          {
+            "id": "fld_06ARG0025",
+            "name": "ts",
+            "from": {
+              "arg": 4
+            },
+            "type": "timestamp",
+            "semantic": "unknown",
+            "transforms": [
+              {
+                "op": "parse_time",
+                "format": "unix_s"
+              }
+            ]
+          },
+          {
+            "id": "fld_06ARG0026",
+            "name": "j",
+            "from": {
+              "arg": 5
+            },
+            "type": "json",
+            "semantic": "unknown"
+          }
+        ],
+        "tests": [
+          {
+            "args": [
+              "ok",
+              7,
+              1.5,
+              true,
+              1795701600,
+              {
+                "a": [
+                  1,
+                  2
+                ]
+              }
+            ],
+            "expect": {
+              "s": "ok",
+              "i": 7,
+              "f": 1.5,
+              "b": true,
+              "ts": 1795701600000,
+              "j": {
+                "a": [
+                  1,
+                  2
+                ]
+              }
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "args",
+        "strings": [
+          "s=",
+          " i=",
+          " f=",
+          " b=",
+          " ts=",
+          " j=",
+          ""
+        ],
+        "args": [
+          "a",
+          1,
+          1,
+          true,
+          "not-unix",
+          {}
+        ]
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "s": {
+            "status": "ok",
+            "type": "string",
+            "value": "a"
+          },
+          "i": {
+            "status": "ok",
+            "type": "int",
+            "value": "1"
+          },
+          "f": {
+            "status": "ok",
+            "type": "float",
+            "value": "3ff0000000000000"
+          },
+          "b": {
+            "status": "ok",
+            "type": "bool",
+            "value": true
+          },
+          "ts": {
+            "status": "parse_error",
+            "code": "invalid_time"
+          },
+          "j": {
+            "status": "ok",
+            "type": "json",
+            "value": {}
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_args_unicode_preserved_022",
+      "description": "args matcher preserves U+00A0, U+3000, combining marks, and ZWJ emoji verbatim",
+      "tags": [
+        "args:unicode",
+        "unicode:nbsp",
+        "unicode:ideographic_space",
+        "unicode:combining",
+        "unicode:emoji",
+        "match:args"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_06ARG0002",
+        "event": "sdk.adjacent",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "sdk_template"
+        },
+        "match": {
+          "kind": "args",
+          "strings": [
+            "",
+            "",
+            ""
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_06ARG0011",
+            "name": "first",
+            "from": {
+              "arg": 0
+            },
+            "type": "string",
+            "semantic": "unknown"
+          },
+          {
+            "id": "fld_06ARG0012",
+            "name": "second",
+            "from": {
+              "arg": 1
+            },
+            "type": "int",
+            "semantic": "unknown"
+          }
+        ],
+        "tests": [
+          {
+            "args": [
+              "a",
+              1
+            ],
+            "expect": {
+              "first": "a",
+              "second": 1
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "args",
+        "strings": [
+          "",
+          "",
+          ""
+        ],
+        "args": [
+          "café 　👨‍👩‍👧‍👦",
+          7
+        ]
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "first": {
+            "status": "ok",
+            "type": "string",
+            "value": "café 　👨‍👩‍👧‍👦"
+          },
+          "second": {
+            "status": "ok",
+            "type": "int",
+            "value": "7"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_args_cast_json_string_023",
+      "description": "args spec parses JSON string arg via cast(to:json)",
+      "tags": [
+        "args:cast",
+        "transform:cast",
+        "type:json",
+        "match:args"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_06ARG0023",
+        "event": "webhook.recv",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "sdk_template"
+        },
+        "match": {
+          "kind": "args",
+          "strings": [
+            "body=",
+            ""
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_06ARG0054",
+            "name": "body",
+            "from": {
+              "arg": 0
+            },
+            "type": "json",
+            "semantic": "unknown",
+            "transforms": [
+              {
+                "op": "cast",
+                "to": "json"
+              }
+            ]
+          }
+        ],
+        "tests": [
+          {
+            "args": [
+              "{\"ev\":\"paid\"}"
+            ],
+            "expect": {
+              "body": {
+                "ev": "paid"
+              }
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "args",
+        "strings": [
+          "body=",
+          ""
+        ],
+        "args": [
+          "{\"ev\":\"refund\",\"cents\":500}"
+        ]
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "body": {
+            "status": "ok",
+            "type": "json",
+            "value": {
+              "ev": "refund",
+              "cents": 500
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_args_string_with_spaces_and_newlines_024",
+      "description": "args matcher captures strings containing spaces and newlines without scanning",
+      "tags": [
+        "args:basic",
+        "boundary:multiline",
+        "match:args"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_06ARG0002",
+        "event": "sdk.adjacent",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "sdk_template"
+        },
+        "match": {
+          "kind": "args",
+          "strings": [
+            "",
+            "",
+            ""
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_06ARG0011",
+            "name": "first",
+            "from": {
+              "arg": 0
+            },
+            "type": "string",
+            "semantic": "unknown"
+          },
+          {
+            "id": "fld_06ARG0012",
+            "name": "second",
+            "from": {
+              "arg": 1
+            },
+            "type": "int",
+            "semantic": "unknown"
+          }
+        ],
+        "tests": [
+          {
+            "args": [
+              "a",
+              1
+            ],
+            "expect": {
+              "first": "a",
+              "second": 1
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "args",
+        "strings": [
+          "",
+          "",
+          ""
+        ],
+        "args": [
+          "line one\nline two\ttab",
+          0
+        ]
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "first": {
+            "status": "ok",
+            "type": "string",
+            "value": "line one\nline two\ttab"
+          },
+          "second": {
+            "status": "ok",
+            "type": "int",
+            "value": "0"
+          }
+        }
+      }
+    },
+    {
+      "id": "vec_args_negative_scale_025",
+      "description": "args matcher handles negative integer in scale div:100 with exact IEEE-754 bits",
+      "tags": [
+        "args:basic",
+        "transform:scale",
+        "ieee754",
+        "boundary:negative",
+        "match:args"
+      ],
+      "sql": {
+        "supported": true
+      },
+      "spec": {
+        "spec_version": 1,
+        "template": "tpl_06ARG0001",
+        "event": "order.paid",
+        "version": 1,
+        "status": "active",
+        "origin": "agent",
+        "source": {
+          "kind": "sdk_template",
+          "repo": "github.com/acme/shop",
+          "path": "src/orders/checkout.ts",
+          "line": 142,
+          "logger": "bind.log"
+        },
+        "match": {
+          "kind": "args",
+          "strings": [
+            "",
+            " paid ",
+            " in ",
+            "ms"
+          ]
+        },
+        "fields": [
+          {
+            "id": "fld_06ARG0001",
+            "name": "order_id",
+            "from": {
+              "arg": 0
+            },
+            "type": "string",
+            "semantic": "id.order",
+            "entity": "order"
+          },
+          {
+            "id": "fld_06ARG0002",
+            "name": "amount_usd",
+            "from": {
+              "arg": 1
+            },
+            "type": "float",
+            "semantic": "money",
+            "unit": "USD",
+            "transforms": [
+              {
+                "op": "scale",
+                "div": 100
+              }
+            ]
+          },
+          {
+            "id": "fld_06ARG0003",
+            "name": "duration_ms",
+            "from": {
+              "arg": 2
+            },
+            "type": "int",
+            "semantic": "duration",
+            "unit": "ms"
+          }
+        ],
+        "tests": [
+          {
+            "args": [
+              "ord_8f2a",
+              1999,
+              212
+            ],
+            "expect": {
+              "order_id": "ord_8f2a",
+              "amount_usd": 19.99,
+              "duration_ms": 212
+            }
+          }
+        ]
+      },
+      "input": {
+        "kind": "args",
+        "strings": [
+          "",
+          " paid ",
+          " in ",
+          "ms"
+        ],
+        "args": [
+          "ord_neg",
+          -1999,
+          5
+        ]
+      },
+      "expected": {
+        "matched": true,
+        "fields": {
+          "order_id": {
+            "status": "ok",
+            "type": "string",
+            "value": "ord_neg"
+          },
+          "amount_usd": {
+            "status": "ok",
+            "type": "float",
+            "value": "c033fd70a3d70a3d"
+          },
+          "duration_ms": {
+            "status": "ok",
+            "type": "int",
+            "value": "5"
+          }
+        }
+      }
+    }
+  ]
+}

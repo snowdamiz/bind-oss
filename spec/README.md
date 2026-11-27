@@ -1,6 +1,6 @@
 # Bind Parser Specification (`spec/`)
 
-JSON Schema (Draft 2020-12) definitions and verification fixtures for Bind's declarative parser artifact (`ParserSpec`) and event registry entry (`EventType`).
+JSON Schema (Draft 2020-12) definitions, verification fixtures, and deterministic golden conformance vectors for Bind's declarative parser artifact (`ParserSpec`) and event registry entry (`EventType`).
 
 ## Schemas
 
@@ -10,11 +10,17 @@ JSON Schema (Draft 2020-12) definitions and verification fixtures for Bind's dec
 | [`schemas/parser-spec.schema.json`](./schemas/parser-spec.schema.json) | `https://schemas.bind.dev/v1/parser-spec.schema.json` | Declarative, versioned `ParserSpec` covering `text`, `object` (with optional `message` sub-pattern), and `args` matchers, field bindings, transforms, provenance, and positive test cases. |
 | [`schemas/event-type.schema.json`](./schemas/event-type.schema.json) | `https://schemas.bind.dev/v1/event-type.schema.json` | Typed `EventType` registry schema with ClickHouse storage slot type-compatibility checks and template membership. |
 
+## Golden Conformance Vectors (`vectors/`)
+
+See [`vectors/README.md`](./vectors/README.md) for the full self-contained conformance vector format, canonical result encodings (decimal int64 strings, 64-bit IEEE-754 float hex, integer epoch milliseconds, UTF-8 byte strings), scanner hole boundary rules, redaction token catalog, SQL refusal tags (`sql:refuse` / `sql:refuse:json_hole`), and documented semantics.
+
 ## Verification
 
 ```bash
 npm --prefix spec install --ignore-scripts
 npm --prefix spec test
+npm --prefix spec run validate:vectors
+npm --prefix spec run check:vectors
 ```
 
 Validate individual YAML or JSON files with the CLI:
@@ -52,5 +58,5 @@ JSON Schema enforces **static, single-document structural validity**. Cross-refe
 
 - **Cross-references inside a `ParserSpec`**: every `from.hole` exists in `match.segments` or `match.message.segments`; hole names are unique; every `from.arg < match.strings.length - 1`; `match.message.path` and `from.path` align with `match.shape`; `fields[].id` and `fields[].name` are unique; `tests[].expect` keys match declared field names and types.
 - **Lexer & segment grammar**: `until` must be followed by a literal segment; `rest` must be the final segment; adjacent literals coalesced in canonical form; prefix-tree tie-break ordering.
-- **Transform pipeline semantics**: input/output type compatibility across chained transforms; single IEEE 754 double arithmetic for `scale`; Stage 3 default PII redaction transforms; replacement token handling across hole classes (`<email:tag>` vs mask tokens); SQL compiler refusal of `json` holes.
+- **Transform pipeline semantics**: input/output type compatibility across chained transforms; single IEEE 754 double arithmetic for `scale`; PII redaction transforms; replacement token handling across hole classes (`<email:tag>` vs mask tokens); SQL compiler refusal of `json` holes.
 - **Registry & lifecycle state**: `EventType` slot uniqueness across live fields and no slot reuse within retention; `actor`/`account` assignment policy; field ID immutability on rename vs new field ID on type/unit change; monotonic `version` per template; `origin: user` edit locks; `valid_from_commit` ancestry resolution; publish-gate execution of `tests[]` in Mesh and ClickHouse SQL.
